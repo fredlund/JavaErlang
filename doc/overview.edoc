@@ -1,0 +1,272 @@
+@title Welcome to the JavaErlang interface.
+@author Lars-Ake Fredlund (lfredlund@fi.upm.es)
+@doc JavaErlang is a library that attempts to facilitate the
+communication between Java and Erlang nodes, implemented
+as an additional layer on top 
+of the JInterface Java interface.
+The library makes heavy use of the Java reflection capability,
+provided in the package java.lang.reflect.
+<p>
+The primary functionality is that the library can 
+automatically generate an Erlang module, from a Java class,
+containing functions corresponding to the constructors
+and methods of the Java class, and functions for accessing
+and modifying the attributes of the Java class.</p>
+<p>
+An example:<br/>
+```
+{ok,NodeId} = java:start_node(),
+java:acquire_class(NodeId,'java.lang.Integer'),
+Int10 = java_lang_Integer:'Integer'(NodeId,10),
+String10 = java_lang_Integer:toString(Int10).
+'''
+</p>
+<p>
+The above code starts a Java node, and establishes
+a connection to it. Then, the Java Integer class is
+translated into the Erlang module 'java_lang_Integer'.
+Next, a Java integer storing the value 10 is created,
+and finally a Java string representing "10" is returned.
+</p>
+<p>
+Alternatively, the above piece of code can be written
+more symbolically using calls to the java module as follows:<br/>
+```
+{ok,NodeId} = java:start_node(),
+Int10 = java:new(NodeId,'java.lang.Integer',[10]),
+String10 = java:call(Int10,toString,[]).
+'''
+Note that there is no need to call acquire_class to translate the
+Java class to an Erlang module, as this is taken care of automatically
+by the java:new (and java:call) functions.
+</p>
+
+<h2>Correspondance Between Java Classes and Erlang Modules</h2>
+The JavaErlang interface automatically maps each Java Class accessed
+to an Erlang module, compiles the Erlang module, and loads it.
+Although not strictly needed to use the interface, 
+it can be helpful to know that e.g.
+a Java class ``n1.n2.n3.c'' will translated to
+an Erlang module ``n1_n2_n3_c''.
+
+<h2>Java Values</h2>
+The Java null value is represented as the Erlang atom ``null'',
+the Java boolean values true and false are represented as the
+corresponding atoms ``true'' and ``false'',
+and integer-like types and floating-point-like types are
+represented as normal Erlang integers and floats. Arrays are
+constructed using the normal Erlang syntax for lists and strings.
+Values can be explicitely type cast using the notation
+``{Type,Value}''. For example, ``{short,5}'', ``{char,$a}'',
+``{{array,char,1},"Hello World"}''.
+Java one-dimensional arrays can also be constructed
+using the funcion ``java:list_to_array/3''.
+Examples:<br/>
+```
+> {ok,NodeId} = java:start_node().
+{ok,9231}
+> False = java:new(NodeId,'java.lang.Boolean',[false]).
+{object,0,9231}
+> HelloWorldString = java:new(NodeId,'java.lang.String',[java:list_to_array(NodeId,"Hello World!",char)]).
+{object,2,9231}
+> Zero = java:new(NodeId,'java.lang.Integer',[0]).     
+{object,3,9232}
+> java:call(Zero,intValue,[]).
+0
+> java:string_to_list(java:new(NodeId,'java.lang.String',[{{array,char,1},"Hello World"}])).
+"Hello World"
+> java:string_to_list(java:new(NodeId,'java.lang.String',["Hello World"])).
+"Hello World"
+'''
+<h2>Boxing and Unboxing</h2>
+Boxing and unboxing of primitive method and constructor arguments is done by 
+the library. Examples:
+```
+> {ok,NodeId} = java:start_node().
+{ok,9231}
+> Zero = java:new(NodeId,'java.lang.Integer',[0]).     
+{object,3,9232}
+> java:call(Zero,equals,[0]).
+true
+> java:call(Zero,equals,[2]).
+false
+> java:call(Zero,equals,[0.0]).
+false
+'''
+<p>
+Primitive values returned from a method are represented as normal Erlang
+values, whereas objects are returned as objects.
+```
+> {ok,N} = java:start_node().
+{ok,923}
+> Zero = java:new(N,'java.lang.Integer',[0]).     
+{object,3,923}
+> java:call(Zero,intValue,[]).
+0
+'''
+Since intValue returnes an int, a primitive type, the library lets
+the corresponding Erlang function return an Erlang integer.
+</p>
+<h2>Java Exceptions</h2>
+A Java exceptions Exc is manifest as an Erlang exception
+{java_exception,Exc}. Example:<br/>
+```
+  {ok,NodeId} = java:start_node(),
+  try java:new(NodeId,'hola',[])
+  catch {java_exception,Exc} ->
+      io:format("Exception is of type ~p~n",[java:getClassName(Exc)]),
+      java:print_stacktrace(Exc)
+  end.
+'''
+The option ``java_exception_as_value'' (which can be passed
+as an argument to ``java:start_node/1'') determines whether Java exceptions are
+indeed returned as exceptions (the default), as shown in code excerpt above,
+or whether they are returned as Erlang values (when the option is set
+to true).
+
+<h2>Creating Java Objects</h2>
+An object of class "c" can be
+created by calling ``java:new(c,Args)'',
+where ``Args'' is the list
+of arguments of the constructor.
+
+An example:<br/>
+```
+{ok,NodeId} = java:start_node(),
+I2 = java:new(NodeId,'java.lang.Integer',[2]).
+'''
+
+Alternatively, the Erlang module corresponding to a Java class
+provides functions to directly call the constructor.
+An example:<br/>
+```
+{ok,NodeId} = java:start_node(),
+java:acquire_class(NodeId,'java.lang.Integer'),
+I2 = java_lang_Integer:'Integer'(NodeId,2).
+'''
+
+<h2>Calling Java Instance and Static Methods</h2>
+A public method "m" of a Java object "o" of class "c" can be
+called using the function call
+``java:call(o,m,Args)'' (or ``java:get_static(c,m,Args)'' if it is 
+a static, i.e., class method) where ``Args'' is the list
+of arguments of the method.
+
+An example:<br/>
+```
+{ok,NodeId} = java:start_node(),
+I2 = java:new(NodeId,'java.lang.Integer',[2]),
+I2b = java:new(NodeId,'java.lang.Integer',[2]),
+true = java:call(I2,equals,[I2b]).
+'''
+
+This code excerpt creates two Java Integers (of value 2),
+and checks that the method ``equals'' returns true.
+
+Alternatively, the Erlang module corresponding to a Java class
+provides a function for each public instance or method;
+these methods can be called directly. An example:<br/>
+```
+{ok,NodeId} = java:start_node(),
+I2 = java:new(NodeId,'java.lang.Integer',[2]),
+I2b = java:new(NodeId,'java.lang.Integer',[2]),
+true = 'java_lang_Integer':equals(I2,[I2b]).
+'''
+
+<h2>Accessing Java fields</h2>
+A public field "f" of a Java object "o" of class "c" can be
+accessed using the function call
+``java:get(o,f)'' (or ``java:get_static(c,f)'' if it is a class field).
+Similarly, the call ``java:set(o,f,v)'' is used to assign the value
+``v'' to the field (and ``java:set_static(o,f,v)'' is used
+for class fields).
+
+An example:<br/>
+```
+{ok,NodeId} = java:start_node(),
+Err = java:get_static(NodeId,'java.lang.System',err),
+java:call(Err,println,[{int,2}]).
+'''
+This code excerpt retrieves the Java standard error stream from
+the field ``err'' in ``java.lang.System'', and prints 
+the integer 2.
+
+Alternatively, the Erlang module corresponding to a Java class
+provides the functions ``get_f'' and ``set_f'' for accessing and
+modifying a field ``f''; these functions can be called directly
+from Erlang code.
+
+<h2>Visibility of Java Constructor, Methods and Fields</h2>
+Currently only the public methods and fields of Java classes
+are accessible. It is likely that in the future we will
+provide an option to permit calling methods that are 
+``protected'', i.e., methods callable only from inside a Java package.
+
+<h2>Java Nodes</h2>
+A Java node is created by calling the function
+java:start_node/0 or java:start_node/1.
+The JavaErlang interface supports communication
+between one Erlang node and multiple Java nodes, 
+i.e., java:start_node can be called multiple times
+from the same Erlang process, and the resulting Java
+nodes are completely separated. Naturally, a Java object residing on
+one Java node should not be communicated to a different Java
+node.
+<h2>Architecture</h2>
+A Java node identifier is an Erlang node (global) resource. That
+is, an Erlang process P1 can pass a Java node identifier to another 
+Erlang process P2, and then P2 can also call Java code on 
+that Java node.
+<h3>Java Threads</h3>
+There is a 1-1 mapping between Erlang processes and Java threads.
+That is, an Erlang process making a call to Java 
+will not block because another Erlang
+process is making a Java call.
+<h3>Timeouts</h3>
+If the Java code fails to respond to a call from Erlang,
+and a time limit has been set, 
+an exception ``java_timeout'' will be thrown.
+Note that timeouts can be set on a per-process, per-call basis, using 
+the function ``set_timeout/1''.
+<h2>Licencing</h2>
+The source code for the JavaErlang library is generally licensed 
+under the modified 3-clause BSD software license. See individual files
+for detailed licensing conditions or exceptions.
+<h2>Limitations</h2>
+The library has a number of practical limitations:
+<ul>
+<li>
+Performing white box testing is currently difficult; only
+the public methods, constructors and attributes of classes are 
+callable from Erlang. However, the capability to
+call non-public methods should be easy to implement
+(either using the new Java 7 approach, or by changing "permissions"
+using reflection).
+</li>
+<li>
+No garbage collection of Java objects created or passed to Erlang.
+The only manner in which to enable such Java objects to be
+potentially garbage collected is
+to call the ``reset/0'' function.
+</li>
+<li> Speed: the scheme used for communicating between Erlang and
+Java is clearly suboptimal. Many aspects are 
+trivial to improve: use integer tags instead of atom tags,
+keep an object cache on the Erlang side, etc.
+</li>
+<li>There is no support for implementing a Java object using 
+Erlang code (this would be occasionally be very useful when calling
+methods that use a callback communication style).
+It would be possible to provide partial support for this using
+Java's "proxy" reflection feature, or using
+one of the byte code instrumentation packages for Java.
+</li>
+<li>
+Inability to use the calling context of a Java call to determine
+which Java method to invoke.
+</li>
+</ul>
+@end
+
+
+

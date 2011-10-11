@@ -1,0 +1,90 @@
+#!/bin/bash
+
+confirm() {
+	while true
+	do
+		read CONFIRM
+		case $CONFIRM in
+			y|Y|YES|yes|Yes) break ;;
+			n|N|no|NO|No)
+				echo Aborting
+				exit
+				;;
+			*) echo Please enter only y or n
+		esac
+	done
+}
+
+if [ $# -ne 3 ]
+then
+	echo "Usage: $0 <compiled-java_erlang-dir> <target-dir> <version>"
+	exit 0
+fi
+
+# Source distribution
+SRC=$1
+
+# Target
+TRG=$2
+
+# Version
+VER=$3
+
+if [ ! -d $SRC ]
+then
+	echo "$SRC does not exist, aborting!"
+	exit 0
+fi
+
+TRGDIR="$TRG/java_erlang_version_$VER"
+echo "Will assemble release in $TRGDIR"
+
+if [ -d $TRGDIR ]
+then 
+	echo -n "Warning: $TRGDIR already exists, overwrite [y/N]? "
+	confirm
+	rm -rf $TRGDIR
+fi
+
+mkdir -p $TRGDIR
+if [ ! -d $TRGDIR ]
+then 
+	echo "Could not create $TRGDIR, aborting!"
+	exit 1
+fi
+
+pushd $SRC
+ABSSRCDIR=`pwd`
+popd
+
+pushd $TRGDIR
+ABSTRGDIR=`pwd`
+TRGDIR2=java_erlang-$VER
+mkdir $TRGDIR2
+pushd $TRGDIR2
+ABSTRGDIR2=`pwd`
+
+mkdir ebin
+mkdir priv
+mkdir tests
+mkdir tests/ebin
+mkdir doc
+
+cp ${ABSSRCDIR}/ebin/java.beam ebin
+cp ${ABSSRCDIR}/ebin/translate_java_to_erlang.beam ebin
+cp ${ABSSRCDIR}/ebin/tests.beam tests/ebin
+cp ${ABSSRCDIR}/JavaErlang.jar priv
+
+pushd $ABSSRCDIR/doc/doc
+find . | grep -v '/\.svn' | cpio -dump $ABSTRGDIR2/doc
+popd
+
+popd
+
+cp $ABSSRCDIR/README .
+cp $ABSSRCDIR/LICENSING .
+cp $ABSSRCDIR/NEWS .
+cp $ABSSRCDIR/bininst/INSTALLATION .
+cp $ABSSRCDIR/ebin/java_erlang_install.beam .
+
+echo "Done!"

@@ -1,0 +1,13 @@
+JavaErlang is a library that attempts to facilitate the communication
+between Java and Erlang nodes, implemented as an additional layer on
+top of the JInterface Java interface.
+
+Consult the edoc documentation for more information regarding the
+library. Some simple eunit tests for the library are available
+in src/tests.erl, and src/hashset_test.erl illustrates how to
+test a Java library (java.util.HashSet) using JavaErlang 
+and the Quviq QuickCheck tool (www.quviq.org).
+
+
+
+

@@ -1,0 +1,73 @@
+JAVA_ERLANG_VERSION = @PACKAGE_VERSION@
+JINTERFACE_LIB_DIR = @ERLANG_LIB_DIR_jinterface@
+
+OTPERLANG=$(JINTERFACE_LIB_DIR)/priv/OtpErlang.jar
+
+SOURCES = $(notdir $(wildcard src/*.erl))
+BEAMS = $(patsubst %.erl,ebin/%.beam,$(SOURCES))
+HTMLS = $(patsubst %.erl,doc/%.html,$(SOURCES))
+
+EFLAGS = +debug_info -D JAVA_ERLANG_VERSION=\"$(JAVA_ERLANG_VERSION)\"
+# For debugging
+# EFLAGS = +debug_info -Ddebug -D JAVA_ERLANG_VERSION=\"$(JAVA_ERLANG_VERSION)\"
+
+JAR = JavaErlang.jar
+CLASSES = classes/javaErlang/JavaErlang.class classes/javaErlang/testing/Test.class classes/javaErlang/testing/Test2.class 
+DOCDIR=doc
+
+tool: ebin classes $(JAR) $(BEAMS) 
+
+$(JAR): $(CLASSES)
+	jar cf JavaErlang.jar -C classes javaErlang
+
+ebin/%.beam: src/%.erl
+	erlc $(EFLAGS) -o ebin $<
+
+classes/javaErlang/JavaErlang.class: java/JavaErlang.java
+	javac -d classes -cp $(OTPERLANG) java/JavaErlang.java
+
+classes/javaErlang/testing/Test.class: java/Test.java
+	javac -d classes java/Test.java
+
+classes/javaErlang/testing/Test2.class: java/Test2.java
+	javac -d classes java/Test2.java
+
+ebin:
+	mkdir -p ebin
+
+classes:
+	mkdir -p classes
+
+clean:
+	rm -rf ebin/* classes/* Makefile doc/doc
+
+dialyzer: 
+	dialyzer ebin/*beam
+
+docs:
+	make edoc
+
+edoc: 
+	mkdir -p doc/doc
+	cp doc/overview.edoc doc/doc
+	erl -noshell -run edoc_run files '["src/java.erl"]' '[{sort_functions,false},{dir,"doc/doc"}]'
+
+$(DOCDIR)/%.html: %.erl
+	erl -noshell -run edoc_run file '"$<"' '[{sort_functions,false},{dir,"$(DOCDIR)"}]'
+
+release: tool docs
+	@ scripts/mkrelease "." release $(JAVA_ERLANG_VERSION)
+
+release_nobuild:
+	@ scripts/mkrelease "." release $(JAVA_ERLANG_VERSION)
+
+publish:
+	make release
+	(cd release; zip -r java_erlang-$(JAVA_ERLANG_VERSION).zip "java_erlang_version_$(JAVA_ERLANG_VERSION)")
+
+install: release
+	echo "Installing java_erlang-$(JAVA_ERLANG_VERSION) into $(ERLANG_INSTALL_LIB_DIR)"
+	cp -r release/mcerlang-$(JAVA_ERLANG_VERSION) $(ERLANG_INSTALL_LIB_DIR)
+
+
+
