@@ -161,12 +161,13 @@ not_exception(Call,{java_exception,Exc}) ->
 not_exception(_,_) ->
   true.
 
-print_value(Object={object,_,_Obj}) ->
-  io_lib:format("~p : ~p",[Object,java:getSimpleClassName(Object)]);
 print_value({java_exception,Obj}) ->
   io_lib:format("exception ~p",[java:getSimpleClassName(Obj)]);
 print_value(Object) ->
-  io_lib:format("~p",[Object]).
+  case java:is_object_ref(Object) of
+    true -> io_lib:format("~p : ~p",[Object,java:getSimpleClassName(Object)]);
+    false -> io_lib:format("~p",[Object])
+  end.
 
 %% @private
 node_id({ok,NodeId}) ->
