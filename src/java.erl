@@ -185,6 +185,14 @@ start_node() ->
 %% Java is started.
 %% Returns a "Java library node identifier" (not a normal
 %% Erlang node identifier).
+%% To make your Java classes (and Jar files) visible to the library
+%% the option ``add_to_java_classpath'' should be provided to
+%% ``java:start_node/1''. An example:<br/>
+%% ```
+%% {ok,NodeId} = java:start_node([{add_to_java_classpath,["classes"]}]).
+%% '''
+%% Adds the directory ``classes''
+%% to the classpath of the started Java interpreter.
 %%
 -spec start_node([option()]) -> {ok,node_id()} | {error,any()}.
 start_node(UserOptions) ->
