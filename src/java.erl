@@ -1544,7 +1544,7 @@ get_options() ->
 %%
 -spec set_loglevel(Level::loglevel()) -> any().
 set_loglevel(Level) ->
-  level(Level),
+  user_level(Level),
   %% Warning. This is racy code.
   case ets:info(java_nodes) of
     undefined ->
