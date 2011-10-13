@@ -40,6 +40,16 @@ Note that there is no need to call acquire_class to translate the
 Java class to an Erlang module, as this is taken care of automatically
 by the java:new (and java:call) functions.
 </p>
+<p>
+To make your Java classes (and Jar files) visible to the library
+the option ``add_to_java_classpath'' should be provided to
+``java:start_node/1''. An example:<br/>
+```
+{ok,NodeId} = java:start_node([{add_to_java_classpath,["classes"]}]).
+'''
+This adds the directory ``classes''
+to the classpath of the started Java interpreter
+</p>
 
 <h2>Correspondance Between Java Classes and Erlang Modules</h2>
 The JavaErlang interface automatically maps each Java Class accessed
