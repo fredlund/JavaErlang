@@ -43,7 +43,6 @@
 %%
 
 -module(java).
-%%-compile(export_all).
 
 -record(node,
 	{node_name=void,node_pid=void,node_id=void,options,symbolic_name,
@@ -62,6 +61,7 @@
 -export([call/3,call/4,call_static/4,call_static/5]).
 -export([set_timeout/1]).
 -export([get/2,get_static/3,set/3,set_static/4]).
+-export([is_object_ref/1]).
 -export([array_to_list/1,string_to_list/1,list_to_string/2,list_to_array/3,convert/3]).
 -export([getClassName/1,getSimpleClassName/1,instanceof/2,is_subtype/3]).
 -export([print_stacktrace/1]).
@@ -893,6 +893,22 @@ get_value(ValueName,Default) ->
   end.
 
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+
+%% @doc
+%% Returns true if its argument is a Java object reference, false otherwise.
+-spec is_object_ref(any()) -> boolean().
+is_object_ref({object,_,_}) ->
+  true;
+is_object_ref({executable,_,_}) ->
+  true;
+is_object_ref({thread,_,_}) ->
+  true;
+is_object_ref(_) ->
+  false.
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 
 %% @doc
@@ -983,6 +999,7 @@ getSimpleClassName(NodeId,Obj) ->
 print_stacktrace(Exception) ->
   Err = get_static(node_id(Exception),'java.lang.System',err),
   call(Exception,printStackTrace,[Err]).
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
@@ -1483,11 +1500,6 @@ finalComponent(Atom) when is_list(Atom) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 
-
-is_object_ref({_,_,_}) ->
-  true;
-is_object_ref(_) ->
-  false.
 
 runs_on_windows() ->
   case os:type() of
