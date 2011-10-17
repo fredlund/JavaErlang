@@ -59,6 +59,14 @@ it can be helpful to know that e.g.
 a Java class ``n1.n2.n3.c'' will translated to
 an Erlang module ``n1_n2_n3_c''.
 
+The Erlang modules automatically generated from Java classes,
+are by default stored in the
+directory ``java_sources'' and compiled modules are stored
+in ``java_sources/ebin''. The locations of these directories
+can be changed using the function ``start_node/1''.
+After changing Java implementation, for instance, it
+is a good idea to clean up or remove these directories.
+
 <h2>Java Values</h2>
 The Java null value is represented as the Erlang atom ``null'',
 the Java boolean values true and false are represented as the
