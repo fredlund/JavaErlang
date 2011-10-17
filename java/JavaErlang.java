@@ -39,6 +39,7 @@ import java.security.ProtectionDomain;
 import java.security.CodeSource;
 import java.net.URL;
 import java.lang.management.ManagementFactory;  
+import java.io.File;
 
 public class JavaErlang {
     static volatile Map<RefEqualsObject,OtpErlangObject> toErlangMap;
@@ -832,16 +833,67 @@ public class JavaErlang {
     }
 
     static OtpErlangObject getClassLocation(OtpErlangObject n) {
+	String locationStr = "";
+	String className = ((OtpErlangAtom) n).atomValue();
+
 	try { 
-	    String className = ((OtpErlangAtom) n).atomValue();
 	    Class cl = findClass(className);
 	    ProtectionDomain d = cl.getProtectionDomain();
 	    CodeSource cs = d.getCodeSource();
 	    URL url = cs.getLocation();
-	    return new OtpErlangString(url.toString());
-	} catch (Throwable t) {
-	    return new OtpErlangString("");
+	    locationStr = url.toString();
+	} catch (Throwable t) {	};
+	
+	if (locationStr.startsWith("file:"))
+	    locationStr = locationStr.substring(5);
+	if (!locationStr.equals("")) {
+	    File fd = new File(locationStr);
+	    String extension = getExtension(locationStr);
+	    if (extension.equals(".jar") && fd.isFile() && fd.canRead()) {
+		return new OtpErlangString(locationStr);
+	    }
+
+	    if (fd.isDirectory()) {
+		locationStr = add_className(locationStr, className);
+
+		fd = new File(locationStr);
+		if (fd.isFile() && fd.canRead()) {
+		    return new OtpErlangString(locationStr);
+		}
+	    }
 	}
+	return new OtpErlangString("");
+    }
+
+    public static String add_className(String locationStr, String className) {
+	String separator = System.getProperty("file.separator");
+	if (locationStr.endsWith(separator)) 
+	    locationStr = locationStr.substring(0,locationStr.length()-1);
+	String[] classParts = className.split("\\.");	
+	String retvalue = locationStr;
+	for (String part : classParts) 
+	    retvalue = retvalue + separator + part;
+	return retvalue + ".class";
+    }
+
+    public static String getExtension(String s) {
+
+	String separator = System.getProperty("file.separator");
+	String filename;
+
+	// Remove the path upto the filename.
+	int lastSeparatorIndex = s.lastIndexOf(separator);
+	if (lastSeparatorIndex == -1) {
+	    filename = s;
+	} else {
+	    filename = s.substring(lastSeparatorIndex + 1);
+	}
+
+	// Remove the extension.
+	int extensionIndex = filename.lastIndexOf(".");
+	if (extensionIndex == -1) return "";
+
+	return filename.substring(extensionIndex);
     }
 
     static OtpErlangObject getConstructors(OtpErlangObject cmd) 

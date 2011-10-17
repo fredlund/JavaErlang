@@ -44,12 +44,18 @@
 
 -module(java).
 
+
+-include_lib("kernel/include/file.hrl").
+
 -record(node,
 	{node_name=void,node_pid=void,node_id=void,options,symbolic_name,
 	 unix_pid=void,ping_retry=5000,connect_timeout=1000,
 	 max_java_start_tries=3,call_timeout,num_start_tries=0}).
--record(class_info,{name,constructors,methods,classes,fields,class_location}).
+
+-include("classinfo.hrl").
+
 -record(class,{node,constructors,methods,get_fields,set_fields,name,module_name,class_location}).
+
 
 -export([init/1]).
 -export([start_node/0,start_node/1,nodes/0,symbolic_name/1]).
@@ -1147,7 +1153,7 @@ l(NodeId,ClassName) when is_atom(ClassName) ->
   ErlModule = to_erl_name(classname(ClassName,NodeId)),
   case code:is_loaded(ErlModule) of
     false ->
-      case my_load_file(ErlModule,NodeId) of
+      case my_load_file(ErlModule,ClassName,NodeId) of
 	{module,ModuleName} -> 
 	  FileName = code:which(ModuleName),
 	  true = is_list(FileName),
@@ -1175,7 +1181,7 @@ l(NodeId,ClassName) when is_atom(ClassName) ->
       class_bind(NodeId,ClassName,ErlModule)
   end.
 
-my_load_file(ErlModule,NodeId) when is_atom(ErlModule) ->
+my_load_file(ErlModule,ClassName,NodeId) when is_atom(ErlModule) ->
   java:format
     (debug,
      "~p: my_load_file(~p,~p)~n",
@@ -1198,9 +1204,67 @@ my_load_file(ErlModule,NodeId) when is_atom(ErlModule) ->
   java:format(debug,"Trying to load ~p~n",[LoadFile]),
   case code:load_abs(LoadFile) of
     Result={module,_} -> 
-      Result;
-    {error,_} -> 
-      code:load_file(ErlModule)
+      %% Check if the loaded file is still up-to-date
+      ClassLocation = ErlModule:class_location(),
+      CurrentClassLocation = javaCall(NodeId,getClassLocation,ClassName),
+      if
+	ClassLocation =/= CurrentClassLocation ->
+	  java:format
+	    (debug,
+	     "Class location has changed from ~s to ~s; recompiling...~n",
+	     [ClassLocation,CurrentClassLocation]),
+	  code:purge(ErlModule);
+	true ->
+	  CreationTime = {CreationDate,_} = ErlModule:creation_time(),
+	  java:format
+	    (debug,"File loaded; source was at ~s~nCreation time: ~p~n",
+	     [ClassLocation,CreationTime]),
+	  if
+	    ClassLocation=/="" ->
+	      case file:read_file_info(ClassLocation) of
+		{ok,FileInfo} -> 
+		  MTime = {MTimeDate,_} = FileInfo#file_info.mtime,
+		  io:format("MTime=~p~n",[MTime]),
+		  GregCreatDate =
+		    calendar:date_to_gregorian_days(CreationDate),
+		  GregCreatSeconds =
+		    calendar:datetime_to_gregorian_seconds(CreationTime),
+		  GregMTimeDate = 
+		    calendar:date_to_gregorian_days(MTimeDate),
+		  GregMTimeSeconds = 
+		    calendar:datetime_to_gregorian_seconds(MTime),
+		  if
+		    (GregCreatDate > GregMTimeDate) orelse
+		    ((GregCreatDate == GregMTimeDate) andalso
+		     (GregCreatSeconds >= GregMTimeSeconds)) ->
+		      java:format
+			(debug,
+			 "Erlang module up-to-date~n",
+			 []),
+		      Result;
+		    true ->
+		      java:format
+			(debug,
+			 "Source file has changed at ~p; have to recompile~n",
+			 [MTime]),
+		      code:purge(ErlModule)
+		  end;
+		true ->
+		  java:format
+		    (debug,
+		     "Source file not found; we are going to recompile ~s "++
+		     "which should fail~n",
+		     [ClassLocation]),
+		  code:purge(ErlModule)
+	      end;
+	    true -> Result
+	  end
+	end;
+    Other ->
+      java:format
+	(debug,
+	 "Loading of ~p failed~n",[LoadFile]),
+      Other
   end.
 
 c(NodeId,ClassName) when is_atom(ClassName) ->
@@ -1313,7 +1377,7 @@ field_set(NodeId,Class,FieldName) ->
 
 %% @private
 get_class_info(NodeId,ObserverInPackage,ClassName) ->
-  ?LOG("Computing class info for class ~p~n",[ClassName]),
+  format(info,"Computing class info for class ~p~n",[ClassName]),
   Constructors =
     get_constructors(ClassName,NodeId,ObserverInPackage),
   Methods =
@@ -1322,10 +1386,11 @@ get_class_info(NodeId,ObserverInPackage,ClassName) ->
     get_classes(ClassName,NodeId,ObserverInPackage),
   Fields =
     get_fields(ClassName,NodeId,ObserverInPackage),
-  ?LOG("Found class info for class ~p~n",[ClassName]),
+  format(info,"Found class info for class ~p~n",[ClassName]),
+  ClassLocation = javaCall(NodeId,getClassLocation,ClassName),
   #class_info
 	{name=ClassName,
-	 class_location=javaCall(NodeId,getClassLocation,ClassName),
+	 class_location=ClassLocation,
 	 constructors=Constructors,
 	 methods=Methods,
 	 classes=Classes,

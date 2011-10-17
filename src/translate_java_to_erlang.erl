@@ -33,7 +33,8 @@
 
 -export([gen_java_erlang_module/2]).
 
--record(class_info,{name,constructors,methods,classes,fields,class_location}).
+-include("classinfo.hrl").
+
 -record(comp_info,{type,className,methodConstructor,methodFieldAccess,methodAccess,genMethodFun,methodFun,node_id}).
 
 -include("debug.hrl").
@@ -75,6 +76,12 @@ gen_java_erlang_module(NodeId,ClassName) when is_atom(ClassName) ->
   io:format(Fd,"-compile(export_all).~n",[]),
   io:format(Fd,"-record(class,{node,constructors,methods,get_fields,set_fields,name,module_name,class_location}).~n",[]),
   io:format(Fd,"~n",[]),
+  io:format
+    (Fd,"class_location() -> \"~s\".~n",
+     [ClassInfo#class_info.class_location]),
+  io:format
+    (Fd,"creation_time() -> ~p.~n~n",
+     [calendar:now_to_local_time(now())]),
   io:format(Fd,"bind(NodeId) ->~n",[]),
   {ConstBindings,ConstGenericFuns,ConstFuns} = 
     bind_class_constructors
