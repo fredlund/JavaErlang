@@ -1249,7 +1249,7 @@ my_load_file(ErlModule,ClassName,NodeId) when is_atom(ErlModule) ->
 			 [MTime]),
 		      code:purge(ErlModule)
 		  end;
-		true ->
+		_ ->
 		  java:format
 		    (debug,
 		     "Source file not found; we are going to recompile ~s "++
