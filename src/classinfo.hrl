@@ -1,0 +1,1 @@
+-record(class_info,{name,constructors,methods,classes,fields,class_location}).

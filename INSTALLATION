@@ -1,9 +1,8 @@
 To compile the JavaErlang library it normally suffices to execute 
 ``configure" and then ``make'' in the main directory.  In the following 
-we assume that JavaErlang is installed in the directory "~/JavaErlang", 
-and that you are using a UNIX based system:
+we assume that you are using a UNIX based system:
 
-$ cd ~/JavaErlang; ./configure; make
+$ ./configure; make
 
 ===============================================
 
@@ -12,7 +11,8 @@ Installation as a normal Erlang library:
 ===============================================
 
 As an alternative to including the path to the JavaErlang scripts in the
-PATH variable one can install JavaErlang as a normal Erlang
+PATH variable, and adding the path to generated JavaErlang.jar file in 
+the call to java:start_node/1, one can install JavaErlang as a normal Erlang
 library. This method will likely work much better for Windows
 installations of JavaErlang as well. 
 Steps:
@@ -21,7 +21,8 @@ Steps:
    make release
 
 2. Install JavaErlang as a library:
-   cd release/JavaErlang_version*
+   cd release/java_erlang_version*
+
    erl
    1> java_erlang_install:install().
 

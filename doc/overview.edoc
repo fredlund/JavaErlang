@@ -269,8 +269,7 @@ to call the ``reset/0'' function.
 </li>
 <li> Speed: the scheme used for communicating between Erlang and
 Java is clearly suboptimal. Many aspects are 
-trivial to improve: use integer tags instead of atom tags,
-keep an object cache on the Erlang side, etc.
+trivial to improve: use integer tags instead of atom tags, etc.
 </li>
 <li>There is no support for implementing a Java object using 
 Erlang code (this would be occasionally be very useful when calling
