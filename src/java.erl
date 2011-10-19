@@ -59,7 +59,7 @@
 
 -export([init/1]).
 -export([start_node/0,start_node/1,nodes/0,symbolic_name/1]).
--export([default_options/0,version/0]).
+-export([default_options/0,version/0]). 
 -export([free/1,reset/1,terminate/1,terminate_all/0]).
 -export([brutally_terminate/1,recreate_node/1]).
 -export([module/1,module/2,acquire_class/2,node_id/1]).

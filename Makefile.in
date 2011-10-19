@@ -4,7 +4,9 @@ JINTERFACE_LIB_DIR = @ERLANG_LIB_DIR_jinterface@
 OTPERLANG=$(JINTERFACE_LIB_DIR)/priv/OtpErlang.jar
 
 SOURCES = $(notdir $(wildcard src/*.erl))
+TESTSOURCES = $(notdir $(wildcard tests/*.erl))
 BEAMS = $(patsubst %.erl,ebin/%.beam,$(SOURCES))
+TESTBEAMS = $(patsubst %.erl,ebin/%.beam,$(TESTSOURCES))
 HTMLS = $(patsubst %.erl,doc/%.html,$(SOURCES))
 
 EFLAGS = +debug_info -D JAVA_ERLANG_VERSION=\"$(JAVA_ERLANG_VERSION)\"
@@ -15,22 +17,22 @@ JAR = JavaErlang.jar
 CLASSES = classes/javaErlang/JavaErlang.class classes/javaErlang/testing/Test.class classes/javaErlang/testing/Test2.class 
 DOCDIR=doc
 
-tool: ebin classes $(JAR) $(BEAMS) 
+tool: ebin classes $(JAR) $(BEAMS) $(TESTBEAMS)
 
 $(JAR): $(CLASSES)
 	jar cf JavaErlang.jar -C classes javaErlang
 
-ebin/%.beam: src/%.erl
+ebin/%.beam: $(SOURCES) $(TESTSOURCES)
 	erlc $(EFLAGS) -o ebin $<
 
-classes/javaErlang/JavaErlang.class: java/JavaErlang.java
-	javac -d classes -cp $(OTPERLANG) java/JavaErlang.java
+classes/javaErlang/JavaErlang.class: java/javaErlang/JavaErlang.java
+	$(JAVA_HOME)/javac -d classes -cp $(OTPERLANG) java/javaErlang/JavaErlang.java
 
-classes/javaErlang/testing/Test.class: java/Test.java
-	javac -d classes java/Test.java
+classes/javaErlang/testing/Test.class: java/javaErlang/testing/Test.java
+	$(JAVA_HOME)/javac -d classes java/javaErlang/testing/Test.java
 
-classes/javaErlang/testing/Test2.class: java/Test2.java
-	javac -d classes java/Test2.java
+classes/javaErlang/testing/Test2.class: java/javaErlang/testing/Test2.java
+	$(JAVA_HOME)/javac -d classes java/javaErlang/testing/Test2.java
 
 ebin:
 	mkdir -p ebin
