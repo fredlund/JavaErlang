@@ -1224,7 +1224,6 @@ my_load_file(ErlModule,ClassName,NodeId) when is_atom(ErlModule) ->
 	      case file:read_file_info(ClassLocation) of
 		{ok,FileInfo} -> 
 		  MTime = {MTimeDate,_} = FileInfo#file_info.mtime,
-		  io:format("MTime=~p~n",[MTime]),
 		  GregCreatDate =
 		    calendar:date_to_gregorian_days(CreationDate),
 		  GregCreatSeconds =
