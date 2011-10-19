@@ -1,0 +1,9 @@
+*.beam
+*.class
+.project
+.classpath
+.settings
+Makefile
+JavaErlang.jar
+config.*
+
