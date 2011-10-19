@@ -68,6 +68,7 @@ import com.ericsson.otp.erlang.OtpMbox;
 import com.ericsson.otp.erlang.OtpNode;
 import com.ericsson.otp.erlang.OtpNodeStatus;
 
+@SuppressWarnings("rawtypes")
 public class JavaErlang {
     static volatile Map<RefEqualsObject, OtpErlangObject> toErlangMap;
     static volatile Map<OtpErlangObject, Object> fromErlangMap;
@@ -1192,6 +1193,7 @@ public class JavaErlang {
                 || value instanceof OtpErlangDouble;
     }
 
+    @SuppressWarnings("unchecked")
     static boolean is_acceptable_as_argument(final OtpErlangObject value,
             final Class type) throws Exception {
         Object obj;
@@ -1308,7 +1310,6 @@ class ThreadMsgHandler implements Runnable {
         } catch (final Exception exc) {
             exc.printStackTrace();
         }
-
     }
 
     void do_receive() throws Exception {
@@ -1383,6 +1384,7 @@ class ThreadMsgHandler implements Runnable {
         }
     }
 
+    @SuppressWarnings("rawtypes")
     OtpErlangObject array_to_list(final OtpErlangObject value) throws Exception {
         final Object objs = JavaErlang.java_value_from_erlang(value);
         final Class cl = objs.getClass();
@@ -1395,6 +1397,7 @@ class ThreadMsgHandler implements Runnable {
         return new OtpErlangList(objects);
     }
 
+    @SuppressWarnings("rawtypes")
     OtpErlangObject list_to_array(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final OtpErlangObject type = t.elementAt(0);
@@ -1416,6 +1419,7 @@ class ThreadMsgHandler implements Runnable {
         }
     }
 
+    @SuppressWarnings("rawtypes")
     OtpErlangObject instof(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final Object obj = JavaErlang.java_value_from_erlang(t.elementAt(0));
@@ -1424,6 +1428,7 @@ class ThreadMsgHandler implements Runnable {
         return new OtpErlangBoolean(cl.isInstance(obj));
     }
 
+    @SuppressWarnings("rawtypes")
     OtpErlangObject convert(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final String type = ((OtpErlangAtom) t.elementAt(0)).atomValue();
@@ -1489,6 +1494,7 @@ class ThreadMsgHandler implements Runnable {
         return JavaErlang.map_to_erlang(result, resultClass);
     }
 
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     OtpErlangObject is_subtype(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final String className1 = ((OtpErlangAtom) t.elementAt(0)).atomValue();
@@ -1498,12 +1504,14 @@ class ThreadMsgHandler implements Runnable {
         return new OtpErlangBoolean(cl2.isAssignableFrom(cl1));
     }
 
+    @SuppressWarnings("rawtypes")
     OtpErlangObject getClassName(final OtpErlangObject cmd) throws Exception {
         final Object obj = JavaErlang.java_value_from_erlang(cmd);
         final Class cl = obj.getClass();
         return new OtpErlangAtom(cl.getName());
     }
 
+    @SuppressWarnings("rawtypes")
     OtpErlangObject getSimpleClassName(final OtpErlangObject cmd)
             throws Exception {
         final Object obj = JavaErlang.java_value_from_erlang(cmd);
@@ -1529,6 +1537,7 @@ class ThreadMsgHandler implements Runnable {
         return JavaErlang.map_to_erlang_void();
     }
 
+    @SuppressWarnings("rawtypes")
     OtpErlangObject call_constructor(final OtpErlangObject cmd)
             throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
