@@ -1,12 +1,16 @@
 JAVA_ERLANG_VERSION = @PACKAGE_VERSION@
 JINTERFACE_LIB_DIR = @ERLANG_LIB_DIR_jinterface@
 
+# Try to determine the location of the Java compiler if JAVA_HOME is not set
+ifeq ($(JAVA_HOME),)
+	JAVA_HOME=$(shell readlink -f /usr/bin/javac | sed "s:bin/javac::")
+endif
+
 OTPERLANG=$(JINTERFACE_LIB_DIR)/priv/OtpErlang.jar
 
 SOURCES = $(notdir $(wildcard src/*.erl))
 TESTSOURCES = $(notdir $(wildcard tests/*.erl))
 BEAMS = $(patsubst %.erl,ebin/%.beam,$(SOURCES))
-TESTBEAMS = $(patsubst %.erl,ebin/%.beam,$(TESTSOURCES))
 HTMLS = $(patsubst %.erl,doc/%.html,$(SOURCES))
 
 EFLAGS = +debug_info -D JAVA_ERLANG_VERSION=\"$(JAVA_ERLANG_VERSION)\"
@@ -17,22 +21,27 @@ JAR = JavaErlang.jar
 CLASSES = classes/javaErlang/JavaErlang.class classes/javaErlang/testing/Test.class classes/javaErlang/testing/Test2.class 
 DOCDIR=doc
 
-tool: ebin classes $(JAR) $(BEAMS) $(TESTBEAMS)
+tool: ebin classes $(JAR) $(BEAMS)
+
+qctest: ebin/hashset_test.ebin
+
+ebin/hashset_test.ebin: tests/hashset_test.erl
+	erlc $(EFLAGS) -o ebin tests/hashset_test.erl
 
 $(JAR): $(CLASSES)
 	jar cf JavaErlang.jar -C classes javaErlang
 
-ebin/%.beam: $(SOURCES) $(TESTSOURCES)
+ebin/%.beam: src/%.erl
 	erlc $(EFLAGS) -o ebin $<
 
 classes/javaErlang/JavaErlang.class: java/javaErlang/JavaErlang.java
-	$(JAVA_HOME)/javac -d classes -cp $(OTPERLANG) java/javaErlang/JavaErlang.java
+	$(JAVA_HOME)/bin/javac -d classes -cp $(OTPERLANG) java/javaErlang/JavaErlang.java
 
 classes/javaErlang/testing/Test.class: java/javaErlang/testing/Test.java
-	$(JAVA_HOME)/javac -d classes java/javaErlang/testing/Test.java
+	$(JAVA_HOME)/bin/javac -d classes java/javaErlang/testing/Test.java
 
 classes/javaErlang/testing/Test2.class: java/javaErlang/testing/Test2.java
-	$(JAVA_HOME)/javac -d classes java/javaErlang/testing/Test2.java
+	$(JAVA_HOME)/bin/javac -d classes java/javaErlang/testing/Test2.java
 
 ebin:
 	mkdir -p ebin
