@@ -36,7 +36,6 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
@@ -47,8 +46,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import com.ericsson.otp.erlang.OtpErlangAtom;
 import com.ericsson.otp.erlang.OtpErlangBoolean;
@@ -66,49 +63,58 @@ import com.ericsson.otp.erlang.OtpErlangString;
 import com.ericsson.otp.erlang.OtpErlangTuple;
 import com.ericsson.otp.erlang.OtpMbox;
 import com.ericsson.otp.erlang.OtpNode;
-import com.ericsson.otp.erlang.OtpNodeStatus;
 
 @SuppressWarnings("rawtypes")
 public class JavaErlang {
-    static volatile Map<RefEqualsObject, OtpErlangObject> toErlangMap;
-    static volatile Map<OtpErlangObject, Object> fromErlangMap;
-    static volatile Map<Object, OtpErlangObject> accToErlangMap;
-    static volatile Map<OtpErlangObject, Object> accFromErlangMap;
-    static volatile Map<OtpErlangObject, ThreadMsgHandler> threadMap;
-    static volatile int objCounter = 0;
-    static volatile int accCounter = 0;
-    static volatile int threadCounter = 0;
+    volatile Map<RefEqualsObject, OtpErlangObject> toErlangMap;
+    volatile Map<OtpErlangObject, Object> fromErlangMap;
+    volatile Map<Object, OtpErlangObject> accToErlangMap;
+    volatile Map<OtpErlangObject, Object> accFromErlangMap;
+    volatile Map<OtpErlangObject, ThreadMsgHandler> threadMap;
+    volatile int objCounter = 0;
+    volatile int accCounter = 0;
+    volatile int threadCounter = 0;
 
-    static volatile OtpMbox msgs;
-    static volatile OtpErlangObject nodeIdentifier = null;
+    volatile OtpMbox msgs;
+    volatile OtpErlangObject nodeIdentifier = null;
     static volatile boolean verbose = false;
 
-    static boolean isConnected = false;
+    boolean isConnected = false;
 
     public static void main(final String args[]) {
-        try {
-            final String number = args[0];
-            if (args.length > 1) {
-                if (args[1].equals("-verbose")) {
-                    verbose = true;
-                } else {
-                    System.err.println("\rCannot understand argument "
-                            + args[1]);
-                    System.exit(-1);
-                }
+        final String number = args[0];
+        if (args.length > 1) {
+            if (args[1].equals("-verbose")) {
+                verbose = true;
+            } else {
+                System.err.println("\rCannot understand argument " + args[1]);
+                System.exit(-1);
             }
-            toErlangMap = new HashMap<RefEqualsObject, OtpErlangObject>();
-            fromErlangMap = new HashMap<OtpErlangObject, Object>();
-            accToErlangMap = new HashMap<Object, OtpErlangObject>();
-            accFromErlangMap = new HashMap<OtpErlangObject, Object>();
-            threadMap = new HashMap<OtpErlangObject, ThreadMsgHandler>();
-            final OtpNode node = new OtpNode("javaNode_" + number);
-            node.registerStatusHandler(new OtpStatusHandler());
+        }
+        try {
+            new JavaErlang(number).do_receive();
+        } catch (final Exception e) {
+            System.err
+                    .println("*** Unexpected exception failure in JavaErlang: "
+                            + e);
+            e.printStackTrace();
+        }
+
+    }
+
+    public JavaErlang(final String id) {
+        toErlangMap = new HashMap<RefEqualsObject, OtpErlangObject>();
+        fromErlangMap = new HashMap<OtpErlangObject, Object>();
+        accToErlangMap = new HashMap<Object, OtpErlangObject>();
+        accFromErlangMap = new HashMap<OtpErlangObject, Object>();
+        threadMap = new HashMap<OtpErlangObject, ThreadMsgHandler>();
+        try {
+            final OtpNode node = new OtpNode("javaNode_" + id);
+            node.registerStatusHandler(new OtpStatusHandler(nodeIdentifier));
             if (verbose) {
                 System.err.println("\rRegistered host " + node.node());
             }
             msgs = node.createMbox("javaNode");
-            do_receive();
         } catch (final Throwable e) {
             System.err
                     .println("*** Unexpected exception failure in JavaErlang: "
@@ -117,7 +123,7 @@ public class JavaErlang {
         }
     }
 
-    static void do_receive() throws Exception {
+    void do_receive() throws Exception {
         do {
             final OtpErlangObject msg = msgs.receive();
             if (verbose) {
@@ -142,13 +148,13 @@ public class JavaErlang {
         } while (true);
     }
 
-    public static void reply(final Object reply, final OtpErlangPid replyPid)
+    public void reply(final Object reply, final OtpErlangPid replyPid)
             throws Exception {
         // System.err.println("returning "+return_value(reply)+" to "+replyPid);
-        JavaErlang.msgs.send(replyPid, return_value(reply));
+        msgs.send(replyPid, return_value(reply));
     }
 
-    static void handle_nonthread_msg(final OtpErlangTuple t) throws Exception {
+    void handle_nonthread_msg(final OtpErlangTuple t) throws Exception {
         final String tag = ((OtpErlangAtom) t.elementAt(0)).atomValue();
         final OtpErlangObject argument = t.elementAt(1);
         final OtpErlangPid replyPid = (OtpErlangPid) t.elementAt(2);
@@ -164,8 +170,7 @@ public class JavaErlang {
                     nodeIdentifier = argument;
                 }
                 reply(makeErlangTuple(new OtpErlangAtom("connected"),
-                        JavaErlang.msgs.self(), new OtpErlangLong(intPid)),
-                        replyPid);
+                        msgs.self(), new OtpErlangLong(intPid)), replyPid);
                 isConnected = true;
             } else {
                 System.err.println("\nFirst message should be connect " + t);
@@ -186,7 +191,7 @@ public class JavaErlang {
         }
     }
 
-    static void handle_thread_msg(final OtpErlangTuple t) throws Exception {
+    void handle_thread_msg(final OtpErlangTuple t) throws Exception {
         final Object map_result = threadMap.get(t.elementAt(1));
         if (map_result instanceof ThreadMsgHandler) {
             final ThreadMsgHandler th = (ThreadMsgHandler) map_result;
@@ -196,26 +201,26 @@ public class JavaErlang {
         }
     }
 
-    static OtpErlangObject handleNonThreadMsg(final String tag,
+    OtpErlangObject handleNonThreadMsg(final String tag,
             final OtpErlangObject argument, final OtpErlangPid replyPid)
             throws Exception {
         if (tag.equals("reset")) {
-            JavaErlang.objCounter = 0;
-            JavaErlang.toErlangMap = new HashMap<RefEqualsObject, OtpErlangObject>();
-            JavaErlang.fromErlangMap = new HashMap<OtpErlangObject, Object>();
+            objCounter = 0;
+            toErlangMap = new HashMap<RefEqualsObject, OtpErlangObject>();
+            fromErlangMap = new HashMap<OtpErlangObject, Object>();
             for (final ThreadMsgHandler th : threadMap.values()) {
                 stop_thread(th, replyPid);
             }
-            JavaErlang.threadMap = new HashMap<OtpErlangObject, ThreadMsgHandler>();
+            threadMap = new HashMap<OtpErlangObject, ThreadMsgHandler>();
             System.gc();
             return new OtpErlangAtom("ok");
         } else if (tag.equals("terminate")) {
-            if (JavaErlang.verbose) {
+            if (verbose) {
                 System.err.println("\r\nterminating java...");
             }
             reply(new OtpErlangAtom("ok"), replyPid);
             System.exit(0);
-            return JavaErlang.map_to_erlang_void();
+            return map_to_erlang_void();
         } else if (tag.equals("connect")) {
             return new OtpErlangAtom("already_connected");
         } else if (tag.equals("define_invocation_handler")) {
@@ -261,8 +266,9 @@ public class JavaErlang {
         }
     }
 
-    static OtpErlangObject create_thread() {
-        final ThreadMsgHandler th = ThreadMsgHandler.createThreadMsgHandler();
+    OtpErlangObject create_thread() {
+        final ThreadMsgHandler th = ThreadMsgHandler
+                .createThreadMsgHandler(this);
         return map_new_thread_to_erlang(th);
     }
 
@@ -287,8 +293,7 @@ public class JavaErlang {
                 new OtpErlangInt(key.key()), nodeId);
     }
 
-    static Object java_value_from_erlang(final OtpErlangObject value)
-            throws Exception {
+    Object java_value_from_erlang(final OtpErlangObject value) throws Exception {
         if (value instanceof OtpErlangAtom) {
             final String stringValue = ((OtpErlangAtom) value).atomValue();
             if (stringValue.equals("null")) {
@@ -347,18 +352,18 @@ public class JavaErlang {
             } else if (arity == 3) {
                 final String tag = ((OtpErlangAtom) t.elementAt(0)).atomValue();
                 if (tag.equals("object")) {
-                    final Object result = JavaErlang.fromErlangMap.get(t);
+                    final Object result = fromErlangMap.get(t);
                     if (result == null) {
-                        if (JavaErlang.verbose) {
+                        if (verbose) {
                             System.err.println("\rTranslating " + value);
                         }
                         throw new Exception();
                     }
                     return result;
                 } else if (tag.equals("executable")) {
-                    final Object result = JavaErlang.accFromErlangMap.get(t);
+                    final Object result = accFromErlangMap.get(t);
                     if (result == null) {
-                        if (JavaErlang.verbose) {
+                        if (verbose) {
                             System.err.println("\rTranslating " + value);
                         }
                         throw new Exception();
@@ -371,7 +376,7 @@ public class JavaErlang {
         throw new Exception();
     }
 
-    static Object[] java_values_from_erlang(final OtpErlangObject[] values,
+    Object[] java_values_from_erlang(final OtpErlangObject[] values,
             final Type[] types) throws Exception {
         final Object[] objects = new Object[values.length];
         for (int i = 0; i < values.length; i++) {
@@ -381,8 +386,8 @@ public class JavaErlang {
         return objects;
     }
 
-    static Object java_value_from_erlang(final OtpErlangObject value,
-            final Type type) throws Exception {
+    Object java_value_from_erlang(final OtpErlangObject value, final Type type)
+            throws Exception {
         if (value instanceof OtpErlangTuple) {
             return java_value_from_erlang(value);
         }
@@ -525,7 +530,7 @@ public class JavaErlang {
         return otpBytes;
     }
 
-    static void initializeArray(final Object arr, final OtpErlangObject value)
+    void initializeArray(final Object arr, final OtpErlangObject value)
             throws Exception {
         final int len = Array.getLength(arr);
         final OtpErlangObject[] elements = elements(value);
@@ -536,8 +541,8 @@ public class JavaErlang {
             if (objClass.isArray()) {
                 initializeArray(obj_at_i, element);
             } else {
-                final Object setValue = JavaErlang.java_value_from_erlang(
-                        element, objClass);
+                final Object setValue = java_value_from_erlang(element,
+                        objClass);
                 Array.set(arr, i, setValue);
             }
         }
@@ -643,7 +648,7 @@ public class JavaErlang {
             final int lastIndex = str.lastIndexOf(".");
             if (lastIndex == -1) {
                 System.err.println("findClass: cannot locate class " + str);
-                if (JavaErlang.verbose) {
+                if (verbose) {
                     System.err.println("findClass: cannot locate class " + str);
                 }
                 throw new Exception();
@@ -658,50 +663,50 @@ public class JavaErlang {
         } while (true);
     }
 
-    public static OtpErlangObject map_to_erlang(final Object obj) {
+    public OtpErlangObject map_to_erlang(final Object obj) {
         if (obj == null) {
             return map_to_erlang_null();
         }
 
         final RefEqualsObject obj_key = new RefEqualsObject(obj);
-        final OtpErlangObject oldValue = JavaErlang.toErlangMap.get(obj_key);
+        final OtpErlangObject oldValue = toErlangMap.get(obj_key);
         if (oldValue != null) {
             return oldValue;
         }
 
-        final IntKey key = new IntKey(JavaErlang.objCounter++);
+        final IntKey key = new IntKey(objCounter++);
         final OtpErlangObject erlangKey = makeErlangKey("object", key,
-                JavaErlang.nodeIdentifier);
-        JavaErlang.toErlangMap.put(obj_key, erlangKey);
-        JavaErlang.fromErlangMap.put(erlangKey, obj);
+                nodeIdentifier);
+        toErlangMap.put(obj_key, erlangKey);
+        fromErlangMap.put(erlangKey, obj);
         return erlangKey;
     }
 
-    public static OtpErlangObject acc_map_to_erlang(final Object obj) {
+    public OtpErlangObject acc_map_to_erlang(final Object obj) {
         final Object obj_key = obj;
-        final OtpErlangObject oldValue = JavaErlang.accToErlangMap.get(obj_key);
+        final OtpErlangObject oldValue = accToErlangMap.get(obj_key);
         if (oldValue != null) {
             return oldValue;
         }
 
-        final IntKey key = new IntKey(JavaErlang.accCounter++);
+        final IntKey key = new IntKey(accCounter++);
         final OtpErlangObject erlangKey = makeErlangKey("executable", key,
-                JavaErlang.nodeIdentifier);
-        JavaErlang.accToErlangMap.put(obj_key, erlangKey);
-        JavaErlang.accFromErlangMap.put(erlangKey, obj);
+                nodeIdentifier);
+        accToErlangMap.put(obj_key, erlangKey);
+        accFromErlangMap.put(erlangKey, obj);
         return erlangKey;
     }
 
-    static OtpErlangObject map_new_thread_to_erlang(final ThreadMsgHandler th) {
-        final IntKey key = new IntKey(JavaErlang.threadCounter++);
+    OtpErlangObject map_new_thread_to_erlang(final ThreadMsgHandler th) {
+        final IntKey key = new IntKey(threadCounter++);
         final OtpErlangObject erlangKey = makeErlangKey("thread", key,
-                JavaErlang.nodeIdentifier);
-        JavaErlang.threadMap.put(erlangKey, th);
+                nodeIdentifier);
+        threadMap.put(erlangKey, th);
         return erlangKey;
     }
 
-    public static OtpErlangObject map_to_erlang(final Object obj,
-            final Class classType) throws Exception {
+    public OtpErlangObject map_to_erlang(final Object obj, final Class classType)
+            throws Exception {
         if (classType == java.lang.Integer.TYPE) {
             return map_to_erlang_int(((Integer) obj).intValue());
         } else if (classType == java.lang.Short.TYPE) {
@@ -721,12 +726,12 @@ public class JavaErlang {
         } else if (classType == java.lang.Void.TYPE) {
             return map_to_erlang_void();
         } else {
-            return JavaErlang.map_to_erlang(obj);
+            return map_to_erlang(obj);
         }
     }
 
-    public static OtpErlangObject map_to_erlang(final Object obj,
-            final int pos, final Class classType) throws Exception {
+    public OtpErlangObject map_to_erlang(final Object obj, final int pos,
+            final Class classType) throws Exception {
         if (classType == java.lang.Integer.TYPE) {
             return map_to_erlang_long(Array.getInt(obj, pos));
         } else if (classType == java.lang.Short.TYPE) {
@@ -746,7 +751,7 @@ public class JavaErlang {
         } else if (classType == java.lang.Void.TYPE) {
             return map_to_erlang_void();
         } else {
-            return JavaErlang.map_to_erlang(Array.get(obj, pos));
+            return map_to_erlang(Array.get(obj, pos));
         }
     }
 
@@ -790,15 +795,14 @@ public class JavaErlang {
         return new OtpErlangAtom("null");
     }
 
-    static OtpErlangObject free(final OtpErlangObject arg) {
-        final Object object = JavaErlang.fromErlangMap.remove(arg);
+    OtpErlangObject free(final OtpErlangObject arg) {
+        final Object object = fromErlangMap.remove(arg);
         final RefEqualsObject obj_key = new RefEqualsObject(object);
-        final OtpErlangObject oldValue = JavaErlang.toErlangMap.remove(obj_key);
+        final OtpErlangObject oldValue = toErlangMap.remove(obj_key);
         return map_to_erlang_void();
     }
 
-    static OtpErlangObject objTypeCompat(final OtpErlangObject cmd)
-            throws Exception {
+    OtpErlangObject objTypeCompat(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple tuple = (OtpErlangTuple) cmd;
         final OtpErlangObject[] alternatives = ((OtpErlangTuple) tuple
                 .elementAt(0)).elements();
@@ -806,7 +810,7 @@ public class JavaErlang {
                 .elements();
 
         for (int i = 0; i < objs.length; i++) {
-            final Type t = JavaErlang.fromErlType(alternatives[i]);
+            final Type t = fromErlType(alternatives[i]);
             final Class tc = (Class) t;
             if (!is_acceptable_as_argument(objs[i], tc)) {
                 return new OtpErlangBoolean(false);
@@ -815,45 +819,42 @@ public class JavaErlang {
         return new OtpErlangBoolean(true);
     }
 
-    static OtpErlangObject invhandler(final OtpErlangObject cmd)
-            throws Exception {
+    OtpErlangObject invhandler(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final OtpErlangPid pid = (OtpErlangPid) t.elementAt(0);
-        final Object obj = JavaErlang.java_value_from_erlang(t.elementAt(1));
-        final InvocationHandler handler = new InvHandler(pid, obj);
-        return JavaErlang.map_to_erlang(handler);
+        final Object obj = java_value_from_erlang(t.elementAt(1));
+        final InvocationHandler handler = new InvHandler(this, pid, obj);
+        return map_to_erlang(handler);
     }
 
-    static OtpErlangObject proxy_reply(final OtpErlangObject cmd)
-            throws Exception {
+    OtpErlangObject proxy_reply(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final InvHandler handler = (InvHandler) JavaErlang.fromErlangMap.get(t
+        final InvHandler handler = (InvHandler) fromErlangMap.get(t
                 .elementAt(0));
         handler.setAnswer(t.elementAt(1));
         return new OtpErlangAtom("ok");
     }
 
-    static OtpErlangObject getConstructor(final OtpErlangObject cmd)
-            throws Exception {
+    OtpErlangObject getConstructor(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
         final OtpErlangTuple typeList = (OtpErlangTuple) t.elementAt(1);
         final Constructor cnstr = getConstructor(className, typeList.elements());
-        if (JavaErlang.verbose) {
+        if (verbose) {
             System.err.println("\rcmd " + cmd + " has typelist "
                     + typeList.elements());
         }
-        return JavaErlang.makeErlangTuple(JavaErlang.acc_map_to_erlang(cnstr),
+        return makeErlangTuple(acc_map_to_erlang(cnstr),
                 new OtpErlangInt(cnstr.getParameterTypes().length));
     }
 
-    static OtpErlangObject getField(final OtpErlangObject cmd) throws Exception {
+    OtpErlangObject getField(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
         final Field field = getField(className,
                 ((OtpErlangAtom) t.elementAt(1)).atomValue());
-        return JavaErlang.makeErlangTuple(JavaErlang.acc_map_to_erlang(field),
-                new OtpErlangBoolean(Modifier.isStatic(field.getModifiers())));
+        return makeErlangTuple(acc_map_to_erlang(field), new OtpErlangBoolean(
+                Modifier.isStatic(field.getModifiers())));
     }
 
     static OtpErlangObject getClassLocation(final OtpErlangObject n) {
@@ -933,7 +934,7 @@ public class JavaErlang {
         final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
         final boolean observerInPackage = ((OtpErlangAtom) t.elementAt(1))
                 .booleanValue();
-        final Class cl = JavaErlang.findClass(className);
+        final Class cl = findClass(className);
         final Constructor[] constructors = cl.getConstructors();
         final ArrayList<OtpErlangTuple> erlConstructors = new ArrayList<OtpErlangTuple>();
         for (final Constructor constructor : constructors) {
@@ -946,9 +947,8 @@ public class JavaErlang {
                 for (int i = 0; i < parameterTypes.length; i++) {
                     erlTypes[i] = toErlType(parameterTypes[i]);
                 }
-                erlConstructors.add(JavaErlang.makeErlangTuple(name,
-                        new OtpErlangBoolean(false),
-                        new OtpErlangList(erlTypes)));
+                erlConstructors.add(makeErlangTuple(name, new OtpErlangBoolean(
+                        false), new OtpErlangList(erlTypes)));
             }
         }
         final OtpErlangTuple[] tmp_arr = new OtpErlangTuple[erlConstructors
@@ -965,12 +965,12 @@ public class JavaErlang {
         final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
         final boolean observerInPackage = ((OtpErlangAtom) t.elementAt(1))
                 .booleanValue();
-        final Class cl = JavaErlang.findClass(className);
+        final Class cl = findClass(className);
         final Method[] methods = cl.getMethods();
         final ArrayList<OtpErlangTuple> erlMethods = new ArrayList<OtpErlangTuple>();
         for (final Method method : methods) {
             if (method.isBridge() || method.isSynthetic()) {
-                if (JavaErlang.verbose) {
+                if (verbose) {
                     System.err.println("Skipping synthetic or bridge method "
                             + method + " in class " + className);
                 }
@@ -985,10 +985,9 @@ public class JavaErlang {
                 for (int i = 0; i < parameterTypes.length; i++) {
                     erlTypes[i] = toErlType(parameterTypes[i]);
                 }
-                erlMethods.add(JavaErlang.makeErlangTuple(name,
-                        new OtpErlangBoolean(is_static(modifiers)),
-                        new OtpErlangList(erlTypes)));
-            } else if (JavaErlang.verbose) {
+                erlMethods.add(makeErlangTuple(name, new OtpErlangBoolean(
+                        is_static(modifiers)), new OtpErlangList(erlTypes)));
+            } else if (verbose) {
                 System.err.println("\rMethod is not visible to us");
             }
         }
@@ -1003,7 +1002,7 @@ public class JavaErlang {
             throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
-        final Class cl = JavaErlang.findClass(className);
+        final Class cl = findClass(className);
         final Class[] classes = cl.getClasses();
         final ArrayList<OtpErlangAtom> erlClasses = new ArrayList<OtpErlangAtom>();
         for (final Class cl_cand : classes) {
@@ -1025,7 +1024,7 @@ public class JavaErlang {
             throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
-        final Class cl = JavaErlang.findClass(className);
+        final Class cl = findClass(className);
         final Field[] fields = cl.getFields();
         final ArrayList<OtpErlangTuple> erlFields = new ArrayList<OtpErlangTuple>();
         for (final Field field : fields) {
@@ -1034,14 +1033,14 @@ public class JavaErlang {
             final OtpErlangAtom name = new OtpErlangAtom(field.getName());
             final OtpErlangObject fieldType = toErlType(field.getType());
             if (field.isSynthetic()) {
-                if (JavaErlang.verbose) {
+                if (verbose) {
                     System.err.println("Skipping synthetic or bridge field "
                             + field + " in class " + className);
                 }
                 continue;
             }
-            erlFields.add(JavaErlang.makeErlangTuple(name,
-                    new OtpErlangBoolean(is_static(modifiers)), fieldType));
+            erlFields.add(makeErlangTuple(name, new OtpErlangBoolean(
+                    is_static(modifiers)), fieldType));
         }
         final OtpErlangTuple[] tmp_arr = new OtpErlangTuple[erlFields.size()];
         for (int i = 0; i < erlFields.size(); i++) {
@@ -1071,32 +1070,31 @@ public class JavaErlang {
         }
     }
 
-    static Field get_field(final OtpErlangObject obj) throws Exception {
-        final Object result = JavaErlang.accFromErlangMap.get(obj);
+    Field get_field(final OtpErlangObject obj) throws Exception {
+        final Object result = accFromErlangMap.get(obj);
         if (result instanceof Field) {
             return (Field) result;
         }
         throw new Exception();
     }
 
-    static OtpErlangObject getMethod(final OtpErlangObject cmd)
-            throws Exception {
+    OtpErlangObject getMethod(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
         final String methodName = ((OtpErlangAtom) t.elementAt(1)).atomValue();
         final OtpErlangTuple typeList = (OtpErlangTuple) t.elementAt(2);
-        final Method method = getMethod(JavaErlang.findClass(className),
-                methodName, typeList.elements());
-        final OtpErlangObject key = JavaErlang.acc_map_to_erlang(method);
-        return JavaErlang.makeErlangTuple(key,
-                new OtpErlangInt(method.getParameterTypes().length),
-                new OtpErlangBoolean(Modifier.isStatic(method.getModifiers())));
+        final Method method = getMethod(findClass(className), methodName,
+                typeList.elements());
+        final OtpErlangObject key = acc_map_to_erlang(method);
+        return makeErlangTuple(key, new OtpErlangInt(
+                method.getParameterTypes().length), new OtpErlangBoolean(
+                Modifier.isStatic(method.getModifiers())));
     }
 
     static Constructor getConstructor(final String className,
             final OtpErlangObject[] erlTypes) throws Exception {
-        final Class cl = JavaErlang.findClass(className);
-        final Type[] types = JavaErlang.fromErlTypes(erlTypes);
+        final Class cl = findClass(className);
+        final Type[] types = fromErlTypes(erlTypes);
         for (final Constructor cnstr : cl.getConstructors()) {
             if (checkTypes(cnstr.getParameterTypes(), types)) {
                 // Fix for java bug 4071957
@@ -1120,7 +1118,7 @@ public class JavaErlang {
 
     static Field getField(final String className, final String fieldName)
             throws Exception {
-        final Class cl = JavaErlang.findClass(className);
+        final Class cl = findClass(className);
         for (final Field field : cl.getFields()) {
             if (field.getName().equals(fieldName)) {
                 // Fix for java bug 4071957
@@ -1139,7 +1137,7 @@ public class JavaErlang {
 
     static Method getMethod(final Class cl, final String methodName,
             final OtpErlangObject[] erlTypes) throws Exception {
-        final Type[] types = JavaErlang.fromErlTypes(erlTypes);
+        final Type[] types = fromErlTypes(erlTypes);
         for (final Method method : cl.getMethods()) {
             if (!method.getName().equals(methodName)) {
                 continue;
@@ -1167,13 +1165,13 @@ public class JavaErlang {
         throw new Exception();
     }
 
-    static Object get_fun(final OtpErlangObject cmd) throws Exception {
-        final Object result = JavaErlang.accFromErlangMap.get(cmd);
+    Object get_fun(final OtpErlangObject cmd) throws Exception {
+        final Object result = accFromErlangMap.get(cmd);
         if (result instanceof Method || result instanceof Constructor) {
             return result;
         }
         System.err.println(cmd + " is not a method/constructor");
-        final Set<OtpErlangObject> keys = JavaErlang.accFromErlangMap.keySet();
+        final Set<OtpErlangObject> keys = accFromErlangMap.keySet();
         System.err.println("\rMap contains:");
         for (final OtpErlangObject key : keys) {
             System.err.print(key + ",");
@@ -1194,13 +1192,13 @@ public class JavaErlang {
     }
 
     @SuppressWarnings("unchecked")
-    static boolean is_acceptable_as_argument(final OtpErlangObject value,
+    boolean is_acceptable_as_argument(final OtpErlangObject value,
             final Class type) throws Exception {
         Object obj;
         boolean result;
 
         try {
-            obj = JavaErlang.java_value_from_erlang(value, type);
+            obj = java_value_from_erlang(value, type);
         } catch (final Exception e) {
             return false;
         }
@@ -1251,10 +1249,10 @@ public class JavaErlang {
         if (t instanceof Class) {
             final Class c = (Class) t;
             if (c.isArray()) {
-                return JavaErlang.makeErlangTuple(new OtpErlangAtom("array"),
-                        new OtpErlangAtom(JavaErlang.getArrayElementClass(c)
+                return makeErlangTuple(new OtpErlangAtom("array"),
+                        new OtpErlangAtom(getArrayElementClass(c)
                                 .getCanonicalName()), new OtpErlangLong(
-                                JavaErlang.dimensions(c)));
+                                dimensions(c)));
             } else {
                 return new OtpErlangAtom(c.getCanonicalName());
             }
@@ -1276,462 +1274,16 @@ public class JavaErlang {
         return true;
     }
 
-    public static OtpErlangObject return_value(final Object obj)
-            throws Exception {
+    public OtpErlangObject return_value(final Object obj) throws Exception {
         if (obj instanceof OtpErlangObject) {
-            return JavaErlang.makeErlangTuple(new OtpErlangAtom("value"),
+            return makeErlangTuple(new OtpErlangAtom("value"),
                     (OtpErlangObject) obj);
         } else if (obj instanceof Throwable) {
             final Throwable t = (Throwable) obj;
-            return JavaErlang.makeErlangTuple(new OtpErlangAtom("exception"),
-                    JavaErlang.map_to_erlang(t));
+            return makeErlangTuple(new OtpErlangAtom("exception"),
+                    map_to_erlang(t));
         }
         System.err.println("Cannot return non-Erlang/non-Exception " + obj);
         throw new Exception();
-    }
-}
-
-class ThreadMsgHandler implements Runnable {
-    BlockingQueue<OtpErlangObject> queue;
-
-    ThreadMsgHandler() {
-        queue = new LinkedBlockingQueue<OtpErlangObject>();
-    }
-
-    public static ThreadMsgHandler createThreadMsgHandler() {
-        final ThreadMsgHandler th = new ThreadMsgHandler();
-        new Thread(th).start();
-        return th;
-    }
-
-    public void run() {
-        try {
-            do_receive();
-        } catch (final Exception exc) {
-            exc.printStackTrace();
-        }
-    }
-
-    void do_receive() throws Exception {
-        String tag;
-        OtpErlangPid replyPid;
-        OtpErlangObject argument;
-
-        do {
-            final OtpErlangTuple t = (OtpErlangTuple) queue.take();
-            if (JavaErlang.verbose) {
-                System.err.println(this + " got " + t);
-            }
-            try {
-                tag = ((OtpErlangAtom) t.elementAt(0)).atomValue();
-                argument = t.elementAt(2);
-                replyPid = (OtpErlangPid) t.elementAt(3);
-                Object result;
-                try {
-                    result = handleCall(tag, argument);
-                } catch (final InvocationTargetException e) {
-                    final Throwable te = e.getCause();
-                    if (te != null) {
-                        result = te;
-                    } else {
-                        result = e;
-                    }
-                } catch (final Throwable e) {
-                    result = e;
-                }
-                if (result != null) {
-                    JavaErlang.reply(result, replyPid);
-                } else {
-                    break;
-                }
-            } catch (final Exception e) {
-                System.err.println("Malformed message " + t);
-            }
-        } while (true);
-    }
-
-    Object handleCall(final String tag, final OtpErlangObject argument)
-            throws Exception {
-        if (tag.equals("call_constructor")) {
-            return call_constructor(argument);
-        } else if (tag.equals("call_method")) {
-            return call_method(argument);
-        } else if (tag.equals("getFieldValue")) {
-            return getFieldValue(argument);
-        } else if (tag.equals("setFieldValue")) {
-            return setFieldValue(argument);
-        } else if (tag.equals("getClassName")) {
-            return getClassName(argument);
-        } else if (tag.equals("array_to_list")) {
-            return array_to_list(argument);
-        } else if (tag.equals("list_to_array")) {
-            return list_to_array(argument);
-        } else if (tag.equals("instof")) {
-            return instof(argument);
-        } else if (tag.equals("convert")) {
-            return convert(argument);
-        } else if (tag.equals("is_subtype")) {
-            return is_subtype(argument);
-        } else if (tag.equals("getClassName")) {
-            return getClassName(argument);
-        } else if (tag.equals("getSimpleClassName")) {
-            return getSimpleClassName(argument);
-        } else if (tag.equals("stopThread")) {
-            return null;
-        } else {
-            System.err.println("\rBad tag " + tag + " in received message");
-            throw new Exception();
-        }
-    }
-
-    @SuppressWarnings("rawtypes")
-    OtpErlangObject array_to_list(final OtpErlangObject value) throws Exception {
-        final Object objs = JavaErlang.java_value_from_erlang(value);
-        final Class cl = objs.getClass();
-        final Class arrElement = JavaErlang.getArrayElementClass(cl);
-        final int len = Array.getLength(objs);
-        final OtpErlangObject objects[] = new OtpErlangObject[len];
-        for (int i = 0; i < len; i++) {
-            objects[i] = JavaErlang.map_to_erlang(objs, i, arrElement);
-        }
-        return new OtpErlangList(objects);
-    }
-
-    @SuppressWarnings("rawtypes")
-    OtpErlangObject list_to_array(final OtpErlangObject cmd) throws Exception {
-        final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final OtpErlangObject type = t.elementAt(0);
-        final OtpErlangObject values = t.elementAt(1);
-        final OtpErlangObject[] objs = ((OtpErlangTuple) values).elements();
-        final Type element_type = JavaErlang.fromErlType(type);
-        if (element_type instanceof Class) {
-            final Class cl = (Class) element_type;
-            final Object arr = Array.newInstance(cl, objs.length);
-            for (int i = 0; i < objs.length; i++) {
-                Array.set(arr, i, JavaErlang.java_value_from_erlang(objs[i],
-                        element_type));
-            }
-            return JavaErlang.map_to_erlang(arr);
-        } else {
-            System.err.println("Cannot convert type description "
-                    + element_type + " to a type class");
-            throw new Exception();
-        }
-    }
-
-    @SuppressWarnings("rawtypes")
-    OtpErlangObject instof(final OtpErlangObject cmd) throws Exception {
-        final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final Object obj = JavaErlang.java_value_from_erlang(t.elementAt(0));
-        final String className = ((OtpErlangAtom) t.elementAt(1)).atomValue();
-        final Class cl = JavaErlang.findClass(className);
-        return new OtpErlangBoolean(cl.isInstance(obj));
-    }
-
-    @SuppressWarnings("rawtypes")
-    OtpErlangObject convert(final OtpErlangObject cmd) throws Exception {
-        final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final String type = ((OtpErlangAtom) t.elementAt(0)).atomValue();
-        final OtpErlangObject arg = t.elementAt(1);
-        Object result;
-        Class resultClass;
-
-        if (arg instanceof OtpErlangLong) {
-            final long l = ((OtpErlangLong) arg).longValue();
-            if (type.equals("int")) {
-                result = (int) l;
-                resultClass = Integer.TYPE;
-            } else if (type.equals("long")) {
-                result = (long) l;
-                resultClass = Long.TYPE;
-            } else if (type.equals("short")) {
-                result = (short) l;
-                resultClass = Short.TYPE;
-            } else if (type.equals("char")) {
-                result = (char) l;
-                resultClass = Character.TYPE;
-            } else if (type.equals("byte")) {
-                result = (byte) l;
-                resultClass = Byte.TYPE;
-            } else if (type.equals("float")) {
-                result = (float) l;
-                resultClass = Float.TYPE;
-            } else if (type.equals("double")) {
-                result = (double) l;
-                resultClass = Double.TYPE;
-            } else {
-                result = l;
-                resultClass = Long.TYPE;
-            }
-        } else {
-            final double d = ((OtpErlangDouble) arg).doubleValue();
-            if (type.equals("int")) {
-                result = (int) d;
-                resultClass = Integer.TYPE;
-            } else if (type.equals("long")) {
-                result = (long) d;
-                resultClass = Long.TYPE;
-            } else if (type.equals("short")) {
-                result = (short) d;
-                resultClass = Short.TYPE;
-            } else if (type.equals("char")) {
-                result = (char) d;
-                resultClass = Character.TYPE;
-            } else if (type.equals("byte")) {
-                result = (byte) d;
-                resultClass = Byte.TYPE;
-            } else if (type.equals("float")) {
-                result = (float) d;
-                resultClass = Float.TYPE;
-            } else if (type.equals("double")) {
-                result = (double) d;
-                resultClass = Double.TYPE;
-            } else {
-                result = d;
-                resultClass = Long.TYPE;
-            }
-        }
-        return JavaErlang.map_to_erlang(result, resultClass);
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    OtpErlangObject is_subtype(final OtpErlangObject cmd) throws Exception {
-        final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final String className1 = ((OtpErlangAtom) t.elementAt(0)).atomValue();
-        final String className2 = ((OtpErlangAtom) t.elementAt(1)).atomValue();
-        final Class cl1 = JavaErlang.findClass(className1);
-        final Class cl2 = JavaErlang.findClass(className2);
-        return new OtpErlangBoolean(cl2.isAssignableFrom(cl1));
-    }
-
-    @SuppressWarnings("rawtypes")
-    OtpErlangObject getClassName(final OtpErlangObject cmd) throws Exception {
-        final Object obj = JavaErlang.java_value_from_erlang(cmd);
-        final Class cl = obj.getClass();
-        return new OtpErlangAtom(cl.getName());
-    }
-
-    @SuppressWarnings("rawtypes")
-    OtpErlangObject getSimpleClassName(final OtpErlangObject cmd)
-            throws Exception {
-        final Object obj = JavaErlang.java_value_from_erlang(cmd);
-        final Class cl = obj.getClass();
-        return new OtpErlangAtom(cl.getSimpleName());
-    }
-
-    OtpErlangObject getFieldValue(final OtpErlangObject cmd) throws Exception {
-        final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final Object obj = JavaErlang.fromErlangMap.get(t.elementAt(0));
-        final Field field = JavaErlang.get_field(t.elementAt(1));
-        final Object result = field.get(obj);
-        return JavaErlang.map_to_erlang(result, field.getType());
-    }
-
-    OtpErlangObject setFieldValue(final OtpErlangObject cmd) throws Exception {
-        final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final Object obj = JavaErlang.fromErlangMap.get(t.elementAt(0));
-        final Field field = JavaErlang.get_field(t.elementAt(1));
-        final OtpErlangObject value = t.elementAt(2);
-        field.set(obj,
-                JavaErlang.java_value_from_erlang(value, field.getType()));
-        return JavaErlang.map_to_erlang_void();
-    }
-
-    @SuppressWarnings("rawtypes")
-    OtpErlangObject call_constructor(final OtpErlangObject cmd)
-            throws Exception {
-        final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final Object fun = JavaErlang.get_fun(t.elementAt(0));
-        final OtpErlangObject[] args = ((OtpErlangTuple) t.elementAt(1))
-                .elements();
-        Object result;
-
-        final Constructor cnstr = (Constructor) fun;
-        result = cnstr.newInstance(JavaErlang.java_values_from_erlang(args,
-                cnstr.getParameterTypes()));
-        return JavaErlang.map_to_erlang(result);
-    }
-
-    OtpErlangObject call_method(final OtpErlangObject cmd) throws Exception {
-        // System.err.println("cmd="+cmd+"\n");
-        final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final Object fun = JavaErlang.get_fun(t.elementAt(1));
-        final OtpErlangObject[] args = ((OtpErlangTuple) t.elementAt(2))
-                .elements();
-        Object result;
-
-        final Method method = (Method) fun;
-        final OtpErlangObject otpObj = t.elementAt(0);
-        final Object obj = JavaErlang.java_value_from_erlang(otpObj);
-        final Object[] translated_args = JavaErlang.java_values_from_erlang(
-                args, method.getParameterTypes());
-        // System.err.println("method="+method+" obj="+obj);
-        result = method.invoke(obj, translated_args);
-        return JavaErlang.map_to_erlang(result, method.getReturnType());
-    }
-}
-
-class OtpStatusHandler extends OtpNodeStatus {
-    String connectedNode = null;
-
-    @Override
-    public void remoteStatus(final String node, final boolean up,
-            final Object info) {
-        if (JavaErlang.verbose) {
-            System.err.println("Event at node " + node + " with " + up
-                    + "; info=" + info);
-        }
-
-        if (connectedNode == null && up) {
-            connectedNode = node;
-        } else if (connectedNode != null && !up && node.equals(connectedNode)) {
-            if (JavaErlang.verbose) {
-                System.err.println("Erlang peer node "
-                        + JavaErlang.nodeIdentifier + " died; terminating...");
-            }
-            System.exit(0);
-        }
-    }
-}
-
-class RefEqualsObject {
-    Object object;
-
-    public RefEqualsObject(final Object object) {
-        this.object = object;
-    }
-
-    @Override
-    public boolean equals(final Object object2) {
-        if (object2 instanceof RefEqualsObject) {
-            return object == ((RefEqualsObject) object2).object();
-        } else {
-            return this == object2;
-        }
-    }
-
-    @Override
-    public int hashCode() {
-        if (object != null) {
-            return object.hashCode();
-        } else {
-            return 0;
-        }
-    }
-
-    public Object object() {
-        return object;
-    }
-}
-
-class IntKey {
-    int key;
-
-    public IntKey(final int previousCounter) {
-        key = previousCounter;
-    }
-
-    @Override
-    public String toString() {
-        return new Integer(key).toString();
-    }
-
-    public int key() {
-        return key;
-    }
-
-    @Override
-    public boolean equals(final Object k) {
-        if (k instanceof IntKey) {
-            final IntKey otherKey = (IntKey) k;
-            return key == otherKey.key();
-        } else {
-            return false;
-        }
-    }
-
-    @Override
-    public int hashCode() {
-        return key;
-    }
-}
-
-class InvHandler implements InvocationHandler {
-    OtpErlangPid pid;
-    Method hashCode;
-    IntKey key;
-    Object backingObject;
-    volatile Object answer;
-
-    public InvHandler(final OtpErlangPid pid, final Object backingObject) {
-        this.pid = pid;
-        this.backingObject = backingObject;
-        key = new IntKey(JavaErlang.objCounter++);
-        try {
-            hashCode = Object.class.getMethod("hashCode");
-        } catch (final Exception exc) {
-            System.err.println("could not find hashCode");
-        }
-    }
-
-    public synchronized Object waitForAnswer() {
-        try {
-            this.wait();
-        } catch (final InterruptedException exc) {
-            return waitForAnswer();
-        }
-        return answer;
-    }
-
-    public synchronized void setAnswer(final Object answer) {
-        this.answer = answer;
-        notifyAll();
-    }
-
-    public Object invoke(final Object proxy, final Method method,
-            final Object args[]) throws Throwable {
-        OtpErlangObject otpArg;
-
-        if (method.equals(hashCode)) {
-            return key.hashCode();
-        } else if (JavaErlang.verbose) {
-            System.err.println("\nGot invocation with method=" + method + "\n");
-        }
-
-        if (args == null) {
-            otpArg = JavaErlang.map_to_erlang_null();
-        } else {
-            final OtpErlangObject[] otpArgs = new OtpErlangObject[args.length];
-            for (int i = 0; i < args.length; i++) {
-                otpArgs[i] = JavaErlang.map_to_erlang(args[i]);
-            }
-            otpArg = new OtpErlangTuple(otpArgs);
-        }
-
-        final OtpErlangObject proxy_msg = JavaErlang.makeErlangTuple(
-                new OtpErlangAtom("proxy_msg"),
-                JavaErlang.map_to_erlang(proxy),
-                JavaErlang.acc_map_to_erlang(method), otpArg);
-        if (JavaErlang.verbose) {
-            System.err.println("Sending proxy reply " + proxy_msg + " to "
-                    + pid);
-        }
-        JavaErlang.msgs.send(pid, proxy_msg);
-
-        final OtpErlangObject myAnswer = (OtpErlangObject) waitForAnswer();
-        if (myAnswer instanceof OtpErlangAtom) {
-            final String reply = ((OtpErlangAtom) myAnswer).atomValue();
-            if (reply.equals("passbuck")) {
-                if (backingObject != null) {
-                    return method.invoke(backingObject, args);
-                } else {
-                    System.err
-                            .println("Erlang passes the buck without backing object");
-                    System.err.println("Method is " + method);
-                    return null;
-                }
-            }
-        }
-        return JavaErlang.java_value_from_erlang(myAnswer);
     }
 }
