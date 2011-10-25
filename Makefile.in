@@ -9,6 +9,7 @@ endif
 OTPERLANG=$(JINTERFACE_LIB_DIR)/priv/OtpErlang.jar
 
 SOURCES = $(notdir $(wildcard src/*.erl))
+JAVASOURCES = $(wildcard java/javaErlang/*.java)
 TESTSOURCES = $(notdir $(wildcard tests/*.erl))
 BEAMS = $(patsubst %.erl,ebin/%.beam,$(SOURCES))
 HTMLS = $(patsubst %.erl,doc/%.html,$(SOURCES))
@@ -34,8 +35,8 @@ $(JAR): $(CLASSES)
 ebin/%.beam: src/%.erl
 	erlc $(EFLAGS) -o ebin $<
 
-classes/javaErlang/JavaErlang.class: java/javaErlang/JavaErlang.java
-	$(JAVA_HOME)/bin/javac -d classes -cp $(OTPERLANG) java/javaErlang/JavaErlang.java
+classes/javaErlang/JavaErlang.class: $(JAVASOURCES)
+	$(JAVA_HOME)/bin/javac -d classes -cp $(OTPERLANG) $(JAVASOURCES)
 
 classes/javaErlang/testing/Test.class: java/javaErlang/testing/Test.java
 	$(JAVA_HOME)/bin/javac -d classes java/javaErlang/testing/Test.java
