@@ -20,7 +20,7 @@ Eshell V5.8.4  (abort with ^G)
 1> java_erlang_install:install().
 ...
 
-You will probably have to run erlang with super-user priviliges 
+You will probably have to run erlang with super-user privileges 
 (under Unix/Linux) or administrator privileges (Windows) for
 the installation to succeed.       
 

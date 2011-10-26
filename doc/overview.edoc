@@ -51,6 +51,16 @@ This adds the directory ``classes''
 to the classpath of the started Java interpreter
 </p>
 
+<h2>Source code and precompiled libraries</h2>
+The source code of the library is available on GitHub
+at <a href="git://github.com/fredlund/JavaErlang.git">
+<code>git://github.com/fredlund/JavaErlang.git</code></a>.
+<p>
+Precompiled versions of the library are 
+<a href="http://babel.ls.fi.upm.es/~fred/JavaErlang/downloads.html">
+available too</a>.
+</p>
+
 <h2>Correspondance Between Java Classes and Erlang Modules</h2>
 The JavaErlang interface automatically maps each Java Class accessed
 to an Erlang module, compiles the Erlang module, and loads it.
