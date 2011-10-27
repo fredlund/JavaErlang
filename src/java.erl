@@ -48,7 +48,8 @@
 -include_lib("kernel/include/file.hrl").
 
 -record(node,
-	{node_name=void,node_pid=void,node_id=void,options,symbolic_name,
+	{node_name=void,node_pid=void,port_pid=void,node_id=void,
+	 options,symbolic_name,
 	 unix_pid=void,ping_retry=5000,connect_timeout=1000,
 	 max_java_start_tries=3,call_timeout,num_start_tries=0}).
 
@@ -234,18 +235,19 @@ spawn_java(PreNode,PreNodeId) ->
       Options = PreNode#node.options,
       JavaVerbose = proplists:get_value(java_verbose,Options),
       ClassPath = compute_classpath(Options),
-      spawn
-	(fun () ->
-	     run_java
-	       (NodeId,
-		proplists:get_value(java_executable,Options),
-		JavaVerbose,ClassPath,
-		proplists:get_value(java_class,Options))
-	 end),
+      PortPid = 
+	spawn
+	  (fun () ->
+	       run_java
+		 (NodeId,
+		  proplists:get_value(java_executable,Options),
+		  JavaVerbose,ClassPath,
+		  proplists:get_value(java_class,Options))
+	   end),
       NodeName = javaNodeName(NodeId),
       SymbolicName = proplists:get_value(symbolic_name,Options,NodeName),
       PreNode1 =
-	PreNode#node{node_id=NodeId,node_name=NodeName,
+	PreNode#node{node_id=NodeId,node_name=NodeName,port_pid=PortPid,
 		     symbolic_name=SymbolicName},
       case connectToNode(PreNode1) of
 	{ok,Node} ->
@@ -348,6 +350,9 @@ combine_paths(Combinator,[P|Rest]) -> P++Combinator++combine_paths(Rest).
 
 java_reader(Port,Identity) ->
   receive
+    {to_port,Data} ->
+      Port!{self(), {command, Data}},
+      java_reader(Port,Identity);
     {_,{data,{eol,Message}}} ->
       io:format("~s~n",[Message]),
       java_reader(Port,Identity);
