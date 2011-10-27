@@ -888,6 +888,11 @@ free(Object) ->
 %% process dictionary.
 -spec set_timeout(integer() | infinity) -> any().
 set_timeout(Timeout) ->
+  case Timeout of
+    _ when is_integer(Timeout), Timeout>=0 -> ok;
+    infinity -> ok;
+    _ -> throw(badarg)
+  end,
   set_value(timeout,Timeout).
 
 get_timeout(Node) ->
