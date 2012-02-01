@@ -23,10 +23,11 @@ CLASSES = classes/javaErlang/JavaErlang.class classes/javaErlang/testing/Test.cl
 DOCDIR=doc
 
 tool: ebin classes $(JAR) $(BEAMS)
+eqcjavademo: ebin/hashset_test.beam
 
 qctest: ebin/hashset_test.ebin
 
-ebin/hashset_test.ebin: tests/hashset_test.erl
+ebin/hashset_test.beam: tests/hashset_test.erl
 	erlc $(EFLAGS) -o ebin tests/hashset_test.erl
 
 $(JAR): $(CLASSES)

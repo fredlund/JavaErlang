@@ -33,12 +33,12 @@
 -module(hashset_test).
 
 -export([test/0,sample_commands/0]).
--export([node_id/1]).
+-export([node_id/0]).
 -export([initial_state/0,command/1,precondition/2,next_state/3,postcondition/3]).
 
 -include_lib("eqc/include/eqc.hrl").
 
--record(state,{node_id=void,sets=[]}).
+-record(state,{sets=[]}).
 
 
 %% @doc
@@ -47,7 +47,9 @@ test() ->
   eqc:quickcheck
     (?FORALL(Cmds,eqc_statem:commands(?MODULE),
 	     begin
+	       start_node(),
 	       {H,DS,Res} = eqc_statem:run_commands(?MODULE,Cmds),
+	       java:terminate(node_id()),
 	       case Res of
 		 ok -> true;
 		 _ -> 
@@ -55,6 +57,15 @@ test() ->
 		   false
 	       end
 	     end)).
+
+start_node() ->
+  {ok,Node} =
+    java:start_node
+      ([{java_exception_as_value,true},{add_to_java_classpath,["classes"]}]),
+  put(node,Node).
+
+node_id() ->
+  get(node).
 
 %% @private
 sample_commands() ->
@@ -68,10 +79,7 @@ initial_state() ->
 command(State) ->
   eqc_gen:oneof
     (
-    [{call,java,start_node,[[{java_exception_as_value,true}]]} ||
-      State#state.node_id == void] ++
-    [{call,java,new,[State#state.node_id,'java.util.HashSet',[]]} ||
-      State#state.node_id =/= void] ++
+    [{call,java,new,[{call,?MODULE,node_id,[]},'java.util.HashSet',[]]}] ++
     [{call,java,call,[Set,add,[nat()]]} ||
       {Set,_} <- State#state.sets] ++
     [{call,java,call,[Set,contains,[nat()]]} ||
@@ -85,10 +93,6 @@ command(State) ->
 %% @private
 precondition(State,Call) ->
   case Call of
-    {_,_,start_node,_} ->
-      State#state.node_id == void;
-    {_,_,new,_} ->
-      State#state.node_id =/= void;
     {_,_,_,[Set,add,_]} ->
       lists:keymember(Set, 1, State#state.sets);
     {_,_,_,[Set,contains,_]} ->
@@ -104,8 +108,6 @@ precondition(State,Call) ->
 %% @private
 next_state(State,Var,Call) ->
   case Call of
-    {_,_,start_node,_} ->
-      State#state{node_id = {call,?MODULE,node_id,[Var]}};
     {_,_,new,_} ->
       State#state{sets=[{Var,sets:new()}|State#state.sets]};
     {_,_,call,[Set,add,Elem]} ->
@@ -129,11 +131,6 @@ next_state(State,Var,Call) ->
 %% @private 
 postcondition(State,Call,Result) ->
   case Call of
-    {_,_,start_node,_} ->
-      case Result of
-	{ok,_} -> true;
-	_ -> io:format("*** Error; start_node returns ~p~n",[Result])
-      end;
     {_,_,_,[Set,contains,Elem]} ->
       {_,ESet} = lists:keyfind(Set,1,State#state.sets),
       expect_eq(Call,sets:is_element(Elem,ESet),Result);
@@ -169,8 +166,5 @@ print_value(Object) ->
     false -> io_lib:format("~p",[Object])
   end.
 
-%% @private
-node_id({ok,NodeId}) ->
-  NodeId.
 
       
