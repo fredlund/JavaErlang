@@ -71,6 +71,7 @@
 -export([is_object_ref/1]).
 -export([array_to_list/1,string_to_list/1,list_to_string/2,list_to_array/3,convert/3]).
 -export([getClassName/1,getSimpleClassName/1,instanceof/2,is_subtype/3]).
+-export([identity/2]).
 -export([print_stacktrace/1]).
 
 -export([set_loglevel/1,format/2,format/3]).
@@ -463,6 +464,7 @@ create_msg(Type,Msg,Node) ->
       {Type,Msg,self()}
   end.
     
+msg_type(identity) -> non_thread_msg;
 msg_type(reset) -> non_thread_msg;
 msg_type(terminate) -> non_thread_msg;
 msg_type(connect) -> non_thread_msg;
@@ -516,6 +518,9 @@ get_thread(Node) ->
       ets:insert(java_threads,{{Node#node.node_id,self()},Thread}),
       Thread
   end.
+
+identity(NodeId,Value) ->
+  javaCall(NodeId,identity,Value).
 
 %% @doc
 %% Calls the constructor of a Java class.

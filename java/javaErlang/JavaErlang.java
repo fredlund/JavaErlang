@@ -247,6 +247,8 @@ public class JavaErlang {
             return objTypeCompat(argument);
         } else if (tag.equals("free")) {
             return free(argument);
+        } else if (tag.equals("identity")) {
+            return identity(argument);
         } else if (tag.equals("createThread")) {
             return create_thread();
         } else if (tag.equals("stopThread")) {
@@ -800,6 +802,13 @@ public class JavaErlang {
         final RefEqualsObject obj_key = new RefEqualsObject(object);
         final OtpErlangObject oldValue = toErlangMap.remove(obj_key);
         return map_to_erlang_void();
+    }
+
+    OtpErlangObject identity(final OtpErlangObject arg) {
+	try {
+	    final Object obj = java_value_from_erlang(arg);
+	    return map_to_erlang(obj,obj.getClass());
+	} catch (Exception e) { return map_to_erlang_null(); }
     }
 
     OtpErlangObject objTypeCompat(final OtpErlangObject cmd) throws Exception {
