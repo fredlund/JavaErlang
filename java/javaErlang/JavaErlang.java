@@ -345,7 +345,7 @@ public class JavaErlang {
                                 dimensions, arg);
                         final Object array = Array.newInstance(comp,
                                 arr_dimensions);
-                        initializeArray(array, arg);
+                        initializeArray(array, arg, comp);
                         return array;
                     }
                 }
@@ -429,7 +429,7 @@ public class JavaErlang {
                     final Class arrElement = getArrayElementClass(typeClass);
                     final int[] lengths = checkDimensions(dimensions, value);
                     final Object arr = Array.newInstance(arrElement, lengths);
-                    initializeArray(arr, value);
+                    initializeArray(arr, value, arrElement);
                     return arr;
                 }
             }
@@ -530,22 +530,20 @@ public class JavaErlang {
         return otpBytes;
     }
 
-    void initializeArray(final Object arr, final OtpErlangObject value)
+    void initializeArray(final Object arr, final OtpErlangObject value, Class objClass)
             throws Exception {
         final int len = Array.getLength(arr);
-	if (len > 0) {
-	    final OtpErlangObject[] elements = elements(value);
-	    final Class objClass = Array.get(arr, 0).getClass();
-	    for (int i = 0; i < len; i++) {
-		final OtpErlangObject element = elements[i];
-		final Object obj_at_i = Array.get(arr, i);
-		if (objClass.isArray()) {
-		    initializeArray(obj_at_i, element);
-		} else {
-		    final Object setValue = java_value_from_erlang(element,
-								   objClass);
-		    Array.set(arr, i, setValue);
-		}
+	final OtpErlangObject[] elements = elements(value);
+	for (int i = 0; i < len; i++) {
+	    final OtpErlangObject element = elements[i];
+	    final Object obj_at_i = Array.get(arr, i);
+	    if (objClass.isArray()) {
+		initializeArray(obj_at_i, element, objClass);
+	    } else {
+		final Class arrElement = getArrayElementClass(objClass);
+		final Object setValue = java_value_from_erlang(element,
+							       arrElement);
+		Array.set(arr, i, setValue);
 	    }
 	}
     }
