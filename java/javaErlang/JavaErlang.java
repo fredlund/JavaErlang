@@ -533,19 +533,21 @@ public class JavaErlang {
     void initializeArray(final Object arr, final OtpErlangObject value)
             throws Exception {
         final int len = Array.getLength(arr);
-        final OtpErlangObject[] elements = elements(value);
-        final Class objClass = Array.get(arr, 0).getClass();
-        for (int i = 0; i < len; i++) {
-            final OtpErlangObject element = elements[i];
-            final Object obj_at_i = Array.get(arr, i);
-            if (objClass.isArray()) {
-                initializeArray(obj_at_i, element);
-            } else {
-                final Object setValue = java_value_from_erlang(element,
-                        objClass);
-                Array.set(arr, i, setValue);
-            }
-        }
+	if (len > 0) {
+	    final OtpErlangObject[] elements = elements(value);
+	    final Class objClass = Array.get(arr, 0).getClass();
+	    for (int i = 0; i < len; i++) {
+		final OtpErlangObject element = elements[i];
+		final Object obj_at_i = Array.get(arr, i);
+		if (objClass.isArray()) {
+		    initializeArray(obj_at_i, element);
+		} else {
+		    final Object setValue = java_value_from_erlang(element,
+								   objClass);
+		    Array.set(arr, i, setValue);
+		}
+	    }
+	}
     }
 
     static Class getArrayElementClass(final Class arrClass) {
