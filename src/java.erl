@@ -496,7 +496,7 @@ wait_for_reply(Node) ->
 	true ->
 	  {java_exception,ExceptionValue};
 	false ->
-	  throw({java_exception,ExceptionValue})
+	  throw_java_exception(ExceptionValue)
       end
 %%    Other -> 
 %%      io:format
@@ -505,6 +505,20 @@ wait_for_reply(Node) ->
 %%      wait_for_reply(Node)
   after Timeout -> throw(java_timeout) 
   end.
+
+throw_java_exception(ExceptionValue) ->
+  throw({java_exception,ExceptionValue}).
+
+report_java_exception({java_exception,Exception}) ->
+  StackTrace = erlang:get_stacktrace(),
+  io:format
+    ("*** Warning: unexpected Java exception; Erlang stacktrace:~n~p~n~n",
+     [StackTrace]),
+  Err = get_static(node_id(Exception),'java.lang.System',err),
+  call(Exception,printStackTrace,[Err]),
+  throw_java_exception(Exception);
+report_java_exception(Other) ->
+  Other.
 
 create_thread(NodeId) ->
   javaCall(NodeId,createThread,0).
@@ -1393,22 +1407,31 @@ field_set(NodeId,Class,FieldName) ->
 get_class_info(NodeId,ObserverInPackage,ClassName) ->
   format(info,"Computing class info for class ~p~n",[ClassName]),
   Constructors =
-    get_constructors(ClassName,NodeId,ObserverInPackage),
+    report_java_exception
+      (get_constructors(ClassName,NodeId,ObserverInPackage)),
   Methods =
-    get_methods(ClassName,NodeId,ObserverInPackage),
+    report_java_exception
+      (get_methods(ClassName,NodeId,ObserverInPackage)),
   Classes =
-    get_classes(ClassName,NodeId,ObserverInPackage),
+    report_java_exception
+      (get_classes(ClassName,NodeId,ObserverInPackage)),
   Fields =
-    get_fields(ClassName,NodeId,ObserverInPackage),
+    report_java_exception
+      (get_fields(ClassName,NodeId,ObserverInPackage)),
   format(info,"Found class info for class ~p~n",[ClassName]),
-  ClassLocation = javaCall(NodeId,getClassLocation,ClassName),
-  #class_info
-	{name=ClassName,
-	 class_location=ClassLocation,
-	 constructors=Constructors,
-	 methods=Methods,
-	 classes=Classes,
-	 fields=Fields}.
+  ClassLocation =
+    report_java_exception
+      (javaCall(NodeId,getClassLocation,ClassName)),
+  CLInfo =
+    #class_info
+    {name=ClassName,
+     class_location=ClassLocation,
+     constructors=Constructors,
+     methods=Methods,
+     classes=Classes,
+     fields=Fields},
+  format(debug,"classinfo=~n~p~n",[CLInfo]),
+  CLInfo.
 
 get_constructors(ClassName,NodeId,ObserverInPackage) ->
   javaCall(NodeId,getConstructors,{ClassName,ObserverInPackage}).
