@@ -829,8 +829,8 @@ reset(NodeId) ->
 terminate(NodeId) ->
   javaCall(NodeId,terminate,void),
   remove_thread_mappings(NodeId),
-  remove_class_mappings(NodeId),
   remove_object_mappings(NodeId),
+  remove_class_mappings(NodeId),
   ets:delete(java_nodes,NodeId).
 
 %% @doc
@@ -868,8 +868,8 @@ brutally_terminate(NodeId) ->
   end,
   {ok,Node} = node_lookup(NodeId),
   remove_thread_mappings(NodeId),
-  remove_class_mappings(NodeId),
   remove_object_mappings(NodeId),
+  remove_class_mappings(NodeId),
   ets:delete(java_nodes,NodeId),
   os:cmd(io_lib:format("kill -9 ~p",[Node#node.unix_pid])),
   ok.
@@ -896,12 +896,41 @@ remove_thread_mappings(NodeId) ->
      end, ets:tab2list(java_threads)).
 
 remove_class_mappings(NodeId) ->
+  Classes = ets:tab2list(java_classes),
+  Mangling = get_option(mangle_classnames,NodeId,false),
   lists:foreach
     (fun ({Key={NodeIdKey,_},_}) ->
 	 if NodeId==NodeIdKey -> ets:delete(java_classes,Key);
 	    true -> ok
 	 end
-     end, ets:tab2list(java_classes)).
+     end, Classes),
+  if
+    Mangling ->
+      lists:foreach
+	(fun ({Key={NodeIdKey,_},Class}) ->
+	     if NodeId==NodeIdKey, is_record(Class,class) -> 
+		 case code:delete(Class#class.module_name) of
+		   true -> ok;
+		   false ->
+		     format
+		       (warning,
+			"could not delete ~p which implemented ~p~n",
+			[Class#class.module_name,Key])
+		 end,
+		 case code:soft_purge(Class#class.module_name) of
+		   true -> ok;
+		   false ->
+		     format
+		       (warning,
+			"could not purge ~p which implemented ~p~n",
+			[Class#class.module_name,Key])
+		 end;
+		true -> 
+		 ok
+	     end
+	 end, Classes);
+    true -> ok
+  end.
 
 remove_object_mappings(NodeId) ->
   lists:foreach
