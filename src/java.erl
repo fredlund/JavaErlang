@@ -215,10 +215,7 @@ start_node(UserOptions) ->
     _ ->
       ok
   end,
-  case ets:info(java_nodes) of
-    undefined -> init([]);
-    _ -> ok
-  end,
+  init([]),
   [{_,StandardOptions}] = ets:lookup(java_nodes,options),
   Options = UserOptions++StandardOptions,
   check_options(Options),
@@ -692,21 +689,41 @@ set_static(NodeId,ClassName,Field,Value) ->
 %% `standard_node/1'. Calling `init/1' explicitely is
 %% useful to customize the library when multiple
 %% Java connections are used.
--spec init([option()]) -> ok.
+-spec init([option()]) -> boolean.
 init(UserOptions) ->
   DefaultOptions = default_options(),
   Options = UserOptions++DefaultOptions,
+  open_db(Options).
+
+open_db() ->
+  open_db(false,void).
+
+open_db(Options) ->
+  open_db(true,Options).
+
+open_db(Init,Options) ->
+  SelfPid = self(),
   _ =
     spawn(fun () ->
-	      ets:new(java_nodes,[named_table,public]),
-	      ets:new(java_classes,[named_table,public]),
-	      ets:new(java_threads,[named_table,public]),
-	      ets:new(java_objects,[named_table,public]),
+	      try 
+		ets:new(java_nodes,[named_table,public]),
+		ets:new(java_classes,[named_table,public]),
+		ets:new(java_threads,[named_table,public]),
+		ets:new(java_objects,[named_table,public]),
+		wait_until_stable(),
+		if
+		  Init -> ets:insert(java_nodes,{options,Options});
+		  true -> ok
+		end,
+		SelfPid!{initialized,true}
+	      catch _:_ ->
+		  SelfPid!{initialized,false}
+	      end,
 	      wait_forever()
 	  end),
-  wait_until_stable(),
-  ets:insert(java_nodes,{options,Options}),
-  ok.
+  receive
+    {initialized,DidInit} -> DidInit
+  end.
 
 wait_until_stable() ->
   case {ets:info(java_nodes),
@@ -810,6 +827,7 @@ reset(NodeId) ->
 %% Shuts down and terminates the connection to a Java node.
 -spec terminate(node_id()) -> any().
 terminate(NodeId) ->
+  javaCall(NodeId,terminate,void),
   remove_thread_mappings(NodeId),
   remove_class_mappings(NodeId),
   remove_object_mappings(NodeId),
@@ -1655,11 +1673,9 @@ get_options() ->
 -spec set_loglevel(Level::loglevel()) -> any().
 set_loglevel(Level) ->
   user_level(Level),
-  %% Warning. This is racy code.
-  case ets:info(java_nodes) of
-    undefined ->
-      init([{log_level,Level}]);
-    _ ->
+  case init([{log_level,Level}]) of
+    true -> ok;
+    false -> 
       Options = get_options(),
       ets:insert(java_nodes,{options,[{log_level,Level}|Options]})
   end.
