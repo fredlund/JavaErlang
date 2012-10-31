@@ -57,11 +57,11 @@ print_exception(F) ->
 tc() ->
   io:format("Starting tc~n",[]),
   {ok,NodeId} = java:start_node([{java_verbose,false}]),
-  I = (java:module(NodeId,'java.lang.Integer')):'Integer'(NodeId,2),
+  I = java:new(NodeId,'java.lang.Integer',[2]),
   io:format("Obtained an integer ~p~n",[I]),
-  Cl = (java:module(I)):getClass(I),
+  Cl = java:call(I,getClass,[]),
   io:format("Which is of class ~p~n",[Cl]),
-  CanonicalType = java:string_to_list((java:module(Cl)):getCanonicalName(Cl)),
+  CanonicalType = java:string_to_list(java:call(Cl,getCanonicalName,[])),
   io:format("The canonical type is ~p~n", [CanonicalType]),
   CanonicalType.
 
@@ -71,18 +71,18 @@ tc1() ->
   io:format("got a hashset ~p~n",[H]),
   I = java:new(NodeId,'java.lang.Integer',[2]),
   io:format("got an integer ~p~n",[I]),
-  Boolean = java_util_HashSet:add(H,I),
+  Boolean = java:call(H,add,[I]),
   io:format("the result is ~p~n",[Boolean]),
-  I2 = java_lang_Integer:'Integer'(NodeId,3),
+  I2 = java:new(NodeId,'java.lang.Integer',[3]),
   io:format("we have an integer 3 = ~p~n",[I2]),
-  Boolean2 = java_util_HashSet:add(H,I2),
+  Boolean2 = java:call(H,add,[I2]),
   io:format("the result is ~p~n",[Boolean2]),
-  I3 = java_lang_Integer:'Integer'(NodeId,2),
+  I3 = java:new(NodeId,'java.lang.Integer',[2]),
   io:format("we have an integer 2 = ~p~n",[I3]),
-  Boolean3 = java_util_HashSet:add(H,I3),
+  Boolean3 = java:call(H,add,[I3]),
   io:format("the result is ~p~n",[Boolean3]),
   do_loop(1,1000,H,NodeId),
-  Size = java_util_HashSet:size(H),
+  Size = java:call(H,size,[]),
   io:format
     ("after loop~nnumber of elements is ~p~n",
      [Size]),
@@ -90,7 +90,7 @@ tc1() ->
 
 do_loop(N,N,_,_) -> ok;
 do_loop(J,N,H,NodeId) ->
-  java_util_HashSet:add(H,java_lang_Integer:'Integer'(NodeId,J)),
+  java:call(H,add,[java:new(NodeId,'java.lang.Integer',[J])]),
   do_loop(J+1,N,H,NodeId).
 
 tc2() ->
@@ -120,15 +120,15 @@ tc35() ->
 tc4() ->
   {ok,NodeId} = java:start_node(),
   I = java:new(NodeId,'java.lang.Integer',[2]),
-  IString = java_lang_Integer:toString(I),
+  IString = java:call(I,toString,[]),
   io:format("result is ~p~n",[java:string_to_list(IString)]),
   AL = java:new(NodeId,'java.util.ArrayList',[]),
   io:format("new arraylist~n",[]),
-  java_util_ArrayList:add(AL,I),
-  java_util_ArrayList:add(AL,I),
-  java_util_ArrayList:add(AL,I),
+  java:call(AL,add,[I]),
+  java:call(AL,add,[I]),
+  java:call(AL,add,[I]),
   io:format("added elements~n",[]),
-  Array = java_util_ArrayList:toArray(AL),
+  Array = java:call(AL,toArray,[]),
   io:format("array is ~p~n",[java:array_to_list(Array)]),
   Obj = java:call_static(java:node_id(Array),'java.util.Arrays',asList,[Array]),
   io:format("Obj is ~p~n",[Obj]),
@@ -147,20 +147,20 @@ tc5() ->
 tc6() ->
   {ok,NodeId} = java:start_node(),
   I = java:new(NodeId,'java.lang.Integer',[2]),
-  IS = java_lang_Integer:toString(I),
-  J = java_lang_Integer:'Integer'(NodeId,IS),
-  JS = java_lang_Integer:toString(J),
+  IS = java:call(I,toString,[]),
+  J = java:new(NodeId,'java.lang.Integer',[IS]),
+  JS = java:call(J,toString,[]),
   io:format
     ("I=~p J=~p and they are equal==~p~n",
      [java:string_to_list(IS),
       java:string_to_list(JS),
-      java_lang_Integer:equals(I,J)]),
-  java_lang_Integer:equals(I,J).
+      java:call(I,equals,[J])]),
+  java:call(I,equals,[J]).
 
 tc7() ->
   {ok,NodeId} = java:start_node(),
   I = java:new(NodeId,'java.lang.Integer',[2]),
-  IS = java_lang_Integer:toString(I),
+  IS = java:call(I,toString,[]),
   io:format("after I and IS~n",[]),
   Err = java:get_static(NodeId,'java.lang.System',err),
   io:format("we have java.lang.System.err~n",[]),
@@ -178,12 +178,12 @@ tc8() ->
   java:call(Obj,print,[]),
   io:format
     ("The value of the integer is ~p~n",
-     [java_lang_Integer:intValue(I)]),
-  java_lang_Integer:intValue(I).
+     [java:call(I,intValue,[])]),
+  java:call(I,intValue,[]).
 
 tc9() ->
   {ok,NodeId1} = java:start_node([]),
-  {ok,NodeId2} = java:start_node([{mangle_classnames,true}]),
+  {ok,NodeId2} = java:start_node(),
   Obj1 = java:new(NodeId1,'javaErlang.testing.Test',[]),
   Obj2 = java:new(NodeId2,'javaErlang.testing.Test',[]),
   java:call(Obj1,print,[]),
@@ -199,8 +199,8 @@ tc9() ->
   java:get(Obj2,v)-java:get(Obj1,v).
 
 tc10() ->
-  {ok,NodeId1} = java:start_node([{mangle_classnames,true}]),
-  {ok,NodeId2} = java:start_node([{mangle_classnames,true}]),
+  {ok,NodeId1} = java:start_node(),
+  {ok,NodeId2} = java:start_node(),
   Obj1 = java:new(NodeId1,'javaErlang.testing.Test',[]),
   Obj2 = java:new(NodeId2,'javaErlang.testing.Test',[]),
   java:call(Obj1,print,[]),
@@ -217,10 +217,8 @@ tc10() ->
 
 tc11() ->
   {ok,NodeId} = java:start_node(),
-  java:acquire_class(NodeId,'java.lang.Integer'),
-  Cnst = java_lang_Integer:constructor(NodeId,[int]),
-  I = Cnst(3),
-  J = Cnst(3),
+  I = java:new(NodeId,'java.lang.Integer',[int],[3]),
+  J = java:new(NodeId,'java.lang.Integer',[int],[3]),
   io:format
     ("3=~p~n",
      [java:string_to_list(java:call(I,toString,[]))]),
@@ -234,9 +232,7 @@ tc11() ->
 
 tc12() ->
   {ok,NodeId} = java:start_node(),
-  java:acquire_class(NodeId,'java.lang.Character'),
-  java:acquire_class(NodeId,'java.lang.String'),
-  Space = java_lang_Character:'Character'(NodeId,32),
+  Space = java:new(NodeId,'java.lang.Character',[32]),
   SpaceStr = java:call(Space,toString,[]),
   true = string:equal(java:string_to_list(SpaceStr)," "),
   Hello = "Hello World!",
@@ -246,7 +242,7 @@ tc12() ->
     string:equal
       (java:string_to_list(java:call(Cl,getCanonicalName,[])),
        "char[]"),
-  CharStr = java_lang_String:'String'(NodeId,CharArray),
+  CharStr = java:new(NodeId,'java.lang.String',[CharArray]),
   true = string:equal(java:string_to_list(CharStr),Hello),
   true = string:equal(java:array_to_list(CharArray),Hello),
   io:format("finishing...~n",[]),
@@ -329,8 +325,8 @@ tc19() ->
 tc19a() ->
   {ok,NodeId} = java:start_node(),
   java:acquire_class(NodeId,'java.lang.Integer'),
-  Int10 = java_lang_Integer:'Integer'(NodeId,10),
-  String10 = java_lang_Integer:toString(Int10),
+  Int10 = java:new(NodeId,'java.lang.Integer',[10]),
+  String10 = java:call(Int10,toString,[]),
   true.
 
 tc19b() ->
@@ -379,8 +375,7 @@ tc19g() ->
 
 tc19h() ->
   {ok,NodeId} = java:start_node(),
-  java:acquire_class(NodeId,'java.lang.Integer'),
-  I2 = java_lang_Integer:'Integer'(NodeId,2),
+  I2 = java:new(NodeId,'java.lang.Integer',[2]),
   true.
 
 tc19i() ->

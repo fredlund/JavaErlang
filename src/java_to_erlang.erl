@@ -42,10 +42,6 @@
 -include("class.hrl").
 -include("debug.hrl").
 
-ensure_string(Atom) when is_atom(Atom) ->
-  atom_to_list(Atom);
-ensure_string(List) when is_list(List) ->
-  List.
 
 compute_class(NodeId,ClassName) when is_atom(ClassName) ->
   RawConstructors =
@@ -103,7 +99,6 @@ elements_with_type(NodeId,ClassName,Getter,Elements) ->
      end, Elements).
   
 elements_with_arity(NodeId,ClassName,Getter,Elements) ->
-  SimpleClassName = java:finalComponent(ClassName),
   lists:foldl
     (fun ({Name,TypeList},Acc) ->
 	 Arity =
@@ -146,7 +141,7 @@ add_to_elements_with_arity(N,A,T,E,[CA|Rest]) ->
 type_compatible_alternatives(Node,Objs,Alternatives) ->
   tca(Node,Objs,Alternatives).
 
-tca(_Node,Params,[]) -> false;
+tca(_Node,_Params,[]) -> false;
 tca(Node,Params,[Alternative={Types,_}|Rest]) ->
   ?LOG("Types=~p Params=~p~n",[Types,Params]),
   Result = java:javaCall(Node,objTypeCompat,{list_to_tuple(Types),Params}),
@@ -280,7 +275,7 @@ find_field(Object,Name) ->
   Class = java:find_class(Object),
   case
     find_element_without_type
-    (java:node_id(Object),{Name,0},[],Class#class.fields) of
+    (java:node_id(Object),{Name,1},[],Class#class.fields) of
     {ok,Field} -> Field;
     false ->
       java:format

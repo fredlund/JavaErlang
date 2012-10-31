@@ -53,7 +53,6 @@
 	 unix_pid=void,ping_retry=5000,connect_timeout=1000,
 	 max_java_start_tries=3,call_timeout,num_start_tries=0}).
 
--include("classinfo.hrl").
 -include("class.hrl").
 
 -export([init/1]).
@@ -61,7 +60,7 @@
 -export([default_options/0,version/0]). 
 -export([free/1,reset/1,terminate/1,terminate_all/0]).
 -export([brutally_terminate/1,recreate_node/1]).
--export([module/1,module/2,acquire_class/2,node_id/1]).
+-export([acquire_class/2,node_id/1]).
 -export([new/3,new/4]).
 -export([call/3,call/4,call_static/4,call_static/5]).
 -export([set_timeout/1]).
@@ -80,7 +79,7 @@
 %% Private
 -export([javaCall/3]).
 -export([get_option/2]).
--export([classname/2,to_erl_name/1,finalComponent/1]).
+-export([finalComponent/1]).
 -export([find_class/1]).
 -export([node_lookup/1]).
 
@@ -100,7 +99,6 @@
     | {java_exception_as_value,boolean()}
     | {java_verbose,boolean()}
     | {java_executable,string()}
-    | {mangle_classnames,boolean()}
     | {log_level,loglevel()}
     | {call_timeout,integer() | infinity}.
 %% <ul>
@@ -127,10 +125,6 @@
 %% Java interface class (default false).</li>
 %% <li>`call_timeout' sets a timeout value for all calls 
 %% to Java from Erlang (default 10 seconds).</li>
-%% <li>`mangle_classname' is an option which permits 
-%% talking to multiple Java nodes,
-%% that have incompatible but identically named Java classes.
-%% This options should not normally be set to true (default false).</li>
 %% </ul>
  
 -opaque node_id() :: integer().
@@ -284,8 +278,7 @@ check_options(Options) ->
 	    [java_sources,symbolic_name,log_level,
 	     java_beams,java_class,java_classpath,add_to_java_classpath,
 	     java_exception_as_value,java_verbose,
-	     java_executable,
-	     call_timeout,mangle_classnames]) of
+	     java_executable,call_timeout]) of
 	   true -> ok;
 	   false ->
 	     format
@@ -652,7 +645,7 @@ set_static(NodeId,ClassName,Field,Value) ->
 %% `standard_node/1'. Calling `init/1' explicitely is
 %% useful to customize the library when multiple
 %% Java connections are used.
--spec init([option()]) -> boolean.
+-spec init([option()]) -> boolean().
 init(UserOptions) ->
   DefaultOptions = default_options(),
   Options = UserOptions++DefaultOptions,
@@ -734,8 +727,7 @@ default_options() ->
    {java_executable,JavaExecutable},
    {java_verbose,false},
    {call_timeout,10000},
-   {log_level,notice},
-   {mangle_classnames,false}].
+   {log_level,notice}].
 
 
 %% @doc
@@ -860,7 +852,6 @@ remove_thread_mappings(NodeId) ->
 
 remove_class_mappings(NodeId) ->
   Classes = ets:tab2list(java_classes),
-  Mangling = get_option(mangle_classnames,NodeId,false),
   lists:foreach
     (fun ({Key={NodeIdKey,_},_}) ->
 	 if NodeId==NodeIdKey -> ets:delete(java_classes,Key);
@@ -957,7 +948,7 @@ list_to_array(NodeId,List,Type) when is_list(List) ->
 %% Returns the elements of the Java String as an Erlang list.
 -spec string_to_list(object_ref()) -> [char()].
 string_to_list(String) ->
-  Bytes = (module(String)):getBytes(String),
+  Bytes = java:call(String,getBytes,[]),
   array_to_list(Bytes).
 
 %% @doc 
@@ -1040,7 +1031,7 @@ print_stacktrace(Exception) ->
 %% Example: 
 %% ``` java:acquire_class(NodeId,'java.lang.Integer'),
 %%     JavaInt10 = java_lang_Integer:'Integer'(NodeId,10).'''
--spec acquire_class(node_id(),class_name()) -> atom().
+-spec acquire_class(node_id(),class_name()) -> #class{}.
 acquire_class(NodeId,ClassName) when is_atom(ClassName) ->
   ?LOG("acquire_class(~p,~p)~n",[NodeId,ClassName]),
   acquire_class_int(NodeId,ClassName).
@@ -1050,15 +1041,14 @@ acquire_class_int(NodeId,ClassName) ->
     {ok,Class} ->
       Class;
     _ ->
-      FullClassName = classname(ClassName,NodeId),
-      case get_load_permission(FullClassName) of
+      case get_load_permission(NodeId,ClassName) of
 	ok ->
 	  try java_to_erlang:compute_class(NodeId,ClassName) of
 	    Class ->
-	      ets:delete(java_classes,{loading,FullClassName}),
+	      ets:delete(java_classes,{loading,NodeId,ClassName}),
 	      class_store(NodeId,ClassName,Class)
 	  catch ExceptionClass:Reason ->
-	      ets:delete(java_classes,{loading,FullClassName}),
+	      ets:delete(java_classes,{loading,NodeId,ClassName}),
 	      erlang:raise(ExceptionClass,Reason,erlang:get_stacktrace())
 	  end
       end
@@ -1067,13 +1057,13 @@ acquire_class_int(NodeId,ClassName) ->
 %% Since classes can be loaded from multiple processes simultaneously
 %% we have to serialize such attempts (to prevent getting purge errors
 %% for instance).
-get_load_permission(ClassName) ->
-  case ets:insert_new(java_classes,{{loading,ClassName},self()}) of
+get_load_permission(NodeId,ClassName) ->
+  case ets:insert_new(java_classes,{{loading,NodeId,ClassName},self()}) of
     true ->
       ok;
     false ->
       timer:sleep(10),
-      get_load_permission(ClassName)
+      get_load_permission(NodeId,ClassName)
   end.
 
 class_lookup(NodeId,ClassName) when is_atom(ClassName) ->
@@ -1102,77 +1092,7 @@ node_lookup(NodeId) ->
 
 node_store(Node) ->
   ets:insert(java_nodes,{Node#node.node_id,Node}).
-
-%% @private
-classname(ClassName,NodeId) ->
-  MangleNames = get_option(mangle_classnames,NodeId,false),
-  FinalClassName =
-    if
-      MangleNames ->
-	%% Maybe we should rather check for a certain package here,
-	%% or have it as an option, or...
-	case not(mangleable(ClassName)) of
-	  true ->
-	    ClassName;
-	  false ->
-	    list_to_atom
-	      ("node_"++integer_to_list(NodeId)++"_"++atom_to_list(ClassName))
-	end;
-      true -> ClassName
-    end,
-  if
-    FinalClassName=/=ClassName ->
-      ?LOG("Computed classname ~p for ~p~n",[FinalClassName,ClassName]);
-    true ->
-      ok
-  end,
-  FinalClassName.
-
-mangleable(ClassName) ->
-  Result =
-    not
-      (lists:member
-	 (firstComponent(ClassName),
-	  ['java','javax','org','net'])),
-  io:format("~p: mangleable ~p~n",[ClassName,Result]),
-  Result.
-
-%% @private
-to_erl_name(ClassName) when is_atom(ClassName) ->
-  list_to_atom(to_erl_name(atom_to_list(ClassName)));
-to_erl_name(ClassName) when is_list(ClassName) ->
-  lists:map
-    (fun (Ch) ->
-	 if
-	   Ch==$. -> $_;
-	   Ch==$\$ -> $_;
-	   true -> Ch
-	 end
-     end, ClassName).
-
-%% @doc Returns the name of the Erlang module to which the argument 
-%% object belongs. The function will generate an Erlang module, and
-%% compile and load it, if necessary. 
--spec module(object_ref()) -> atom().
-module(Object) ->
-  case ets:lookup(java_objects,Object) of
-    [{_,Module}] -> Module;
-    _ ->
-      ClassName = getClassName(node_id(Object),Object),
-      ?LOG("Object ~p has class name ~p~n",[Object,ClassName]),
-      Class = acquire_class_int(node_id(Object),ClassName),
-      Module = void, %%Class#class.module_name,
-      ets:insert(java_objects,{Object,Module}),
-      Module
-  end.
   
-%% @doc Returns the name of the Erlang module
-%% which implements the class argument.
-%% This function will translate the class to an Erlang module,
-%% and load the Erlang module, if required.
-module(NodeId,ClassName) ->
-  acquire_class(NodeId,ClassName).
-
 find_class(Object) ->
   case ets:lookup(java_objects,Object) of
     [{_,Class}] -> Class;
@@ -1223,18 +1143,6 @@ runs_on_windows() ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-print_parameters(L) when is_list(L) ->
-  combine_strings
-    (",",lists:map(fun (Arg) -> io_lib:format("~p",[Arg]) end, L)).
-
-combine_strings(_Delim,[]) ->
-  [];
-combine_strings(_Delim,[Str]) ->
-  Str;
-combine_strings(Delim,[Str|Rest]) when is_list(Delim), is_list(Str) ->
-  Str++Delim++combine_strings(Delim,Rest).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Rudimentary logging support; in the future we should probably use
 %% a standard logger
