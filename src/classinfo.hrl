@@ -1,5 +1,6 @@
 -record(class_info,
-	{name,class_location,
+	{name,
+	 class_location,
 	 constructors,
 	 methods,
 	 static_methods,

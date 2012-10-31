@@ -34,6 +34,9 @@
 -export([compute_class/2]).
 -export([find_constructor/3,find_constructor_with_type/3]).
 -export([find_method/3,find_method_with_type/3]).
+-export([find_static_method/4,find_static_method_with_type/4]).
+-export([find_field/2]).
+-export([find_static_field/3]).
 -export([test/0]).
 
 -include("class.hrl").
@@ -82,6 +85,7 @@ compute_class(NodeId,ClassName) when is_atom(ClassName) ->
     elements_with_arity(NodeId,ClassName,getField,RawStaticFields),
 
   #class{
+	  name=ClassName,
 	  constructors={ConstructorsWithType,ConstructorsWithArity},
 	  methods={MethodsWithType,MethodsWithArity},
 	  static_methods={StaticMethodsWithType,StaticMethodsWithArity},
@@ -242,12 +246,83 @@ find_method_with_type(Object,Name,ArgTypes) ->
       throw(badarg)
   end.
 
+find_static_method(NodeId,ClassName,Name,Args) ->
+  Class = java:acquire_class(NodeId,ClassName),
+  LenArgs = length(Args),
+  case
+    find_element_without_type
+    (NodeId,{Name,LenArgs},Args,element(2,Class#class.static_methods)) of
+    {ok,Static_Method} -> Static_Method;
+    false ->
+      java:format
+	(warning,
+	 "*** Warning: cannot find static method for class ~p with arity ~p "++
+	   "that matches arguments ~s~n",
+	 [ClassName,LenArgs,print_parameters(Args)]),
+      throw(badarg)
+  end.
+
+find_static_method_with_type(NodeId,ClassName,Name,ArgTypes) ->
+  Class = java:acquire_class(NodeId,ClassName),
+  case
+    find_element_with_type
+    ({Name,ArgTypes},element(1,Class#class.static_methods)) of
+    {ok,Static_Method} -> Static_Method;
+    false ->
+      java:format
+	(warning,
+	 "*** Warning: cannot find static method for class ~p with types ~s~n",
+	 [ClassName,print_parameters(ArgTypes)]),
+      throw(badarg)
+  end.
+
+find_field(Object,Name) ->
+  Class = java:find_class(Object),
+  case
+    find_element_without_type
+    (java:node_id(Object),{Name,0},[],Class#class.fields) of
+    {ok,Field} -> Field;
+    false ->
+      java:format
+	(warning,
+	 "*** Warning: cannot find field ~p for class ~p~n",
+	 [Name,Class#class.name]),
+      throw(badarg)
+  end.
+
+find_static_field(NodeId,ClassName,Name) ->
+  Class = java:acquire_class(NodeId,ClassName),
+  case
+    find_element_without_type
+    (NodeId,{Name,1},[],Class#class.static_fields) of
+    {ok,Static_Field} -> Static_Field;
+    false ->
+      java:format
+	(warning,
+	 "*** Warning: cannot find static field ~p for class ~p~n",
+	 [Name,Class#class.name]),
+      throw(badarg)
+  end.
+
+
 test() ->
-  {ok,N} = java:start_node([{java_verbose,true}]),
+  {ok,N} = java:start_node(),
   I1=java:new(N,'java.lang.Integer',[1]),
   I2=java:new(N,'java.lang.Integer',[int],[2]),
   io:format("1==2?~p~n",[java:call(I1,equals,[I2])]),
-  io:format("2==2?~p~n",[java:call(I2,equals,[I2])]).
+  io:format("2==2?~p~n",[java:call(I2,equals,[I2])]),
+  io:format
+    ("reverse(2)=~p~n",
+     [java:call_static(N,'java.lang.Integer',reverse,[23])]),
+  io:format
+    ("MIN_VALUE=~p~n",[java:get_static(N,'java.lang.Integer','MIN_VALUE')]),
+  io:format
+    ("MAX_VALUE=~p~n",[java:get_static(N,'java.lang.Integer','MAX_VALUE')]),
+  io:format
+    ("SIZE=~p~n",[java:get_static(N,'java.lang.Integer','SIZE')]).
+
+  
+
   
 
 

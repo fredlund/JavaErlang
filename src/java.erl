@@ -81,7 +81,6 @@
 -export([javaCall/3]).
 -export([get_option/2]).
 -export([classname/2,to_erl_name/1,finalComponent/1]).
--export([constructor/3,method/4,method_obj_and_fun/4,field_get/3,field_set/3]).
 -export([find_class/1]).
 -export([node_lookup/1]).
 
@@ -576,18 +575,9 @@ new(NodeId,ClassName,ArgTypes,Args) when is_list(Args) ->
 %% corresponding to the call `Object.toString()'.
 -spec call(object_ref(),method_name(),[value()]) -> value().
 call(Object,Method,Args) when is_list(Args) ->
-  if
-    Object==null ->
-      format
-	(warning,
-	 "*** Warning: calling method ~p~nwith arguments ~p~non null object~n",
-	 [Method,Args]),
-      throw(badarg);
-    true ->
-      JavaMethod =
-	java_to_erlang:find_method(Object,Method,Args),
-      javaCall(node_id(Object),call_method,{Object,JavaMethod,list_to_tuple(Args)})
-  end.
+  ensure_non_null(Object),
+  JavaMethod = java_to_erlang:find_method(Object,Method,Args),
+  javaCall(node_id(Object),call_method,{Object,JavaMethod,list_to_tuple(Args)}).
 
 %% @doc
 %% Calls a Java instance method, explicitely
@@ -595,18 +585,10 @@ call(Object,Method,Args) when is_list(Args) ->
 %% distinguish between methods of the same arity.
 -spec call(object_ref(),method_name(),[type()],[value()]) -> value().
 call(Object,Method,ArgTypes,Args) when is_list(Args) ->
-  if
-    Object==null ->
-      format
-	(warning,
-	 "*** Warning: calling method ~p~nwith arguments ~p~non null object~n",
-	 [Method,Args]),
-      throw(badarg);
-    true ->
-      JavaMethod =
-	java_to_erlang:find_method_with_type(Object,Method,ArgTypes),
-      javaCall(node_id(Object),call_method,{Object,JavaMethod,list_to_tuple(Args)})
-  end.
+  ensure_non_null(Object),
+  JavaMethod =
+    java_to_erlang:find_method_with_type(Object,Method,ArgTypes),
+  javaCall(node_id(Object),call_method,{Object,JavaMethod,list_to_tuple(Args)}).
 
 %% @doc
 %% Calls a Java static method (a class method).
@@ -615,15 +597,19 @@ call(Object,Method,ArgTypes,Args) when is_list(Args) ->
 %% corresponding to the call `Integer.reverseBytes(22)'.
 -spec call_static(node_id(),class_name(),method_name(),[value()]) -> value().
 call_static(NodeId,ClassName,Method,Args) when is_list(Args) ->
-  apply(module(NodeId,ClassName),Method,[NodeId|Args]).
+  JavaMethod =
+    java_to_erlang:find_static_method(NodeId,ClassName,Method,Args),
+  javaCall(NodeId,call_method,{null,JavaMethod,list_to_tuple(Args)}).
 
 %% @doc
 %% Calls a Java static method (a class method). Explicitely
 %% selects which method to call using the types argument.
 -spec call_static(node_id(),class_name(),method_name(),[type()],[value()]) -> value().
 call_static(NodeId,ClassName,Method,ArgTypes,Args) when is_list(Args) ->
-  MethodFun = (module(NodeId,ClassName)):method(Method,NodeId,ArgTypes),
-  apply(MethodFun,Args).
+  JavaMethod =
+    java_to_erlang:find_static_method_with_type
+      (NodeId,ClassName,Method,ArgTypes),
+  javaCall(NodeId,call_method,{null,JavaMethod,list_to_tuple(Args)}).
 
 %% @doc
 %% Retrieves the value of an instance attribute.
@@ -631,19 +617,9 @@ call_static(NodeId,ClassName,Method,ArgTypes,Args) when is_list(Args) ->
 %% ``java:get(Object,v)', corresponding to 'Object.v''.
 -spec get(object_ref(), attribute_name()) -> value().
 get(Object,Field) ->
-  if
-    Object==null ->
-      format
-	(warning,
-	 "*** Warning: get on field ~p~non null object~n",
-	 [Field]),
-      throw(badarg);
-    true ->
-      apply
-	(module(Object),
-	 field_get,
-	 [Field,Object])
-  end.
+  ensure_non_null(Object),
+  JavaField = java_to_erlang:find_field(Object,Field),
+  javaCall(node_id(Object),getFieldValue,{Object,JavaField,null}).
 
 %% @doc
 %% Retrieves the value of a class attribute.
@@ -652,36 +628,23 @@ get(Object,Field) ->
 %% corresponding to `Integer.SIZE'.
 -spec get_static(node_id(), class_name(), attribute_name()) -> value().
 get_static(NodeId,ClassName,Field) ->
-  apply(module(NodeId,ClassName),
-	field_get,
-	[Field,NodeId]).
+  JavaField = java_to_erlang:find_static_field(NodeId,ClassName,Field),
+  javaCall(NodeId,getFieldValue,{null,JavaField,null}).
 
 %% @doc
 %% Modifies the value of an instance attribute.
 -spec set(object_ref(), attribute_name(), value()) -> value().
 set(Object,Field,Value) ->
-  if
-    Object==null ->
-      format
-	(warning,
-	 "*** Warning: set on field ~p with value ~p~non null object~n",
-	 [Field,Value]),
-      throw(badarg);
-    true ->
-      apply
-	(module(Object),
-	 field_set,
-	 [Field,Value,Object])
-  end.
+  ensure_non_null(Object),
+  JavaField = java_to_erlang:find_field(Object,Field),
+  javaCall(node_id(Object),setFieldValue,{Object,JavaField,Value}).
 
 %% @doc
 %% Modifies the value of a static, i.e., class attribute.
 -spec set_static(node_id(), class_name(), attribute_name(), value()) -> value().
 set_static(NodeId,ClassName,Field,Value) ->
-  apply(module(NodeId,ClassName),
-	field_set,
-	[Field,Value,NodeId]).
-
+  JavaField = java_to_erlang:find_static_field(NodeId,ClassName,Field),
+  javaCall(NodeId,setFieldValue,{null,JavaField,Value}).
 
 %% @doc Initializes the Java interface library
 %% providing default options.
@@ -1187,130 +1150,6 @@ to_erl_name(ClassName) when is_list(ClassName) ->
 	 end
      end, ClassName).
 
-%% @private
-constructor(Node,Class,ArgTypes) ->
-  {Constructor,Arity} =
-    javaCall(Node,getConstructor,{Class,list_to_tuple(ArgTypes)}),
-  mk_fun
-    (Arity,
-     fun (Values) ->
-	 javaCall(Node,call_constructor,{Constructor,Values})
-     end).
-
-%% @private
-field_get(Node,Class,FieldName) ->
-  {Field,_FieldType} = javaCall(Node,getField,{Class,FieldName}),
-  mk_fun1
-    (0,
-     fun (Object,Values) ->
-	 javaCall(Node,getFieldValue,{Object,Field,Values})
-     end).
-
-%% @private
-field_set(NodeId,Class,FieldName) ->
-  {Field,_FieldType} = javaCall(NodeId,getField,{Class,FieldName}),
-  fun (Object,Value) ->
-      javaCall(NodeId,setFieldValue,{Object,Field,Value})
-  end.
-
-%% @private
-method(Node,Class,Method,ArgTypes) ->
-  {_MethodObj,Fun} = method_obj_and_fun(Node,Class,Method,ArgTypes),
-  Fun.
-
-%% @private
-method_obj_and_fun(Node,Class,Method,ArgTypes) ->
-  {MethodObj,Arity,_IsStatic} =
-    javaCall(Node,getMethod,{Class,Method,list_to_tuple(ArgTypes)}),
-  {MethodObj,
-   mk_fun1
-   (Arity,
-    fun (Object,Values) ->
-	javaCall(Node,call_method,{Object,MethodObj,Values})
-    end)}.
-
-mk_fun(0,Fun) ->
-  fun () -> Fun({}) end;
-mk_fun(1,Fun) ->
-  fun (Arg1) -> Fun({Arg1}) end;
-mk_fun(2,Fun) ->
-  fun (Arg1,Arg2) -> Fun({Arg1,Arg2}) end;
-mk_fun(3,Fun) ->
-  fun (Arg1,Arg2,Arg3) -> Fun({Arg1,Arg2,Arg3}) end;
-mk_fun(4,Fun) ->
-  fun (Arg1,Arg2,Arg3,Arg4) -> Fun({Arg1,Arg2,Arg3,Arg4}) end;
-mk_fun(5,Fun) ->
-  fun (Arg1,Arg2,Arg3,Arg4,Arg5) -> Fun({Arg1,Arg2,Arg3,Arg4,Arg5}) end;
-mk_fun(6,Fun) ->
-  fun (Arg1,Arg2,Arg3,Arg4,Arg5,Arg6) -> Fun({Arg1,Arg2,Arg3,Arg4,Arg5,Arg6}) end;
-mk_fun(7,Fun) ->
-  fun (Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7) -> Fun({Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7}) end;
-mk_fun(8,Fun) ->
-  fun (Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8) -> Fun({Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8}) end;
-mk_fun(9,Fun) ->
-  fun (Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9) -> Fun({Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9}) end;
-mk_fun(10,Fun) ->
-  fun (Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10) -> Fun({Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10}) end;
-mk_fun(11,Fun) ->
-  fun (Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11) -> Fun({Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11}) end;
-mk_fun(12,Fun) ->
-  fun (Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12) -> Fun({Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12}) end;
-mk_fun(13,Fun) ->
-  fun (Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12,Arg13) -> Fun({Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12,Arg13}) end;
-mk_fun(14,Fun) ->
-  fun (Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12,Arg13,Arg14) -> Fun({Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12,Arg13,Arg14}) end;
-mk_fun(15,Fun) ->
-  fun (Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12,Arg13,Arg14,Arg15) -> Fun({Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12,Arg13,Arg14,Arg15}) end;
-mk_fun(16,Fun) ->
-  fun (Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12,Arg13,Arg14,Arg15,Arg16) -> Fun({Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12,Arg13,Arg14,Arg15,Arg16}) end;
-mk_fun(N,_Fun) ->
-  format
-    (error,
-     "*** Error: methods or constructors of arity>16 not supported"),
-  throw({arity,N}).
-
-mk_fun1(0,Fun) ->
-  fun (Object) -> Fun(Object,{}) end;
-mk_fun1(1,Fun) ->
-  fun (Object,Arg1) -> Fun(Object,{Arg1}) end;
-mk_fun1(2,Fun) ->
-  fun (Object,Arg1,Arg2) -> Fun(Object,{Arg1,Arg2}) end;
-mk_fun1(3,Fun) ->
-  fun (Object,Arg1,Arg2,Arg3) -> Fun(Object,{Arg1,Arg2,Arg3}) end;
-mk_fun1(4,Fun) ->
-  fun (Object,Arg1,Arg2,Arg3,Arg4) -> Fun(Object,{Arg1,Arg2,Arg3,Arg4}) end;
-mk_fun1(5,Fun) ->
-  fun (Object,Arg1,Arg2,Arg3,Arg4,Arg5) -> Fun(Object,{Arg1,Arg2,Arg3,Arg4,Arg5}) end;
-mk_fun1(6,Fun) ->
-  fun (Object,Arg1,Arg2,Arg3,Arg4,Arg5,Arg6) -> Fun(Object,{Arg1,Arg2,Arg3,Arg4,Arg5,Arg6}) end;
-mk_fun1(7,Fun) ->
-  fun (Object,Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7) -> Fun(Object,{Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7}) end;
-mk_fun1(8,Fun) ->
-  fun (Object,Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8) -> Fun(Object,{Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8}) end;
-mk_fun1(9,Fun) ->
-  fun (Object,Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9) -> Fun(Object,{Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9}) end;
-mk_fun1(10,Fun) ->
-  fun (Object,Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10) -> Fun(Object,{Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10}) end;
-mk_fun1(11,Fun) ->
-  fun (Object,Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11) -> Fun(Object,{Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11}) end;
-mk_fun1(12,Fun) ->
-  fun (Object,Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12) -> Fun(Object,{Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12}) end;
-mk_fun1(13,Fun) ->
-  fun (Object,Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12,Arg13) -> Fun(Object,{Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12,Arg13}) end;
-mk_fun1(14,Fun) ->
-  fun (Object,Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12,Arg13,Arg14) -> Fun(Object,{Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12,Arg13,Arg14}) end;
-mk_fun1(15,Fun) ->
-  fun (Object,Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12,Arg13,Arg14,Arg15) -> Fun(Object,{Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12,Arg13,Arg14,Arg15}) end;
-mk_fun1(16,Fun) ->
-  fun (Object,Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12,Arg13,Arg14,Arg15,Arg16) -> Fun(Object,{Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10,Arg11,Arg12,Arg13,Arg14,Arg15,Arg16}) end;
-mk_fun1(N,_Fun) ->
-  format
-    (error,
-     "*** Error: methods or constructors of arity>16 not supported"),
-  throw({arity,N}).
-
-
-
 %% @doc Returns the name of the Erlang module to which the argument 
 %% object belongs. The function will generate an Erlang module, and
 %% compile and load it, if necessary. 
@@ -1361,6 +1200,13 @@ finalComponent(Atom) when is_list(Atom) ->
     N -> string:substr(Atom,N+1)
   end.
 
+ensure_non_null(Object) ->
+  if
+    Object==null ->
+      format(warning,"*** Warning: null object~n",[Object]),
+      throw(badarg);
+    true -> ok
+  end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 
