@@ -73,13 +73,14 @@
 -export([getClassName/1,getSimpleClassName/1,instanceof/2,is_subtype/3]).
 -export([identity/2]).
 -export([print_stacktrace/1]).
+-export([test/2]).
 
 -export([set_loglevel/1,format/2,format/3]).
 
 -export_type([node_id/0,object_ref/0]).
 
 %% Private
--export([javaCall/3,type_compatible_alternatives/3]).
+-export([javaCall/3]).
 -export([get_class_info/3,get_option/2]).
 -export([classname/2,to_erl_name/1,finalComponent/1]).
 -export([class_info/2]).
@@ -1120,19 +1121,13 @@ acquire_class_int(NodeId,ClassName) ->
       FullClassName = classname(ClassName,NodeId),
       case get_load_permission(FullClassName) of
 	ok ->
-	  try l(NodeId,ClassName) of
+	  try class_bind(NodeId,ClassName) of
 	    Result ->
 	      ets:delete(java_classes,{loading,FullClassName}),
 	      Result
-	  catch _:_ ->
-	      try c(NodeId,ClassName) of
-		Result ->
-		  ets:delete(java_classes,{loading,FullClassName}),
-		  Result
-	      catch ExceptionClass:Reason ->
-		  ets:delete(java_classes,{loading,FullClassName}),
-		  erlang:raise(ExceptionClass,Reason,erlang:get_stacktrace())
-	      end
+	  catch ExceptionClass:Reason ->
+	      ets:delete(java_classes,{loading,FullClassName}),
+	      erlang:raise(ExceptionClass,Reason,erlang:get_stacktrace())
 	  end
       end
   end.
@@ -1217,188 +1212,20 @@ to_erl_name(ClassName) when is_list(ClassName) ->
 	 end
      end, ClassName).
 
-class_bind(NodeId,ClassName,ModuleName) when is_atom(ClassName) ->
+class_bind(NodeId,ClassName) when is_atom(ClassName) ->
   case class_lookup(NodeId,ClassName) of
     {ok,Class} ->
       Class;
     _ ->
-      class_store(NodeId,ClassName,ModuleName:bind(NodeId))
+      class_store
+	(NodeId,
+	 ClassName,
+	 java_to_erlang:gen_erlang_class(NodeId,ClassName))
   end.
 
-l(NodeId,ClassName) when is_atom(ClassName) ->
-  ErlModule = to_erl_name(classname(ClassName,NodeId)),
-  case code:is_loaded(ErlModule) of
-    false ->
-      case my_load_file(ErlModule,ClassName,NodeId) of
-	{module,ModuleName} -> 
-	  FileName = code:which(ModuleName),
-	  true = is_list(FileName),
-	  Class = class_bind(NodeId,ClassName,ModuleName),
-	  ClassLocationStr =
-	    if
-	      Class#class.class_location==[] ->
-		"";
-	      true ->
-		io_lib:format
-		  ("; Java code at ~p",[Class#class.class_location])
-	    end,
-	  format
-	    (info,
-	     "~p: [loaded ~p from ~s~s]~n",
-	     [symbolic_name(NodeId),ModuleName,FileName,ClassLocationStr]),
-	  Class
-      end;
-    {file,_} ->
-      FileName = code:which(ErlModule),
-      true = is_list(FileName),
-      %%io:format
-      %%("~p: [~p already loaded from ~s]~n",
-      %%[symbolic_name(NodeId),ClassName,FileName]),
-      class_bind(NodeId,ClassName,ErlModule)
-  end.
-
-my_load_file(ErlModule,ClassName,NodeId) when is_atom(ErlModule) ->
-  java:format
-    (debug,
-     "~p: my_load_file(~p,~p)~n",
-     [symbolic_name(NodeId),ErlModule,NodeId]),
-  ErlModuleString = atom_to_list(ErlModule),
-  BeamDir = get_option(java_beams,NodeId),
-  JavaSources = get_option(java_sources,NodeId),
-  case file:read_file_info(BeamDir) of
-    {error,_} -> 
-      case file:read_file_info(JavaSources) of
-	{error,_} ->
-	  file:make_dir(JavaSources),
-	  file:make_dir(BeamDir);
-	_ -> 
-	  file:make_dir(BeamDir)
-      end;
-    _ -> ok
-  end,
-  LoadFile = BeamDir++"/"++ErlModuleString,
-  java:format(debug,"Trying to load ~p~n",[LoadFile]),
-  case code:load_abs(LoadFile) of
-    Result={module,_} -> 
-      %% Check if the loaded file is still up-to-date
-      ClassLocation = ErlModule:class_location(),
-      CurrentClassLocation = javaCall(NodeId,getClassLocation,ClassName),
-      if
-	ClassLocation =/= CurrentClassLocation ->
-	  java:format
-	    (debug,
-	     "Class location has changed from ~s to ~s; recompiling...~n",
-	     [ClassLocation,CurrentClassLocation]),
-	  code:purge(ErlModule);
-	true ->
-	  CreationTime = {CreationDate,_} = ErlModule:creation_time(),
-	  java:format
-	    (debug,"File loaded; source was at ~s~nCreation time: ~p~n",
-	     [ClassLocation,CreationTime]),
-	  if
-	    ClassLocation=/="" ->
-	      case file:read_file_info(ClassLocation) of
-		{ok,FileInfo} -> 
-		  MTime = {MTimeDate,_} = FileInfo#file_info.mtime,
-		  GregCreatDate =
-		    calendar:date_to_gregorian_days(CreationDate),
-		  GregCreatSeconds =
-		    calendar:datetime_to_gregorian_seconds(CreationTime),
-		  GregMTimeDate = 
-		    calendar:date_to_gregorian_days(MTimeDate),
-		  GregMTimeSeconds = 
-		    calendar:datetime_to_gregorian_seconds(MTime),
-		  if
-		    (GregCreatDate > GregMTimeDate) orelse
-		    ((GregCreatDate == GregMTimeDate) andalso
-		     (GregCreatSeconds >= GregMTimeSeconds)) ->
-		      java:format
-			(debug,
-			 "Erlang module up-to-date~n",
-			 []),
-		      Result;
-		    true ->
-		      java:format
-			(debug,
-			 "Source file has changed at ~p; have to recompile~n",
-			 [MTime]),
-		      code:purge(ErlModule)
-		  end;
-		_ ->
-		  java:format
-		    (debug,
-		     "Source file not found; we are going to recompile ~s "++
-		     "which should fail~n",
-		     [ClassLocation]),
-		  code:purge(ErlModule)
-	      end;
-	    true -> Result
-	  end
-	end;
-    Other ->
-      java:format
-	(debug,
-	 "Loading of ~p failed~n",[LoadFile]),
-      Other
-  end.
-
-c(NodeId,ClassName) when is_atom(ClassName) ->
-  {FileName,IsTemporary} =
-    translate_java_to_erlang:gen_java_erlang_module(NodeId,ClassName),
-  format
-    (info,
-     "~p: c -- generated file ~p from Java class ~p~n",
-     [symbolic_name(NodeId),FileName,ClassName]),
-  RootName = 
-    filename:rootname(FileName),
-  BeamDir =
-    if 
-      not(IsTemporary) -> get_option(java_beams,NodeId);
-      true -> "/tmp"
-    end,
-  format(info,"compile:file(~p,~p)~n",[RootName,[{outdir,BeamDir}]]),
-  case compile:file(RootName,[{outdir,BeamDir},debug_info]) of
-    {ok,ModuleName} ->
-      LoadFile = BeamDir++"/"++filename:basename(RootName),
-      case code:load_abs(LoadFile) of
-	{module,ModuleName} ->
-	  LoadedName = code:which(ModuleName),
-	  true = is_list(LoadedName),
-	  if 
-	    IsTemporary ->
-	      ok = file:delete(FileName),
-	      ok = file:delete(LoadFile++".beam");
-	    true ->
-	      ok
-	  end,
-	  Class = class_bind(NodeId,ClassName,ModuleName),
-	  ClassLocationStr =
-	    if
-	      Class#class.class_location==[] ->
-		"";
-	      true ->
-		io_lib:format
-		  ("; Java code at ~p",[Class#class.class_location])
-	    end,
-	  format
-	    (info,
-	     "~p: c -- [loaded ~p from ~s~s]~n",
-	     [symbolic_name(NodeId),ClassName,LoadedName,ClassLocationStr]),
-		Class;
-	Other ->
-	  format
-	    (warning,
-	     "~p: c -- loading of compiled file ~p failed due to:~n~p ???~n",
-	     [symbolic_name(NodeId),LoadFile,Other]),
-	  throw(compile)
-      end;
-    Other ->
-      format
-	(warning,
-	 "~p: c -- compilation of generated file ~p failed due to:~n~p ???~n",
-	 [symbolic_name(NodeId),RootName,Other]),
-      throw(compile)
-  end.
+test(NodeId,ClassName) ->
+  java_to_erlang:get_class
+    (NodeId,ClassName,get_class_info(NodeId,true,ClassName)).
 
 %% @private
 class_info(Arg,ClassName) ->
@@ -1586,33 +1413,6 @@ mk_fun1(N,_Fun) ->
   throw({arity,N}).
 
 
-%% @private
-type_compatible_alternatives(Node,Objs,Alternatives) ->
-  tca(Node,Objs,Alternatives).
-
-tca(_Node,Params,[]) ->
-  format
-    (warning,
-     "*** Warning: no constructor/method with arity ~p found, "
-     "which accepts parameters ~s~n",
-     [length(Params),print_parameters(Params)]),
-  throw(badarg);
-tca(Node,Params,[{Types,Alternative}|Rest]) ->
-  ?LOG("Types=~p Params=~p~n",[Types,Params]),
-  Result = 
-    javaCall
-      (Node,
-       objTypeCompat,
-       {list_to_tuple(Types),
-	list_to_tuple(Params)}),
-  if
-    Result -> 
-      ?LOG("Params ~p matches ~p~n",[Params,Types]),
-      Alternative();
-    true ->
-      ?LOG("Params ~p do not match ~p~n",[Params,Types]),
-      tca(Node,Params,Rest)
-  end.
 
 %% @doc Returns the name of the Erlang module to which the argument 
 %% object belongs. The function will generate an Erlang module, and
