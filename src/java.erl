@@ -909,24 +909,27 @@ remove_class_mappings(NodeId) ->
       lists:foreach
 	(fun ({Key={NodeIdKey,_},Class}) ->
 	     if NodeId==NodeIdKey, is_record(Class,class) -> 
-		 case code:delete(Class#class.module_name) of
-		   true -> ok;
-		   false ->
-		     format
-		       (warning,
-			"could not delete ~p which implemented ~p~n",
-			[Class#class.module_name,Key])
-		 end,
-		 case code:soft_purge(Class#class.module_name) of
-		   true -> ok;
-		   false ->
-		     format
-		       (warning,
-			"could not purge ~p which implemented ~p~n",
-			[Class#class.module_name,Key])
+		 case mangleable(Class#class.name) of
+		   true ->
+		     case code:delete(Class#class.module_name) of
+		       true -> ok;
+		       false ->
+			 format
+			   (warning,
+			    "could not delete ~p which implemented ~p~n",
+			    [Class#class.module_name,Key])
+		     end,
+		     case code:soft_purge(Class#class.module_name) of
+		       true -> ok;
+		       false ->
+			 format
+			   (warning,
+			    "could not purge ~p which implemented ~p~n",
+			    [Class#class.module_name,Key])
+		     end;
+		   false -> ok
 		 end;
-		true -> 
-		 ok
+		true -> ok
 	     end
 	 end, Classes);
     true -> ok
@@ -1184,10 +1187,7 @@ classname(ClassName,NodeId) ->
       MangleNames ->
 	%% Maybe we should rather check for a certain package here,
 	%% or have it as an option, or...
-	case 
-	  lists:member
-	  (firstComponent(ClassName),
-	   ['java','javax','org','net']) of
+	case not(mangleable(ClassName)) of
 	  true ->
 	    ClassName;
 	  false ->
@@ -1203,6 +1203,15 @@ classname(ClassName,NodeId) ->
       ok
   end,
   FinalClassName.
+
+mangleable(ClassName) ->
+  Result =
+    not
+      (lists:member
+	 (firstComponent(ClassName),
+	  ['java','javax','org','net'])),
+  io:format("~p: mangleable ~p~n",[ClassName,Result]),
+  Result.
 
 %% @private
 to_erl_name(ClassName) when is_atom(ClassName) ->
