@@ -847,14 +847,13 @@ public class JavaErlang {
     OtpErlangObject getConstructor(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
-        final OtpErlangTuple typeList = (OtpErlangTuple) t.elementAt(1);
+        final OtpErlangTuple typeList = (OtpErlangTuple) t.elementAt(2);
         final Constructor cnstr = getConstructor(className, typeList.elements());
         if (verbose) {
             System.err.println("\rcmd " + cmd + " has typelist "
                     + typeList.elements());
         }
-        return makeErlangTuple(acc_map_to_erlang(cnstr),
-                new OtpErlangInt(cnstr.getParameterTypes().length));
+        return acc_map_to_erlang(cnstr);
     }
 
     OtpErlangObject getField(final OtpErlangObject cmd) throws Exception {
@@ -862,8 +861,7 @@ public class JavaErlang {
         final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
         final Field field = getField(className,
                 ((OtpErlangAtom) t.elementAt(1)).atomValue());
-        return makeErlangTuple(acc_map_to_erlang(field), new OtpErlangBoolean(
-                Modifier.isStatic(field.getModifiers())));
+        return acc_map_to_erlang(field);
     }
 
     static OtpErlangObject getClassLocation(final OtpErlangObject n) {
@@ -956,8 +954,7 @@ public class JavaErlang {
                 for (int i = 0; i < parameterTypes.length; i++) {
                     erlTypes[i] = toErlType(parameterTypes[i]);
                 }
-                erlConstructors.add(makeErlangTuple(name, new OtpErlangBoolean(
-                        false), new OtpErlangList(erlTypes)));
+                erlConstructors.add(makeErlangTuple(name, new OtpErlangList(erlTypes)));
             }
         }
         final OtpErlangTuple[] tmp_arr = new OtpErlangTuple[erlConstructors
@@ -972,7 +969,9 @@ public class JavaErlang {
             throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
-        final boolean observerInPackage = ((OtpErlangAtom) t.elementAt(1))
+	final boolean selectStatics = ((OtpErlangAtom) t.elementAt(1))
+                .booleanValue(); 
+        final boolean observerInPackage = ((OtpErlangAtom) t.elementAt(2))
                 .booleanValue();
         final Class cl = findClass(className);
         final Method[] methods = cl.getMethods();
@@ -986,6 +985,7 @@ public class JavaErlang {
                 continue;
             }
             final int modifiers = method.getModifiers();
+	    if (is_static(modifiers) != selectStatics) continue;
             if (is_executable(modifiers)
                     && is_visibleToUs(modifiers, observerInPackage)) {
                 final OtpErlangAtom name = new OtpErlangAtom(method.getName());
@@ -994,8 +994,7 @@ public class JavaErlang {
                 for (int i = 0; i < parameterTypes.length; i++) {
                     erlTypes[i] = toErlType(parameterTypes[i]);
                 }
-                erlMethods.add(makeErlangTuple(name, new OtpErlangBoolean(
-                        is_static(modifiers)), new OtpErlangList(erlTypes)));
+                erlMethods.add(makeErlangTuple(name, new OtpErlangList(erlTypes)));
             } else if (verbose) {
                 System.err.println("\rMethod is not visible to us");
             }
@@ -1033,11 +1032,14 @@ public class JavaErlang {
             throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
+	final boolean selectStatics = ((OtpErlangAtom) t.elementAt(1))
+                .booleanValue(); 
         final Class cl = findClass(className);
         final Field[] fields = cl.getFields();
         final ArrayList<OtpErlangTuple> erlFields = new ArrayList<OtpErlangTuple>();
         for (final Field field : fields) {
             final int modifiers = field.getModifiers();
+	    if (is_static(modifiers) != selectStatics) continue;
 
             final OtpErlangAtom name = new OtpErlangAtom(field.getName());
             final OtpErlangObject fieldType = toErlType(field.getType());
@@ -1048,8 +1050,7 @@ public class JavaErlang {
                 }
                 continue;
             }
-            erlFields.add(makeErlangTuple(name, new OtpErlangBoolean(
-                    is_static(modifiers)), fieldType));
+            erlFields.add(makeErlangTuple(name, new OtpErlangList(fieldType)));
         }
         final OtpErlangTuple[] tmp_arr = new OtpErlangTuple[erlFields.size()];
         for (int i = 0; i < erlFields.size(); i++) {
@@ -1094,10 +1095,7 @@ public class JavaErlang {
         final OtpErlangTuple typeList = (OtpErlangTuple) t.elementAt(2);
         final Method method = getMethod(findClass(className), methodName,
                 typeList.elements());
-        final OtpErlangObject key = acc_map_to_erlang(method);
-        return makeErlangTuple(key, new OtpErlangInt(
-                method.getParameterTypes().length), new OtpErlangBoolean(
-                Modifier.isStatic(method.getModifiers())));
+	return acc_map_to_erlang(method);
     }
 
     static Constructor getConstructor(final String className,

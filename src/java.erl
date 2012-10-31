@@ -54,9 +54,7 @@
 	 max_java_start_tries=3,call_timeout,num_start_tries=0}).
 
 -include("classinfo.hrl").
-
--record(class,{node,constructors,methods,get_fields,set_fields,name,module_name,class_location}).
-
+-include("class.hrl").
 
 -export([init/1]).
 -export([start_node/0,start_node/1,nodes/0,symbolic_name/1]).
@@ -73,7 +71,7 @@
 -export([getClassName/1,getSimpleClassName/1,instanceof/2,is_subtype/3]).
 -export([identity/2]).
 -export([print_stacktrace/1]).
--export([test/2]).
+-export([report_java_exception/1]).
 
 -export([set_loglevel/1,format/2,format/3]).
 
@@ -81,10 +79,10 @@
 
 %% Private
 -export([javaCall/3]).
--export([get_class_info/3,get_option/2]).
+-export([get_option/2]).
 -export([classname/2,to_erl_name/1,finalComponent/1]).
--export([class_info/2]).
 -export([constructor/3,method/4,method_obj_and_fun/4,field_get/3,field_set/3]).
+-export([find_class/1]).
 -export([node_lookup/1]).
 
 -include("debug.hrl").
@@ -551,9 +549,8 @@ identity(NodeId,Value) ->
 -spec new(node_id(),class_name(),[value()]) -> object_ref().
 new(NodeId,ClassName,Args) when is_list(Args) ->
   ?LOG("NodeId=~p ClassName=~p~n",[NodeId,ClassName]),
-  Module = module(NodeId,ClassName),
-  ?LOG("Module is ~p~n",[Module]),
-  apply(Module,finalComponent(ClassName),[NodeId|Args]).
+  Constructor = java_to_erlang:find_constructor(NodeId,ClassName,Args),
+  javaCall(NodeId,call_constructor,{Constructor,list_to_tuple(Args)}).
 
 %% @doc
 %% Calls the constructor of a Java class, explicitely selecting
@@ -568,10 +565,9 @@ new(NodeId,ClassName,Args) when is_list(Args) ->
 -spec new(node_id(),class_name(),[type()],[value()]) -> object_ref().
 new(NodeId,ClassName,ArgTypes,Args) when is_list(Args) ->
   ?LOG("NodeId=~p ClassName=~p~n",[NodeId,ClassName]),
-  Module = module(NodeId,ClassName),
-  ?LOG("Module is ~p~n",[Module]),
-  Constructor = Module:constructor(NodeId,ArgTypes),
-  apply(Constructor,Args).
+  Constructor =
+    java_to_erlang:find_constructor_with_type(NodeId,ClassName,ArgTypes),
+  javaCall(NodeId,call_constructor,{Constructor,list_to_tuple(Args)}).
 
 %% @doc
 %% Calls a Java instance method.
@@ -588,7 +584,9 @@ call(Object,Method,Args) when is_list(Args) ->
 	 [Method,Args]),
       throw(badarg);
     true ->
-      apply(module(Object),Method,[Object|Args])
+      JavaMethod =
+	java_to_erlang:find_method(Object,Method,Args),
+      javaCall(node_id(Object),call_method,{Object,JavaMethod,list_to_tuple(Args)})
   end.
 
 %% @doc
@@ -605,8 +603,9 @@ call(Object,Method,ArgTypes,Args) when is_list(Args) ->
 	 [Method,Args]),
       throw(badarg);
     true ->
-      MethodFun = (module(Object)):method(Method,Object,ArgTypes),
-      apply(MethodFun,Args)
+      JavaMethod =
+	java_to_erlang:find_method_with_type(Object,Method,ArgTypes),
+      javaCall(node_id(Object),call_method,{Object,JavaMethod,list_to_tuple(Args)})
   end.
 
 %% @doc
@@ -904,37 +903,7 @@ remove_class_mappings(NodeId) ->
 	 if NodeId==NodeIdKey -> ets:delete(java_classes,Key);
 	    true -> ok
 	 end
-     end, Classes),
-  if
-    Mangling ->
-      lists:foreach
-	(fun ({Key={NodeIdKey,_},Class}) ->
-	     if NodeId==NodeIdKey, is_record(Class,class) -> 
-		 case mangleable(Class#class.name) of
-		   true ->
-		     case code:delete(Class#class.module_name) of
-		       true -> ok;
-		       false ->
-			 format
-			   (warning,
-			    "could not delete ~p which implemented ~p~n",
-			    [Class#class.module_name,Key])
-		     end,
-		     case code:soft_purge(Class#class.module_name) of
-		       true -> ok;
-		       false ->
-			 format
-			   (warning,
-			    "could not purge ~p which implemented ~p~n",
-			    [Class#class.module_name,Key])
-		     end;
-		   false -> ok
-		 end;
-		true -> ok
-	     end
-	 end, Classes);
-    true -> ok
-  end.
+     end, Classes).
 
 remove_object_mappings(NodeId) ->
   lists:foreach
@@ -1109,12 +1078,9 @@ print_stacktrace(Exception) ->
 %% ``` java:acquire_class(NodeId,'java.lang.Integer'),
 %%     JavaInt10 = java_lang_Integer:'Integer'(NodeId,10).'''
 -spec acquire_class(node_id(),class_name()) -> atom().
-acquire_class(NodeId,ClassName) when is_list(ClassName) ->
-  acquire_class(NodeId,list_to_atom(ClassName));
 acquire_class(NodeId,ClassName) when is_atom(ClassName) ->
   ?LOG("acquire_class(~p,~p)~n",[NodeId,ClassName]),
-  Class = acquire_class_int(NodeId,ClassName),
-  Class#class.module_name.
+  acquire_class_int(NodeId,ClassName).
 
 acquire_class_int(NodeId,ClassName) ->
   case class_lookup(NodeId,ClassName) of
@@ -1124,10 +1090,10 @@ acquire_class_int(NodeId,ClassName) ->
       FullClassName = classname(ClassName,NodeId),
       case get_load_permission(FullClassName) of
 	ok ->
-	  try class_bind(NodeId,ClassName) of
-	    Result ->
+	  try java_to_erlang:compute_class(NodeId,ClassName) of
+	    Class ->
 	      ets:delete(java_classes,{loading,FullClassName}),
-	      Result
+	      class_store(NodeId,ClassName,Class)
 	  catch ExceptionClass:Reason ->
 	      ets:delete(java_classes,{loading,FullClassName}),
 	      erlang:raise(ExceptionClass,Reason,erlang:get_stacktrace())
@@ -1221,45 +1187,6 @@ to_erl_name(ClassName) when is_list(ClassName) ->
 	 end
      end, ClassName).
 
-class_bind(NodeId,ClassName) when is_atom(ClassName) ->
-  case class_lookup(NodeId,ClassName) of
-    {ok,Class} ->
-      Class;
-    _ ->
-      class_store
-	(NodeId,
-	 ClassName,
-	 java_to_erlang:gen_erlang_class(NodeId,ClassName))
-  end.
-
-test(NodeId,ClassName) ->
-  java_to_erlang:get_class
-    (NodeId,ClassName,get_class_info(NodeId,true,ClassName)).
-
-%% @private
-class_info(Arg,ClassName) ->
-  NodeId =
-    case is_object_ref(Arg) of
-      true -> node_id(Arg);
-      false -> Arg
-    end,
-  case class_lookup(NodeId,ClassName) of
-    {ok,Class} ->
-      Class;
-    _ ->
-      acquire_class(NodeId,ClassName),
-      case class_lookup(NodeId,ClassName) of
-	{ok,Class} -> 
-	  Class;
-	_ ->
-	  format
-	    (warning,
-	     "class_info(~p,~p): class not found??~n",
-	     [NodeId,ClassName]),
-	  throw(class_info)
-      end
-  end.
-
 %% @private
 constructor(Node,Class,ArgTypes) ->
   {Constructor,Arity} =
@@ -1285,45 +1212,6 @@ field_set(NodeId,Class,FieldName) ->
   fun (Object,Value) ->
       javaCall(NodeId,setFieldValue,{Object,Field,Value})
   end.
-
-%% @private
-get_class_info(NodeId,ObserverInPackage,ClassName) ->
-  format(info,"Computing class info for class ~p~n",[ClassName]),
-  Constructors =
-    report_java_exception
-      (get_constructors(ClassName,NodeId,ObserverInPackage)),
-  Methods =
-    report_java_exception
-      (get_methods(ClassName,NodeId,ObserverInPackage)),
-  Classes =
-    report_java_exception
-      (get_classes(ClassName,NodeId,ObserverInPackage)),
-  Fields =
-    report_java_exception
-      (get_fields(ClassName,NodeId,ObserverInPackage)),
-  format(info,"Found class info for class ~p~n",[ClassName]),
-  ClassLocation =
-    report_java_exception
-      (javaCall(NodeId,getClassLocation,ClassName)),
-  CLInfo =
-    #class_info
-    {name=ClassName,
-     class_location=ClassLocation,
-     constructors=Constructors,
-     methods=Methods,
-     classes=Classes,
-     fields=Fields},
-  format(debug,"classinfo=~n~p~n",[CLInfo]),
-  CLInfo.
-
-get_constructors(ClassName,NodeId,ObserverInPackage) ->
-  javaCall(NodeId,getConstructors,{ClassName,ObserverInPackage}).
-get_methods(ClassName,NodeId,ObserverInPackage) ->
-  javaCall(NodeId,getMethods,{ClassName,ObserverInPackage}).
-get_classes(ClassName,NodeId,ObserverInPackage) ->
-  javaCall(NodeId,getClasses,{ClassName,ObserverInPackage}).
-get_fields(ClassName,NodeId,ObserverInPackage) ->
-  javaCall(NodeId,getFields,{ClassName,ObserverInPackage}).
 
 %% @private
 method(Node,Class,Method,ArgTypes) ->
@@ -1434,7 +1322,7 @@ module(Object) ->
       ClassName = getClassName(node_id(Object),Object),
       ?LOG("Object ~p has class name ~p~n",[Object,ClassName]),
       Class = acquire_class_int(node_id(Object),ClassName),
-      Module = Class#class.module_name,
+      Module = void, %%Class#class.module_name,
       ets:insert(java_objects,{Object,Module}),
       Module
   end.
@@ -1445,6 +1333,16 @@ module(Object) ->
 %% and load the Erlang module, if required.
 module(NodeId,ClassName) ->
   acquire_class(NodeId,ClassName).
+
+find_class(Object) ->
+  case ets:lookup(java_objects,Object) of
+    [{_,Class}] -> Class;
+    _ ->
+      ClassName = getClassName(node_id(Object),Object),
+      Class = acquire_class_int(node_id(Object),ClassName),
+      ets:insert(java_objects,{Object,Class}),
+      Class
+  end.
 
 firstComponent(Atom) when is_atom(Atom) ->
   list_to_atom(firstComponent(atom_to_list(Atom)));
@@ -1553,4 +1451,6 @@ level(notice) -> 5;
 level(info) -> 6;
 level(debug) -> 7;
 level(_) -> throw(badarg).
+
+    
 
