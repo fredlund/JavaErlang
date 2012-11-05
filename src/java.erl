@@ -90,9 +90,7 @@
   alert | critical | debug | emergency | error | info | notice | warning.
 
 -type option() ::
-  {java_sources,string()} 
-    | {symbolic_name,string()}
-    | {java_beams,string()}
+    {symbolic_name,string()}
     | {java_class,string()}
     | {add_to_java_classpath,[string()]}
     | {java_classpath,[string()]}
@@ -102,14 +100,7 @@
     | {log_level,loglevel()}
     | {call_timeout,integer() | infinity}.
 %% <ul>
-%% <li>`java_sources' determines the directory
-%% where generated Erlang modules
-%% corresponding to Java classes are stored
-%% (default value "java_sources").</li>
 %% <li>`symbolic_name' provides a symbolic name for the node.</li>
-%% <li>`java_beams' determines the directory where beam files generated from
-%% Erlang modules corresponding to Java classes are stored 
-%% (default value "java_sources/ebin").</li>
 %% <li>`java_classpath' provides a classpath to the Java executable.
 %% The default classpath includes the OtpErlang.jar library, and
 %% the Java class files needed by the JavaErl library.</li>
@@ -232,8 +223,11 @@ spawn_java(PreNode,PreNodeId) ->
 		 (NodeId,
 		  proplists:get_value(java_executable,Options),
 		  JavaVerbose,ClassPath,
-		  proplists:get_value(java_class,Options))
+		  proplists:get_value(java_class,Options)),
+	       io:format
+		 ("terminating java ~p~n",[self()])
 	   end),
+      io:format("spawned java ~p~n",[PortPid]),
       NodeName = javaNodeName(NodeId),
       SymbolicName = proplists:get_value(symbolic_name,Options,NodeName),
       PreNode1 =
@@ -275,8 +269,8 @@ check_options(Options) ->
 	   end,
 	 case lists:member
 	   (OptionName,
-	    [java_sources,symbolic_name,log_level,
-	     java_beams,java_class,java_classpath,add_to_java_classpath,
+	    [symbolic_name,log_level,
+	     java_class,java_classpath,add_to_java_classpath,
 	     java_exception_as_value,java_verbose,
 	     java_executable,call_timeout]) of
 	   true -> ok;
@@ -342,6 +336,8 @@ java_reader(Port,Identity) ->
     {to_port,Data} ->
       Port!{self(), {command, Data}},
       java_reader(Port,Identity);
+    {control,terminate_reader} ->
+      ok;
     {_,{data,{eol,Message}}} ->
       io:format("~s~n",[Message]),
       java_reader(Port,Identity);
@@ -659,26 +655,33 @@ open_db(Options) ->
 
 open_db(Init,Options) ->
   SelfPid = self(),
-  _ =
-    spawn(fun () ->
-	      try 
-		ets:new(java_nodes,[named_table,public]),
-		ets:new(java_classes,[named_table,public]),
-		ets:new(java_threads,[named_table,public]),
-		ets:new(java_objects,[named_table,public]),
-		wait_until_stable(),
-		if
-		  Init -> ets:insert(java_nodes,{options,Options});
-		  true -> ok
-		end,
-		SelfPid!{initialized,true}
-	      catch _:_ ->
-		  SelfPid!{initialized,false}
-	      end,
-	      wait_forever()
-	  end),
-  receive
-    {initialized,DidInit} -> DidInit
+  case ets:info(java_nodes) of
+    undefined ->
+      spawn(fun () ->
+		io:format("spawned db ~p~n",[self()]),
+		try 
+		  ets:new(java_nodes,[named_table,public]),
+		  ets:new(java_classes,[named_table,public]),
+		  ets:new(java_threads,[named_table,public]),
+		  ets:new(java_objects,[named_table,public]),
+		  wait_until_stable(),
+		  if
+		    Init -> ets:insert(java_nodes,{options,Options});
+		    true -> ok
+		  end,
+		  SelfPid!{initialized,true},
+		  wait_forever()
+		catch _:_ ->
+		    SelfPid!{initialized,false},
+		    io:format("terminating db ~p~n",[self()])
+		end
+	    end),
+      receive
+	{initialized,DidInit} -> DidInit
+      end;
+    _ ->
+      wait_until_stable(),
+      false
   end.
 
 wait_until_stable() ->
@@ -720,9 +723,7 @@ default_options() ->
       Executable -> Executable
     end,
   ?LOG("Java classpath is ~p~n",[ClassPath]),
-  [{java_sources,"java_sources"},
-   {java_beams,"java_sources/ebin"},
-   {java_class,"javaErlang.JavaErlang"},
+  [{java_class,"javaErlang.JavaErlang"},
    {java_classpath,ClassPath},
    {java_executable,JavaExecutable},
    {java_verbose,false},
@@ -786,6 +787,8 @@ terminate(NodeId) ->
   remove_thread_mappings(NodeId),
   remove_object_mappings(NodeId),
   remove_class_mappings(NodeId),
+  {ok,Node} = node_lookup(NodeId),
+  Node#node.port_pid!{control,terminate_reader},
   ets:delete(java_nodes,NodeId).
 
 %% @doc
@@ -797,7 +800,9 @@ terminate_all() ->
     _ ->
       lists:foreach
 	(fun ({NodeId,_Node}) ->
-	     javaCall(NodeId,terminate,void);
+	     javaCall(NodeId,terminate,void),
+	     {ok,Node} = node_lookup(NodeId),
+	     Node#node.port_pid!{control,terminate_reader};
 	     (_) -> ok
 	 end, ets:tab2list(java_nodes)),
       ets:delete(java_nodes),
@@ -822,6 +827,7 @@ brutally_terminate(NodeId) ->
     _ -> ok
   end,
   {ok,Node} = node_lookup(NodeId),
+  Node#node.port_pid!{control,terminate_reader},
   remove_thread_mappings(NodeId),
   remove_object_mappings(NodeId),
   remove_class_mappings(NodeId),
@@ -853,10 +859,11 @@ remove_thread_mappings(NodeId) ->
 remove_class_mappings(NodeId) ->
   Classes = ets:tab2list(java_classes),
   lists:foreach
-    (fun ({Key={NodeIdKey,_},_}) ->
-	 if NodeId==NodeIdKey -> ets:delete(java_classes,Key);
-	    true -> ok
-	 end
+    (fun ({Key,Value}) ->
+	 case Key of
+	   {NodeId,_} -> ets:delete(java_classes,Key);
+	   _ -> ok
+         end
      end, Classes).
 
 remove_object_mappings(NodeId) ->
