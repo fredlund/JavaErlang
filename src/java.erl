@@ -223,11 +223,11 @@ spawn_java(PreNode,PreNodeId) ->
 		 (NodeId,
 		  proplists:get_value(java_executable,Options),
 		  JavaVerbose,ClassPath,
-		  proplists:get_value(java_class,Options)),
-	       io:format
-		 ("terminating java ~p~n",[self()])
+		  proplists:get_value(java_class,Options))
+	       %%io:format
+		 %%("terminating java ~p~n",[self()])
 	   end),
-      io:format("spawned java ~p~n",[PortPid]),
+      %%io:format("spawned java ~p~n",[PortPid]),
       NodeName = javaNodeName(NodeId),
       SymbolicName = proplists:get_value(symbolic_name,Options,NodeName),
       PreNode1 =
@@ -658,7 +658,7 @@ open_db(Init,Options) ->
   case ets:info(java_nodes) of
     undefined ->
       spawn(fun () ->
-		io:format("spawned db ~p~n",[self()]),
+		%%io:format("spawned db ~p~n",[self()]),
 		try 
 		  ets:new(java_nodes,[named_table,public]),
 		  ets:new(java_classes,[named_table,public]),
@@ -672,8 +672,8 @@ open_db(Init,Options) ->
 		  SelfPid!{initialized,true},
 		  wait_forever()
 		catch _:_ ->
-		    SelfPid!{initialized,false},
-		    io:format("terminating db ~p~n",[self()])
+		    SelfPid!{initialized,false}
+		    %%io:format("terminating db ~p~n",[self()])
 		end
 	    end),
       receive
