@@ -235,7 +235,6 @@ spawn_java(PreNode,PreNodeId) ->
 	   end),
       %%io:format("spawned java ~p~n",[PortPid]),
       NodeName = javaNodeName(NodeId),
-      SymbolicName = proplists:get_value(symbolic_name,Options,NodeName),
       PreNode1 =
 	PreNode#node{node_id=NodeId,
 		     node_name=NodeName,
@@ -679,7 +678,6 @@ open_db(Init,Options) ->
 		  wait_until_stable(),
 		  if
 		    Init ->
-		      io:format("inserted options ~p~n",[Options]),
 		      ets:insert(java_nodes,{options,Options});
 		    true ->
 		      ok
@@ -1156,7 +1154,7 @@ finalComponent(Atom) when is_list(Atom) ->
 ensure_non_null(Object) ->
   if
     Object==null ->
-      format(warning,"*** Warning: null object ~p~n",[Object]),
+      format(warning,"~n*** Warning: null object~n",[]),
       throw(badarg);
     true -> ok
   end.
