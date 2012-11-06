@@ -69,7 +69,7 @@
 -export([array_to_list/1,string_to_list/1,list_to_string/2,list_to_array/3,convert/3]).
 -export([getClassName/1,getSimpleClassName/1,instanceof/2,is_subtype/3]).
 -export([identity/2]).
--export([print_stacktrace/1]).
+-export([print_stacktrace/1,get_stacktrace/1]).
 -export([report_java_exception/1]).
 
 -export([set_loglevel/1,format/2,format/3]).
@@ -198,12 +198,16 @@ start_node(UserOptions) ->
     _ ->
       ok
   end,
-  init([]),
-  [{_,StandardOptions}] = ets:lookup(java_nodes,options),
-  Options = UserOptions++StandardOptions,
+  Options = UserOptions++default_options(),
   check_options(Options),
+  LogLevel = proplists:get_value(log_level,Options),
+  init([{log_level,LogLevel}]),
   CallTimeout = proplists:get_value(call_timeout,Options),
-  PreNode = #node{options=Options,call_timeout=CallTimeout},
+  SymbolicName = proplists:get_value(symbolic_name,Options,void),
+  PreNode =
+    #node{options=Options,
+	  call_timeout=CallTimeout,
+	  symbolic_name=SymbolicName},
   spawn_java(PreNode,get_java_node_id()).
   
 
@@ -212,6 +216,7 @@ spawn_java(PreNode,PreNodeId) ->
       format(error,"*** Error: failed to start Java~n"),
       {error,too_many_tries};
      true ->
+      SymbolicName = PreNode#node.symbolic_name,
       NodeId = PreNodeId+99,
       Options = PreNode#node.options,
       JavaVerbose = proplists:get_value(java_verbose,Options),
@@ -221,6 +226,7 @@ spawn_java(PreNode,PreNodeId) ->
 	  (fun () ->
 	       run_java
 		 (NodeId,
+		  SymbolicName,
 		  proplists:get_value(java_executable,Options),
 		  JavaVerbose,ClassPath,
 		  proplists:get_value(java_class,Options))
@@ -231,21 +237,27 @@ spawn_java(PreNode,PreNodeId) ->
       NodeName = javaNodeName(NodeId),
       SymbolicName = proplists:get_value(symbolic_name,Options,NodeName),
       PreNode1 =
-	PreNode#node{node_id=NodeId,node_name=NodeName,port_pid=PortPid,
+	PreNode#node{node_id=NodeId,
+		     node_name=NodeName,
+		     port_pid=PortPid,
 		     symbolic_name=SymbolicName},
       case connectToNode(PreNode1) of
 	{ok,Node} ->
 	  java:format
-	    (debug,"Connect succeeded with pid ~p~n",[Node#node.node_pid]),
+	    (debug,"~p: connect succeeded with pid ~p~n",
+	     [Node#node.symbolic_name,Node#node.node_pid]),
 	  node_store(Node),
 	  java:format
-	    (debug,"Fresh connection to ~p established~n",[NodeId]),
+	    (debug,
+	     "~p: fresh connection to ~p established~n",
+	     [Node#node.symbolic_name,NodeId]),
 	  {ok,NodeId};
 	{error,Reason} ->
 	  java:format
 	    (debug,
-	     "Failed to connect at try ~p with reason ~p~n",
-	     [PreNode1#node.num_start_tries,Reason]),
+	     "~p: failed to connect at try ~p with reason ~p~n",
+	     [PreNode1#node.symbolic_name,
+	      PreNode1#node.num_start_tries,Reason]),
 	  spawn_java
 	    (PreNode1#node{num_start_tries=PreNode1#node.num_start_tries+1},
 	     NodeId)
@@ -292,19 +304,10 @@ get_option(Option,NodeId,Default) ->
   {ok,Node} = node_lookup(NodeId),
   proplists:get_value(Option,Node#node.options,Default).
 
-
 get_java_node_id() ->
-  case ets:lookup(java_nodes,java_node_id) of
-    [] ->
-      {A1,A2,A3} = now(),
-      random:seed(A1,A2,A3),
-      Value = random:uniform(100000),
-      ets:insert(java_nodes,{java_node_id,Value+1}), Value;
-    [{_,Value}] ->
-      ets:insert(java_nodes,{java_node_id,Value+1}), Value
-  end.
+  ets:update_counter(java_nodes,java_node_counter,1).
 
-run_java(Identity,Executable,Verbose,Paths,Class) ->
+run_java(Identity,Name,Executable,Verbose,Paths,Class) ->
   ClassPath = 
     case combine_paths(Paths) of
       "" -> [];
@@ -314,8 +317,8 @@ run_java(Identity,Executable,Verbose,Paths,Class) ->
   Args = ClassPath++[Class,integer_to_list(Identity)]++VerboseArg,
   format
     (info,
-     "Starting Java node with command~n~s and args ~p~n",
-     [Executable,Args]),
+     "~p: starting Java node with command~n~s and args ~p~n",
+     [Name,Executable,Args]),
   Port = open_port({spawn_executable,Executable},[{line,1000},stderr_to_stdout,{args,Args}]),
   java_reader(Port,Identity).
 
@@ -358,13 +361,18 @@ connectToNode(Node) ->
 
 connectToNode(PreNode,KeepOnTryingUntil) ->
   NodeName = PreNode#node.node_name,
+  SymbolicName = PreNode#node.symbolic_name,
   case net_adm:ping(NodeName) of
     pong ->
-      java:format(debug,"Connected to Java node ~p~n",[NodeName]),
+      java:format
+	(debug,"~p: connected to Java node ~p~n",
+	 [SymbolicName,NodeName]),
       {javaNode,NodeName}!{connect,PreNode#node.node_id,self()},
       receive
 	{value,{connected,Pid,UnixPid}} when is_pid(Pid) ->
-	  java:format(debug,"Got Java pid ~p~n",[Pid]),
+	  java:format
+	    (debug,"~p (~p): got Java pid ~p~n",
+	     [NodeName,SymbolicName,Pid]),
 	  Node = PreNode#node{node_pid=Pid,unix_pid=UnixPid},
 	  {ok,Node};
 	{value,already_connected} ->
@@ -374,9 +382,9 @@ connectToNode(PreNode,KeepOnTryingUntil) ->
 	Other ->
 	  format
 	    (warning,
-	     "*** Warning: got reply ~p instead of a pid "++
+	     "*** ~p: Warning: got reply ~p instead of a pid "++
 	     "when trying to connect to node ~p~n",
-	     [Other,{javaNode,NodeName}]),
+	     [SymbolicName,Other,{javaNode,NodeName}]),
 	  connectToNode(PreNode,KeepOnTryingUntil)
       after PreNode#node.connect_timeout -> 
 	  %% Failed to connect. We should try to start another node.
@@ -387,8 +395,8 @@ connectToNode(PreNode,KeepOnTryingUntil) ->
 	true -> 
 	  format
 	    (error,
-	     "*** Error: failed trying to connect to Java node ~p~n",
-	     [NodeName]),
+	     "*** Error: ~p: failed trying to connect to Java node ~p~n",
+	     [SymbolicName,NodeName]),
 	  {error,timeout};
 	false ->
 	  timer:sleep(100),
@@ -661,17 +669,25 @@ open_db(Init,Options) ->
 		%%io:format("spawned db ~p~n",[self()]),
 		try 
 		  ets:new(java_nodes,[named_table,public]),
+		  {A1,A2,A3} = now(),
+		  random:seed(A1,A2,A3),
+		  Value = random:uniform(100000),
+		  ets:insert(java_nodes,{java_node_counter,0}),
 		  ets:new(java_classes,[named_table,public]),
 		  ets:new(java_threads,[named_table,public]),
 		  ets:new(java_objects,[named_table,public]),
 		  wait_until_stable(),
 		  if
-		    Init -> ets:insert(java_nodes,{options,Options});
-		    true -> ok
+		    Init ->
+		      io:format("inserted options ~p~n",[Options]),
+		      ets:insert(java_nodes,{options,Options});
+		    true ->
+		      ok
 		  end,
 		  SelfPid!{initialized,true},
 		  wait_forever()
 		catch _:_ ->
+		    wait_until_stable(),
 		    SelfPid!{initialized,false}
 		    %%io:format("terminating db ~p~n",[self()])
 		end
@@ -1024,6 +1040,16 @@ print_stacktrace(Exception) ->
   Err = get_static(node_id(Exception),'java.lang.System',err),
   call(Exception,printStackTrace,[Err]).
 
+%% @doc
+%% Returns the Java stacktrace as an Erlang list
+%% This function is for convenience only; it is implementable using
+%% the rest of the Java API.
+-spec get_stacktrace(object_ref()) -> list().
+get_stacktrace(Exception) ->
+  StringWriter = new(node_id(Exception),'java.io.StringWriter',[]),
+  PrintWriter = new(node_id(Exception),'java.io.PrintWriter',[StringWriter]),
+  call(Exception,printStackTrace,[PrintWriter]),
+  string_to_list(call(StringWriter,toString,[])).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
@@ -1130,7 +1156,7 @@ finalComponent(Atom) when is_list(Atom) ->
 ensure_non_null(Object) ->
   if
     Object==null ->
-      format(warning,"*** Warning: null object~n",[Object]),
+      format(warning,"*** Warning: null object ~p~n",[Object]),
       throw(badarg);
     true -> ok
   end.
