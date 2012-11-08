@@ -85,6 +85,7 @@
 -export([finalComponent/1]).
 -export([find_class/1]).
 -export([node_lookup/1]).
+-export([run_java/6]).
 
 -include("debug.hrl").
 
@@ -100,7 +101,7 @@
     | {java_exception_as_value,boolean()}
     | {java_verbose,boolean()}
     | {java_executable,string()}
-    | {java_remote_host,string()}
+    | {erlang_remote,string()}
     | {log_level,loglevel()}
     | {call_timeout,integer() | infinity}.
 %% <ul>
@@ -208,7 +209,7 @@ start_node(UserOptions) ->
   init([{log_level,LogLevel}]),
   CallTimeout = proplists:get_value(call_timeout,Options),
   SymbolicName = proplists:get_value(symbolic_name,Options,void),
-  NodeNode = proplists:get_value(java_remote_host,Options),
+  NodeNode = proplists:get_value(erlang_remote,Options,node()),
   PreNode =
     #node{options=Options,
 	  call_timeout=CallTimeout,
@@ -229,17 +230,16 @@ spawn_java(PreNode,PreNodeId) ->
       ClassPath = compute_classpath(Options),
       PortPid = 
 	spawn
-	  (fun () ->
-	       run_java
-		 (NodeId,
-		  SymbolicName,
-		  PreNode#node.node_node,
-		  proplists:get_value(java_executable,Options),
-		  JavaVerbose,ClassPath,
-		  proplists:get_value(java_class,Options))
-	       %%io:format
-		 %%("terminating java ~p~n",[self()])
-	   end),
+	  (PreNode#node.node_node,
+	   ?MODULE,
+	   run_java,
+	   [
+	    NodeId,
+	    SymbolicName,
+	    proplists:get_value(java_executable,Options),
+	    JavaVerbose,ClassPath,
+	    proplists:get_value(java_class,Options)
+	   ]),
       %%io:format("spawned java ~p~n",[PortPid]),
       NodeName = javaNodeName(NodeId,PreNode),
       PreNode1 =
@@ -288,9 +288,10 @@ check_options(Options) ->
 	 case lists:member
 	   (OptionName,
 	    [symbolic_name,log_level,
+	     erlang_remote,
 	     java_class,java_classpath,add_to_java_classpath,
 	     java_exception_as_value,java_verbose,
-	     java_remote_host,java_executable,call_timeout]) of
+	     java_executable,call_timeout]) of
 	   true -> ok;
 	   false ->
 	     format
@@ -313,28 +314,21 @@ get_option(Option,NodeId,Default) ->
 get_java_node_id() ->
   ets:update_counter(java_nodes,java_node_counter,1).
 
-run_java(Identity,Name,RemoteNode,Executable,Verbose,Paths,Class) ->
+run_java(Identity,Name,Executable,Verbose,Paths,Class) ->
   ClassPath = 
     case combine_paths(Paths) of
       "" -> [];
       PathSpec -> ["-cp",PathSpec]
     end,
   VerboseArg = if Verbose -> ["-verbose"]; true -> [] end,
-  {FinalExecutable,PreArgs} = 
-    if 
-      RemoteNode=/=undefined ->
-	{"/usr/bin/ssh",[RemoteNode,Executable]};
-      true ->
-	{Executable,[]}
-    end,
-  Args = PreArgs++ClassPath++[Class,integer_to_list(Identity)]++VerboseArg,
+  Args = ClassPath++[Class,integer_to_list(Identity)]++VerboseArg,
   format
     (info,
      "~p: starting Java node with command~n~s and args ~p~n",
-     [Name,FinalExecutable,Args]),
+     [Name,Executable,Args]),
   Port =
     open_port
-      ({spawn_executable,FinalExecutable},
+      ({spawn_executable,Executable},
        [{line,1000},stderr_to_stdout,{args,Args}]),
   java_reader(Port,Identity).
 
@@ -441,16 +435,9 @@ addTimeStamps({M1,S1,Mic1},{M2,S2,Mic2}) ->
   {M,SRem,MicRem}.
 
 javaNodeName(Identity,Node) ->
-  IdentityStr =
-    integer_to_list(Identity),
-  HostPart =
-    case Node#node.node_node of
-      undefined ->
-	NodeStr = atom_to_list(node()),
-	string:substr(NodeStr,string:str(NodeStr,"@"));
-      Other -> 
-	"@"++Other
-    end,
+  IdentityStr = integer_to_list(Identity),
+  NodeStr = atom_to_list(node()),
+  HostPart = string:substr(NodeStr,string:str(NodeStr,"@")),
   list_to_atom("javaNode_"++IdentityStr++HostPart).
 
 %% @private
