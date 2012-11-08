@@ -41,6 +41,8 @@
 %%
 %% - If a field is final, don't generate a setter function.
 %%
+%% - Supporting long node names.
+%%
 
 -module(java).
 
@@ -49,6 +51,7 @@
 
 -record(node,
 	{node_name=void,node_pid=void,port_pid=void,node_id=void,
+	 node_node,
 	 options,symbolic_name,
 	 unix_pid=void,ping_retry=5000,connect_timeout=1000,
 	 max_java_start_tries=3,call_timeout,num_start_tries=0}).
@@ -97,6 +100,7 @@
     | {java_exception_as_value,boolean()}
     | {java_verbose,boolean()}
     | {java_executable,string()}
+    | {java_remote_host,string()}
     | {log_level,loglevel()}
     | {call_timeout,integer() | infinity}.
 %% <ul>
@@ -204,9 +208,11 @@ start_node(UserOptions) ->
   init([{log_level,LogLevel}]),
   CallTimeout = proplists:get_value(call_timeout,Options),
   SymbolicName = proplists:get_value(symbolic_name,Options,void),
+  NodeNode = proplists:get_value(java_remote_host,Options),
   PreNode =
     #node{options=Options,
 	  call_timeout=CallTimeout,
+	  node_node=NodeNode,
 	  symbolic_name=SymbolicName},
   spawn_java(PreNode,get_java_node_id()).
   
@@ -227,6 +233,7 @@ spawn_java(PreNode,PreNodeId) ->
 	       run_java
 		 (NodeId,
 		  SymbolicName,
+		  PreNode#node.node_node,
 		  proplists:get_value(java_executable,Options),
 		  JavaVerbose,ClassPath,
 		  proplists:get_value(java_class,Options))
@@ -234,7 +241,7 @@ spawn_java(PreNode,PreNodeId) ->
 		 %%("terminating java ~p~n",[self()])
 	   end),
       %%io:format("spawned java ~p~n",[PortPid]),
-      NodeName = javaNodeName(NodeId),
+      NodeName = javaNodeName(NodeId,PreNode),
       PreNode1 =
 	PreNode#node{node_id=NodeId,
 		     node_name=NodeName,
@@ -283,7 +290,7 @@ check_options(Options) ->
 	    [symbolic_name,log_level,
 	     java_class,java_classpath,add_to_java_classpath,
 	     java_exception_as_value,java_verbose,
-	     java_executable,call_timeout]) of
+	     java_remote_host,java_executable,call_timeout]) of
 	   true -> ok;
 	   false ->
 	     format
@@ -306,19 +313,29 @@ get_option(Option,NodeId,Default) ->
 get_java_node_id() ->
   ets:update_counter(java_nodes,java_node_counter,1).
 
-run_java(Identity,Name,Executable,Verbose,Paths,Class) ->
+run_java(Identity,Name,RemoteNode,Executable,Verbose,Paths,Class) ->
   ClassPath = 
     case combine_paths(Paths) of
       "" -> [];
       PathSpec -> ["-cp",PathSpec]
     end,
   VerboseArg = if Verbose -> ["-verbose"]; true -> [] end,
-  Args = ClassPath++[Class,integer_to_list(Identity)]++VerboseArg,
+  {FinalExecutable,PreArgs} = 
+    if 
+      RemoteNode=/=undefined ->
+	{"/usr/bin/ssh",[RemoteNode,Executable]};
+      true ->
+	{Executable,[]}
+    end,
+  Args = PreArgs++ClassPath++[Class,integer_to_list(Identity)]++VerboseArg,
   format
     (info,
      "~p: starting Java node with command~n~s and args ~p~n",
-     [Name,Executable,Args]),
-  Port = open_port({spawn_executable,Executable},[{line,1000},stderr_to_stdout,{args,Args}]),
+     [Name,FinalExecutable,Args]),
+  Port =
+    open_port
+      ({spawn_executable,FinalExecutable},
+       [{line,1000},stderr_to_stdout,{args,Args}]),
   java_reader(Port,Identity).
 
 combine_paths(Paths) ->
@@ -423,13 +440,17 @@ addTimeStamps({M1,S1,Mic1},{M2,S2,Mic2}) ->
   M = M1+M2+SDiv,
   {M,SRem,MicRem}.
 
-javaNodeName(Identity) ->
+javaNodeName(Identity,Node) ->
   IdentityStr =
     integer_to_list(Identity),
-  NodeStr =
-    atom_to_list(node()),
   HostPart =
-    string:substr(NodeStr,string:str(NodeStr,"@")),
+    case Node#node.node_node of
+      undefined ->
+	NodeStr = atom_to_list(node()),
+	string:substr(NodeStr,string:str(NodeStr,"@"));
+      Other -> 
+	"@"++Other
+    end,
   list_to_atom("javaNode_"++IdentityStr++HostPart).
 
 %% @private
