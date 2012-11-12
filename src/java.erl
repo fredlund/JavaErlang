@@ -229,7 +229,7 @@ spawn_java(PreNode,PreNodeId) ->
       JavaVerbose = proplists:get_value(java_verbose,Options),
       ClassPath = compute_classpath(Options),
       PortPid = 
-	spawn
+	spawn_opt
 	  (PreNode#node.node_node,
 	   ?MODULE,
 	   run_java,
@@ -239,7 +239,8 @@ spawn_java(PreNode,PreNodeId) ->
 	    proplists:get_value(java_executable,Options),
 	    JavaVerbose,ClassPath,
 	    proplists:get_value(java_class,Options)
-	   ]),
+	   ],
+	   [monitor]),
       %%io:format("spawned java ~p~n",[PortPid]),
       NodeName = javaNodeName(NodeId,PreNode),
       PreNode1 =
@@ -329,8 +330,10 @@ run_java(Identity,Name,Executable,Verbose,Paths,Class) ->
     VerboseArg,
   format
     (info,
-     "~p: starting Java node with command~n~s and args ~p~n",
-     [Name,Executable,Args]),
+     "~p: starting Java node at ~p with command~n~s and args ~p~n",
+     [Name,
+      net_adm:localhost(),
+      Executable,Args]),
   Port =
     open_port
       ({spawn_executable,Executable},
@@ -446,7 +449,13 @@ addTimeStamps({M1,S1,Mic1},{M2,S2,Mic2}) ->
 
 javaNodeName(Identity,Node) ->
   IdentityStr = integer_to_list(Identity),
-  NodeStr = atom_to_list(node()),
+  NodeStr = 
+    case Node#node.node_node of
+      void ->
+	atom_to_list(node());
+      _ -> 
+	atom_to_list(Node#node.node_node)
+    end,
   HostPart = string:substr(NodeStr,string:str(NodeStr,"@")),
   list_to_atom("javaNode_"++IdentityStr++HostPart).
 
