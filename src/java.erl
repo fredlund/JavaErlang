@@ -323,16 +323,12 @@ run_java(Identity,Name,Executable,Verbose,Paths,Class) ->
     end,
   VerboseArg = if Verbose -> ["-verbose"]; true -> [] end,
   LongAddressType = atom_to_list(long_address_type()),
+  io:format("my node is ~p~n",[node()]),
   Args =
     ClassPath++
     [Class,integer_to_list(Identity)]++
     [LongAddressType]++
     VerboseArg,
-  io:format
-    ("~p: starting Java node at ~p with command~n~s and args ~p~n",
-     [Name,
-      net_adm:localhost(),
-      Executable,Args]),
   format
     (info,
      "~p: starting Java node at ~p with command~n~s and args ~p~n",
