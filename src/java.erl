@@ -328,6 +328,11 @@ run_java(Identity,Name,Executable,Verbose,Paths,Class) ->
     [Class,integer_to_list(Identity)]++
     [LongAddressType]++
     VerboseArg,
+  io:format
+    ("~p: starting Java node at ~p with command~n~s and args ~p~n",
+     [Name,
+      net_adm:localhost(),
+      Executable,Args]),
   format
     (info,
      "~p: starting Java node at ~p with command~n~s and args ~p~n",
