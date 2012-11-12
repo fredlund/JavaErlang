@@ -650,7 +650,10 @@ public class JavaErlang {
         do {
             final int lastIndex = str.lastIndexOf(".");
             if (lastIndex == -1) {
-                System.err.println("findClass: cannot locate class " + str);
+                System.err.println
+		    ("findClass: cannot locate class " + str +
+		     "using classpath\n"+System.getProperty("java.class.path")+
+		     "\nworking directory is "+System.getProperty("user.dir"));
                 if (verbose) {
                     System.err.println("findClass: cannot locate class " + str);
                 }
