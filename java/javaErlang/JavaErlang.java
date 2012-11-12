@@ -82,18 +82,18 @@ public class JavaErlang {
     boolean isConnected = false;
 
     public static void main(final String args[]) {
-        final String number = args[0];
+        final String name = args[0];
 	final boolean longNames = Boolean.valueOf(args[1]);
-        if (args.length > 2) {
-            if (args[2].equals("-verbose")) {
+        if (args.length > 1) {
+            if (args[1].equals("-verbose")) {
                 verbose = true;
             } else {
-                System.err.println("\rCannot understand argument " + args[2]);
+                System.err.println("\rCannot understand argument " + args[1]);
                 System.exit(-1);
             }
         }
         try {
-            new JavaErlang(number,longNames).do_receive();
+            new JavaErlang(name).do_receive();
         } catch (final Exception e) {
             System.err
                     .println("*** Unexpected exception failure in JavaErlang: "
@@ -103,34 +103,15 @@ public class JavaErlang {
 
     }
 
-    public JavaErlang(final String id, boolean longNames) {
+    public JavaErlang(final String name) {
         toErlangMap = new HashMap<RefEqualsObject, OtpErlangObject>();
         fromErlangMap = new HashMap<OtpErlangObject, Object>();
         accToErlangMap = new HashMap<Object, OtpErlangObject>();
         accFromErlangMap = new HashMap<OtpErlangObject, Object>();
         threadMap = new HashMap<OtpErlangObject, ThreadMsgHandler>();
         try {
-            OtpNode node = null;
-	    System.err.println(id+": longNames is "+longNames);
-	    if (longNames) {
-		try {
-		    java.net.InetAddress localMachine =
-			java.net.InetAddress.getLocalHost();
-		    System.err.println(id+": hostname is "+localMachine.getCanonicalHostName());
-		    node =
-			new OtpNode
-			("javaNode_"+id+"@"+localMachine.getCanonicalHostName());
-		}
-		catch (java.net.UnknownHostException e) { 
-		    System.err
-			.println
-			("*** Unexpected exception failure in JavaErlang: "
-			 + e);
-		    e.printStackTrace();
-		}
-	    } else {
-		node = new OtpNode("javaNode_" + id);
-	    }
+            final OtpNode node = new OtpNode(name);
+
             node.registerStatusHandler(new OtpStatusHandler(nodeIdentifier));
             if (verbose) {
                 System.err.println("\rRegistered host " + node.node());

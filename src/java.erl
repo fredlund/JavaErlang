@@ -85,7 +85,7 @@
 -export([finalComponent/1]).
 -export([find_class/1]).
 -export([node_lookup/1]).
--export([run_java/6]).
+-export([run_java/7]).
 
 -include("debug.hrl").
 
@@ -228,6 +228,7 @@ spawn_java(PreNode,PreNodeId) ->
       Options = PreNode#node.options,
       JavaVerbose = proplists:get_value(java_verbose,Options),
       ClassPath = compute_classpath(Options),
+      NodeName = javaNodeName(NodeId,PreNode),
       PortPid = 
 	spawn
 	  (PreNode#node.node_node,
@@ -235,6 +236,7 @@ spawn_java(PreNode,PreNodeId) ->
 	   run_java,
 	   [
 	    NodeId,
+	    NodeName,
 	    SymbolicName,
 	    proplists:get_value(java_executable,Options),
 	    JavaVerbose,ClassPath,
@@ -242,7 +244,6 @@ spawn_java(PreNode,PreNodeId) ->
 	   ]),
       monitor(process,PortPid),
       %%io:format("spawned java ~p~n",[PortPid]),
-      NodeName = javaNodeName(NodeId,PreNode),
       PreNode1 =
 	PreNode#node{node_id=NodeId,
 		     node_name=NodeName,
@@ -315,19 +316,17 @@ get_option(Option,NodeId,Default) ->
 get_java_node_id() ->
   ets:update_counter(java_nodes,java_node_counter,1).
 
-run_java(Identity,Name,Executable,Verbose,Paths,Class) ->
+run_java(Identity,NodeName,Name,Executable,Verbose,Paths,Class) ->
   ClassPath = 
     case combine_paths(Paths) of
       "" -> [];
       PathSpec -> ["-cp",PathSpec]
     end,
   VerboseArg = if Verbose -> ["-verbose"]; true -> [] end,
-  LongAddressType = atom_to_list(long_address_type()),
   io:format("my node is ~p~n",[node()]),
   Args =
     ClassPath++
-    [Class,integer_to_list(Identity)]++
-    [LongAddressType]++
+    [Class,NodeName]++
     VerboseArg,
   format
     (info,
@@ -340,11 +339,6 @@ run_java(Identity,Name,Executable,Verbose,Paths,Class) ->
       ({spawn_executable,Executable},
        [{line,1000},stderr_to_stdout,{args,Args}]),
   java_reader(Port,Identity).
-
-long_address_type() ->
-  NodeStr = atom_to_list(node()),
-  HostPart = string:substr(NodeStr,string:str(NodeStr,"@")),
-  string:str(HostPart,".") =/= 0.
 
 combine_paths(Paths) ->
   Combinator = 
