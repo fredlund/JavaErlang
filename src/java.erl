@@ -321,7 +321,12 @@ run_java(Identity,Name,Executable,Verbose,Paths,Class) ->
       PathSpec -> ["-cp",PathSpec]
     end,
   VerboseArg = if Verbose -> ["-verbose"]; true -> [] end,
-  Args = ClassPath++[Class,integer_to_list(Identity)]++VerboseArg,
+  LongAddressType = atom_to_list(long_address_type()),
+  Args =
+    ClassPath++
+    [Class,integer_to_list(Identity)]++
+    [LongAddressType]++
+    VerboseArg,
   format
     (info,
      "~p: starting Java node with command~n~s and args ~p~n",
@@ -331,6 +336,11 @@ run_java(Identity,Name,Executable,Verbose,Paths,Class) ->
       ({spawn_executable,Executable},
        [{line,1000},stderr_to_stdout,{args,Args}]),
   java_reader(Port,Identity).
+
+long_address_type() ->
+  NodeStr = atom_to_list(node()),
+  HostPart = string:substr(NodeStr,string:str(NodeStr,"@")),
+  string:str(HostPart,".") =/= 0.
 
 combine_paths(Paths) ->
   Combinator = 

@@ -83,16 +83,17 @@ public class JavaErlang {
 
     public static void main(final String args[]) {
         final String number = args[0];
-        if (args.length > 1) {
-            if (args[1].equals("-verbose")) {
+	final boolean longNames = Boolean.valueOf(args[1]);
+        if (args.length > 2) {
+            if (args[2].equals("-verbose")) {
                 verbose = true;
             } else {
-                System.err.println("\rCannot understand argument " + args[1]);
+                System.err.println("\rCannot understand argument " + args[2]);
                 System.exit(-1);
             }
         }
         try {
-            new JavaErlang(number).do_receive();
+            new JavaErlang(number,longNames).do_receive();
         } catch (final Exception e) {
             System.err
                     .println("*** Unexpected exception failure in JavaErlang: "
@@ -102,14 +103,32 @@ public class JavaErlang {
 
     }
 
-    public JavaErlang(final String id) {
+    public JavaErlang(final String id, boolean longNames) {
         toErlangMap = new HashMap<RefEqualsObject, OtpErlangObject>();
         fromErlangMap = new HashMap<OtpErlangObject, Object>();
         accToErlangMap = new HashMap<Object, OtpErlangObject>();
         accFromErlangMap = new HashMap<OtpErlangObject, Object>();
         threadMap = new HashMap<OtpErlangObject, ThreadMsgHandler>();
         try {
-            final OtpNode node = new OtpNode("javaNode_" + id);
+            OtpNode node = null;
+	    if (longNames) {
+		try {
+		    java.net.InetAddress localMachine =
+			java.net.InetAddress.getLocalHost();
+		    node =
+			new OtpNode
+			("javaNode_"+id+"@"+localMachine.getCanonicalHostName());
+		}
+		catch (java.net.UnknownHostException e) { 
+		    System.err
+			.println
+			("*** Unexpected exception failure in JavaErlang: "
+			 + e);
+		    e.printStackTrace();
+		}
+	    } else {
+		node = new OtpNode("javaNode_" + id);
+	    }
             node.registerStatusHandler(new OtpStatusHandler(nodeIdentifier));
             if (verbose) {
                 System.err.println("\rRegistered host " + node.node());
