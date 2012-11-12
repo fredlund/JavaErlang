@@ -83,7 +83,6 @@ public class JavaErlang {
 
     public static void main(final String args[]) {
         final String name = args[0];
-	final boolean longNames = Boolean.valueOf(args[1]);
         if (args.length > 1) {
             if (args[1].equals("-verbose")) {
                 verbose = true;
