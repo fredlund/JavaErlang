@@ -111,10 +111,12 @@ public class JavaErlang {
         threadMap = new HashMap<OtpErlangObject, ThreadMsgHandler>();
         try {
             OtpNode node = null;
+	    System.err.println(id+": longNames is "+longNames);
 	    if (longNames) {
 		try {
 		    java.net.InetAddress localMachine =
 			java.net.InetAddress.getLocalHost();
+		    System.err.println(id+": hostname is "+localMachine.getCanonicalHostName());
 		    node =
 			new OtpNode
 			("javaNode_"+id+"@"+localMachine.getCanonicalHostName());
