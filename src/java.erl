@@ -324,7 +324,6 @@ run_java(Identity,NodeName,Name,Executable,Verbose,Paths,Class) ->
       PathSpec -> ["-cp",PathSpec]
     end,
   VerboseArg = if Verbose -> ["-verbose"]; true -> [] end,
-  io:format("my node is ~p~n",[node()]),
   Args =
     ClassPath++
     [Class,NodeName]++
