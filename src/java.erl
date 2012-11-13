@@ -86,6 +86,7 @@
 -export([find_class/1]).
 -export([node_lookup/1]).
 -export([run_java/7]).
+-export([terminate_brutally/1]).
 
 -include("debug.hrl").
 
@@ -854,6 +855,14 @@ terminate_all() ->
 %% of the node. This will obviously only work under Unix/Linux.
 -spec brutally_terminate(node_id()) -> any().
 brutally_terminate(NodeId) ->
+  {ok,Node} = node_lookup(NodeId),
+  remove_thread_mappings(NodeId),
+  remove_object_mappings(NodeId),
+  remove_class_mappings(NodeId),
+  ets:delete(java_nodes,NodeId),
+  spawn(Node#node.node_node,?MODULE,terminate_brutally,[Node]).
+
+terminate_brutally(Node) ->
   case runs_on_windows() of
     true ->
       java:format
@@ -862,14 +871,8 @@ brutally_terminate(NodeId) ->
       throw(nyi);
     _ -> ok
   end,
-  {ok,Node} = node_lookup(NodeId),
   Node#node.port_pid!{control,terminate_reader},
-  remove_thread_mappings(NodeId),
-  remove_object_mappings(NodeId),
-  remove_class_mappings(NodeId),
-  ets:delete(java_nodes,NodeId),
-  os:cmd(io_lib:format("kill -9 ~p",[Node#node.unix_pid])),
-  ok.
+  os:cmd(io_lib:format("kill -9 ~p",[Node#node.unix_pid])).
 
 %% @doc
 %% Recreates a possibly dead node. Obviously any ongoing computations,
