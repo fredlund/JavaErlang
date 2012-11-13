@@ -220,11 +220,11 @@ start_node(UserOptions) ->
   
 
 spawn_java(PreNode,PreNodeId) ->
+  SymbolicName = PreNode#node.symbolic_name,
   if PreNode#node.num_start_tries>=PreNode#node.max_java_start_tries ->
-      format(error,"*** Error: failed to start Java~n"),
+      format(error,"*** Error: ~p: failed to start Java~n",[SymbolicName]),
       {error,too_many_tries};
      true ->
-      SymbolicName = PreNode#node.symbolic_name,
       NodeId = PreNodeId+99,
       Options = PreNode#node.options,
       JavaVerbose = proplists:get_value(java_verbose,Options),
@@ -867,7 +867,8 @@ terminate_brutally(Node) ->
     true ->
       java:format
 	(error,
-	 "*** Error: brutally_terminate not supported under windows~n"),
+	 "*** Error: ~p: brutally_terminate not supported under windows~n",
+	 [Node#node.symbolic_name]),
       throw(nyi);
     _ -> ok
   end,
