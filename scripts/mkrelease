@@ -71,7 +71,7 @@ mkdir tests/ebin
 mkdir doc
 
 cp ${ABSSRCDIR}/ebin/java.beam ebin
-cp ${ABSSRCDIR}/ebin/translate_java_to_erlang.beam ebin
+cp ${ABSSRCDIR}/ebin/java_to_erlang.beam ebin
 cp ${ABSSRCDIR}/ebin/tests.beam tests/ebin
 cp ${ABSSRCDIR}/JavaErlang.jar priv
 
