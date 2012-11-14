@@ -243,7 +243,6 @@ spawn_java(PreNode,PreNodeId) ->
 	    JavaVerbose,ClassPath,
 	    proplists:get_value(java_class,Options)
 	   ]),
-      monitor(process,PortPid),
       %%io:format("spawned java ~p~n",[PortPid]),
       PreNode1 =
 	PreNode#node{node_id=NodeId,
