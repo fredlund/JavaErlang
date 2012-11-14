@@ -1,0 +1,48 @@
+#!/bin/bash
+
+confirm() {
+	while true
+	do
+		read CONFIRM
+		case $CONFIRM in
+			y|Y|YES|yes|Yes) break ;;
+			n|N|no|NO|No)
+				echo Aborting
+				exit
+				;;
+			*) echo Please enter only y or n
+		esac
+	done
+}
+
+if [ $# -ne 3 ]
+then
+	echo "Usage: $0 <compiled-java_erlang-dir> <target-dir> <version>"
+	exit 0
+fi
+
+# Source distribution
+SRC=$1
+
+# Target
+TRG=$2
+
+# Version
+VER=$3
+
+if [ ! -d $SRC ]
+then
+	echo "$SRC does not exist, aborting!"
+	exit 0
+fi
+
+TRGDIR="$TRG/java_erlang_version_$VER"
+if [ ! -d $TRGDIR ]
+then 
+	echo "$TRGDIR does not exist, aborting!"
+	exit 1
+fi
+
+cd $TRGDIR
+erl -noshell -run java_erlang_install install -run erlang halt
+echo "Done!"

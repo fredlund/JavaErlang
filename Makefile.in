@@ -79,8 +79,7 @@ publish:
 	(cd release; zip -r java_erlang-$(JAVA_ERLANG_VERSION).zip "java_erlang_version_$(JAVA_ERLANG_VERSION)")
 
 install: release
-	echo "Installing java_erlang-$(JAVA_ERLANG_VERSION) into $(ERLANG_INSTALL_LIB_DIR)"
-	cp -r release/mcerlang-$(JAVA_ERLANG_VERSION) $(ERLANG_INSTALL_LIB_DIR)
+	@ scripts/dorelease "." release $(JAVA_ERLANG_VERSION)
 
 
 

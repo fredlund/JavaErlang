@@ -386,28 +386,7 @@ connectToNode(PreNode,KeepOnTryingUntil) ->
 	(debug,"~p: connected to Java node ~p~n",
 	 [SymbolicName,NodeName]),
       {javaNode,NodeName}!{connect,PreNode#node.node_id,self()},
-      receive
-	{value,{connected,Pid,UnixPid}} when is_pid(Pid) ->
-	  java:format
-	    (debug,"~p (~p): got Java pid ~p~n",
-	     [NodeName,SymbolicName,Pid]),
-	  Node = PreNode#node{node_pid=Pid,unix_pid=UnixPid},
-	  {ok,Node};
-	{value,already_connected} ->
-	  %% Oops. We are talking to an old Java node...
-	  %% We should try to start another one...
-	  {error,already_connected};
-	Other ->
-	  format
-	    (warning,
-	     "*** ~p: Warning: got reply ~p instead of a pid "++
-	     "when trying to connect to node ~p~n",
-	     [SymbolicName,Other,{javaNode,NodeName}]),
-	  connectToNode(PreNode,KeepOnTryingUntil)
-      after PreNode#node.connect_timeout -> 
-	  %% Failed to connect. We should try to start another node.
-	  {error,connect_timeout}
-      end;
+      connect_receive(NodeName,SymbolicName,PreNode,KeepOnTryingUntil);
     pang ->
       case compareTimes_ge(erlang:now(),KeepOnTryingUntil) of
 	true -> 
@@ -420,6 +399,30 @@ connectToNode(PreNode,KeepOnTryingUntil) ->
 	  timer:sleep(100),
 	  connectToNode(PreNode,KeepOnTryingUntil)
       end
+  end.
+
+connect_receive(NodeName,SymbolicName,PreNode,KeepOnTryingUntil) ->
+  receive
+    {value,{connected,Pid,UnixPid}} when is_pid(Pid) ->
+      java:format
+	(debug,"~p (~p): got Java pid ~p~n",
+	 [NodeName,SymbolicName,Pid]),
+      Node = PreNode#node{node_pid=Pid,unix_pid=UnixPid},
+      {ok,Node};
+    {value,already_connected} ->
+      %% Oops. We are talking to an old Java node...
+      %% We should try to start another one...
+      {error,already_connected};
+    Other ->
+      format
+	(warning,
+	 "*** ~p: Warning: got reply ~p instead of a pid "++
+	   "when trying to connect to node ~p~n",
+	 [SymbolicName,Other,{javaNode,NodeName}]),
+      connect_receive(NodeName,SymbolicName,PreNode,KeepOnTryingUntil)
+  after PreNode#node.connect_timeout -> 
+      %% Failed to connect. We should try to start another node.
+      {error,connect_timeout}
   end.
 
 compareTimes_ge({M1,S1,Mic1}, {M2,S2,Mic2}) ->
