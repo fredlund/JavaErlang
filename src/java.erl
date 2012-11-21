@@ -74,9 +74,7 @@
 -export([identity/2]).
 -export([print_stacktrace/1,get_stacktrace/1]).
 -export([report_java_exception/1]).
-
 -export([set_loglevel/1,format/2,format/3]).
-
 -export_type([node_id/0,object_ref/0]).
 
 %% Private
@@ -120,6 +118,9 @@
 %% to start the Java interpreter (by default "java").</li>
 %% <li>`java_verbose' provides diagnostic output from the 
 %% Java interface class (default false).</li>
+%% <li>`erlang_remote' specifies a (possibly remote)
+%% Erlang node which is responsible
+%% for starting the new Java node.</li>
 %% <li>`call_timeout' sets a timeout value for all calls 
 %% to Java from Erlang (default 10 seconds).</li>
 %% </ul>
@@ -548,6 +549,8 @@ get_thread(Node) ->
       Thread
   end.
 
+%% @doc
+%% An identity function for Java objects.
 identity(NodeId,Value) ->
   javaCall(NodeId,identity,Value).
 
@@ -692,9 +695,6 @@ open_db(Init,Options) ->
 		%%io:format("spawned db ~p~n",[self()]),
 		try 
 		  ets:new(java_nodes,[named_table,public]),
-		  {A1,A2,A3} = now(),
-		  random:seed(A1,A2,A3),
-		  Value = random:uniform(100000),
 		  ets:insert(java_nodes,{java_node_counter,0}),
 		  ets:new(java_classes,[named_table,public]),
 		  ets:new(java_threads,[named_table,public]),
@@ -863,6 +863,7 @@ brutally_terminate(NodeId) ->
   ets:delete(java_nodes,NodeId),
   spawn(Node#node.node_node,?MODULE,terminate_brutally,[Node]).
 
+%% @private
 terminate_brutally(Node) ->
   case runs_on_windows() of
     true ->
@@ -900,7 +901,7 @@ remove_thread_mappings(NodeId) ->
 remove_class_mappings(NodeId) ->
   Classes = ets:tab2list(java_classes),
   lists:foreach
-    (fun ({Key,Value}) ->
+    (fun ({Key,_Value}) ->
 	 case Key of
 	   {NodeId,_} -> ets:delete(java_classes,Key);
 	   _ -> ok

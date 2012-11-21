@@ -7,38 +7,23 @@ of the JInterface Java interface.
 The library makes heavy use of the Java reflection capability,
 provided in the package java.lang.reflect.
 <p>
-The primary functionality is that the library can 
-automatically generate an Erlang module, from a Java class,
-containing functions corresponding to the constructors
-and methods of the Java class, and functions for accessing
-and modifying the attributes of the Java class.</p>
+The primary functionality is that the library provides
+functions for creating and interacting with Java objects
+without the need to write any boilerplate code.
+</p>
 <p>
 An example:<br/>
-```
-{ok,NodeId} = java:start_node(),
-java:acquire_class(NodeId,'java.lang.Integer'),
-Int10 = java_lang_Integer:'Integer'(NodeId,10),
-String10 = java_lang_Integer:toString(Int10).
-'''
-</p>
-<p>
-The above code starts a Java node, and establishes
-a connection to it. Then, the Java Integer class is
-translated into the Erlang module 'java_lang_Integer'.
-Next, a Java integer storing the value 10 is created,
-and finally a Java string representing "10" is returned.
-</p>
-<p>
-Alternatively, the above piece of code can be written
-more symbolically using calls to the java module as follows:<br/>
 ```
 {ok,NodeId} = java:start_node(),
 Int10 = java:new(NodeId,'java.lang.Integer',[10]),
 String10 = java:call(Int10,toString,[]).
 '''
-Note that there is no need to call acquire_class to translate the
-Java class to an Erlang module, as this is taken care of automatically
-by the java:new (and java:call) functions.
+</p>
+<p>
+The above code starts a Java node, and establishes
+a connection to it. Then, a Java integer storing the value 10 is created,
+and finally a Java string representing "10" is returned
+from the Java integer just created.
 </p>
 <p>
 To make your Java classes (and Jar files) visible to the library
@@ -51,6 +36,16 @@ This adds the directory ``classes''
 to the classpath of the started Java interpreter
 </p>
 
+<h2>News</h2>
+The code for generating an Erlang module corresponding to
+a Java class has been removed in this version of the library.
+Thus, Java objects can be created and accessed only
+using the functions exported from the ``java'' module.
+<p>
+Java nodes can now be started on remote Erlang nodes --
+see the options for the ``java:start_node/1'' function.
+</p>
+
 <h2>Source code and precompiled libraries</h2>
 The source code of the library is available on GitHub
 at <a href="git://github.com/fredlund/JavaErlang.git">
@@ -60,22 +55,6 @@ Precompiled versions of the library are
 <a href="http://babel.ls.fi.upm.es/~fred/JavaErlang/downloads.html">
 available too</a>.
 </p>
-
-<h2>Correspondance Between Java Classes and Erlang Modules</h2>
-The JavaErlang interface automatically maps each Java Class accessed
-to an Erlang module, compiles the Erlang module, and loads it.
-Although not strictly needed to use the interface, 
-it can be helpful to know that e.g.
-a Java class ``n1.n2.n3.c'' will translated to
-an Erlang module ``n1_n2_n3_c''.
-
-The Erlang modules automatically generated from Java classes,
-are by default stored in the
-directory ``java_sources'' and compiled modules are stored
-in ``java_sources/ebin''. The locations of these directories
-can be changed using the function ``start_node/1''.
-After changing Java implementation, for instance, it
-is a good idea to clean up or remove these directories.
 
 <h2>Java Values</h2>
 The Java null value is represented as the Erlang atom ``null'',
@@ -191,16 +170,6 @@ true = java:call(I2,equals,[I2b]).
 This code excerpt creates two Java Integers (of value 2),
 and checks that the method ``equals'' returns true.
 
-Alternatively, the Erlang module corresponding to a Java class
-provides a function for each public instance or method;
-these methods can be called directly. An example:<br/>
-```
-{ok,NodeId} = java:start_node(),
-I2 = java:new(NodeId,'java.lang.Integer',[2]),
-I2b = java:new(NodeId,'java.lang.Integer',[2]),
-true = 'java_lang_Integer':equals(I2,[I2b]).
-'''
-
 <h2>Accessing Java fields</h2>
 A public field "f" of a Java object "o" of class "c" can be
 accessed using the function call
@@ -218,11 +187,6 @@ java:call(Err,println,[{int,2}]).
 This code excerpt retrieves the Java standard error stream from
 the field ``err'' in ``java.lang.System'', and prints 
 the integer 2.
-
-Alternatively, the Erlang module corresponding to a Java class
-provides the functions ``get_f'' and ``set_f'' for accessing and
-modifying a field ``f''; these functions can be called directly
-from Erlang code.
 
 <h2>Visibility of Java Constructor, Methods and Fields</h2>
 Currently only the public methods and fields of Java classes
