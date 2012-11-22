@@ -30,6 +30,9 @@
 
 package javaErlang;
 
+import java.util.logging.Logger;
+import java.util.logging.Level;
+
 import com.ericsson.otp.erlang.OtpErlangObject;
 import com.ericsson.otp.erlang.OtpNodeStatus;
 
@@ -44,17 +47,21 @@ class OtpStatusHandler extends OtpNodeStatus {
     @Override
     public void remoteStatus(final String node, final boolean up,
             final Object info) {
-        if (JavaErlang.verbose) {
-            System.err.println("Event at node " + node + " with " + up
-                    + "; info=" + info);
+        if (JavaErlang.logger.isLoggable(Level.FINER)) {
+            JavaErlang.logger.log
+		(Level.FINER,
+		 "Event at node " + node + " with " + up
+		 + "; info=" + info);
         }
 
         if (connectedNode == null && up) {
             connectedNode = node;
         } else if (connectedNode != null && !up && node.equals(connectedNode)) {
-            if (JavaErlang.verbose) {
-                System.err.println("Erlang peer node " + nodeIdentifier
-                        + " died; terminating...");
+            if (JavaErlang.logger.isLoggable(Level.INFO)) {
+                JavaErlang.logger.log
+		    (Level.INFO,
+		     "Erlang peer node " + nodeIdentifier
+		     + " died; terminating...");
             }
             System.exit(0);
         }

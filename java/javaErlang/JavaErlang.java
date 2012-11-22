@@ -46,6 +46,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
+import java.util.logging.Level;
+import java.util.logging.ConsoleHandler;
 
 import com.ericsson.otp.erlang.OtpErlangAtom;
 import com.ericsson.otp.erlang.OtpErlangBoolean;
@@ -77,27 +80,34 @@ public class JavaErlang {
 
     volatile OtpMbox msgs;
     volatile OtpErlangObject nodeIdentifier = null;
-    static volatile boolean verbose = false;
+    static volatile Logger logger = Logger.getLogger("JavaErlangLogger");
 
     boolean isConnected = false;
 
     public static void main(final String args[]) {
         final String name = args[0];
+
         if (args.length > 1) {
-            if (args[1].equals("-verbose")) {
-                verbose = true;
+            if (args[1].equals("-loglevel")) {
+		Level level = Level.parse(args[2]);
+		logger.setLevel(level);
             } else {
                 System.err.println("\rCannot understand argument " + args[1]);
                 System.exit(-1);
             }
-        }
+        } else logger.setLevel(Level.WARNING);
+
+	ConsoleHandler consoleHandler = new ConsoleHandler();
+	consoleHandler.setLevel(logger.getLevel());
+	logger.addHandler(consoleHandler);
+
         try {
             new JavaErlang(name).do_receive();
         } catch (final Exception e) {
-            System.err
-                    .println("*** Unexpected exception failure in JavaErlang: "
-                            + e);
-            e.printStackTrace();
+	    logger.log
+		(Level.SEVERE,
+		 "*** Unexpected exception failure in JavaErlang: "
+		 + e,e);
         }
 
     }
@@ -112,23 +122,25 @@ public class JavaErlang {
             final OtpNode node = new OtpNode(name);
 
             node.registerStatusHandler(new OtpStatusHandler(nodeIdentifier));
-            if (verbose) {
-                System.err.println("\rRegistered host " + node.node());
+            if (logger.isLoggable(Level.INFO)) {
+		    logger.log(Level.INFO,"\rRegistered host " + node.node());
             }
             msgs = node.createMbox("javaNode");
         } catch (final Throwable e) {
-            System.err
-                    .println("*** Unexpected exception failure in JavaErlang: "
-                            + e);
-            e.printStackTrace();
+	    if (logger.isLoggable(Level.SEVERE))
+		logger.log
+		    (Level.SEVERE,
+		     "*** Unexpected exception failure in JavaErlang: "
+		     + e,
+		     e);
         }
     }
 
     void do_receive() throws Exception {
         do {
             final OtpErlangObject msg = msgs.receive();
-            if (verbose) {
-                System.err.println("\rGot message " + msg);
+            if (logger.isLoggable(Level.FINER)) {
+                logger.log(Level.FINER,"\rGot message " + msg);
             }
             if (msg instanceof OtpErlangTuple) {
                 final OtpErlangTuple t = (OtpErlangTuple) msg;
@@ -140,18 +152,18 @@ public class JavaErlang {
                         && t.elementAt(3) instanceof OtpErlangPid) {
                     handle_thread_msg(t);
                 } else {
-                    System.err.println("\nMalformed message " + msg
+                    logger.log(Level.FINER,"\nMalformed message " + msg
                             + " received");
                 }
             } else {
-                System.err.println("\nMalformed message " + msg + " received");
+                logger.log(Level.FINER,"\nMalformed message " + msg + " received");
             }
         } while (true);
     }
 
     public void reply(final Object reply, final OtpErlangPid replyPid)
             throws Exception {
-        // System.err.println("returning "+return_value(reply)+" to "+replyPid);
+        // logger.log(Level.FINER,"returning "+return_value(reply)+" to "+replyPid);
         msgs.send(replyPid, return_value(reply));
     }
 
@@ -174,16 +186,16 @@ public class JavaErlang {
                         msgs.self(), new OtpErlangLong(intPid)), replyPid);
                 isConnected = true;
             } else {
-                System.err.println("\nFirst message should be connect " + t);
+                logger.log(Level.FINER,"\nFirst message should be connect " + t);
             }
         } else {
             Object result;
             try {
                 result = handleNonThreadMsg(tag, argument, replyPid);
             } catch (final Throwable e) {
-                if (verbose) {
-                    System.err.println("\r\n*** Exception " + e + " thrown");
-                    System.err.print("\r");
+                if (logger.isLoggable(Level.WARNING)) {
+                    logger.log(Level.WARNING,"\r\n*** Exception " + e + " thrown");
+                    logger.log(Level.WARNING,"\r");
                     e.printStackTrace();
                 }
                 result = e;
@@ -198,7 +210,7 @@ public class JavaErlang {
             final ThreadMsgHandler th = (ThreadMsgHandler) map_result;
             th.queue.put(t);
         } else {
-            System.err.println("Thread " + t.elementAt(1) + " not found");
+            logger.log(Level.FINER,"Thread " + t.elementAt(1) + " not found");
         }
     }
 
@@ -216,18 +228,14 @@ public class JavaErlang {
             System.gc();
             return new OtpErlangAtom("ok");
         } else if (tag.equals("terminate")) {
-            if (verbose) {
-                System.err.println("\r\nterminating java...");
+            if (logger.isLoggable(Level.FINER)) {
+                logger.log(Level.FINER,"\r\nterminating java...");
             }
             reply(new OtpErlangAtom("ok"), replyPid);
             System.exit(0);
             return map_to_erlang_void();
         } else if (tag.equals("connect")) {
             return new OtpErlangAtom("already_connected");
-        } else if (tag.equals("define_invocation_handler")) {
-            return invhandler(argument);
-        } else if (tag.equals("proxy_reply")) {
-            return proxy_reply(argument);
         } else if (tag.equals("getConstructors")) {
             return getConstructors(argument);
         } else if (tag.equals("getMethods")) {
@@ -263,8 +271,10 @@ public class JavaErlang {
             }
             return map_to_erlang_void();
         } else {
-            System.err.println("*** Error: JavaErlang: \nTag " + tag
-                    + " not recognized");
+            logger.log
+		(Level.SEVERE,
+		 "*** Error: JavaErlang: \nTag " + tag
+		 + " not recognized");
             throw new Exception();
         }
     }
@@ -308,7 +318,7 @@ public class JavaErlang {
             if (stringValue.equals("false")) {
                 return new Boolean(false);
             }
-            System.err.println("java_value_from_erlang: atom " + value);
+            logger.log(Level.FINE,"java_value_from_erlang: " + value);
             throw new Exception();
         }
 
@@ -357,8 +367,8 @@ public class JavaErlang {
                 if (tag.equals("object")) {
                     final Object result = fromErlangMap.get(t);
                     if (result == null) {
-                        if (verbose) {
-                            System.err.println("\rTranslating " + value);
+                        if (logger.isLoggable(Level.FINE)) {
+                            logger.log(Level.FINE,"\rTranslating " + value);
                         }
                         throw new Exception();
                     }
@@ -366,8 +376,8 @@ public class JavaErlang {
                 } else if (tag.equals("executable")) {
                     final Object result = accFromErlangMap.get(t);
                     if (result == null) {
-                        if (verbose) {
-                            System.err.println("\rTranslating " + value);
+                        if (logger.isLoggable(Level.FINE)) {
+                            logger.log(Level.FINE,"\rTranslating " + value);
                         }
                         throw new Exception();
                     }
@@ -375,7 +385,7 @@ public class JavaErlang {
                 }
             }
         }
-        System.err.println("java_value_from_erlang: " + value);
+        logger.log(Level.FINE,"java_value_from_erlang: " + value);
         throw new Exception();
     }
 
@@ -424,7 +434,11 @@ public class JavaErlang {
             return convert_to_integer(value);
         } else if (value instanceof OtpErlangDouble) {
             return convert_to_double(value);
-        } else {
+        } else if ((value instanceof OtpErlangString) &&
+		   (type == java.lang.String.class)) {
+	    return value.toString();
+	}
+	else {
             if (type instanceof Class) {
                 final Class typeClass = (Class) type;
                 final int dimensions = dimensions(typeClass);
@@ -436,9 +450,10 @@ public class JavaErlang {
                     return arr;
                 }
             }
-            if (verbose) {
-                System.err.println("Cannot convert " + value + " to type "
-                        + type);
+            if (logger.isLoggable(Level.FINE)) {
+                logger.log
+		    (Level.FINE,"Cannot convert " + value + " to type "
+		     + type);
             }
             throw new Exception();
         }
@@ -449,8 +464,8 @@ public class JavaErlang {
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).charValue();
         }
-        System.err.println("\rerror: convert_to_character " + value);
-        System.err.println("\rtype is " + value.getClass());
+        logger.log(Level.FINE,"\rerror: convert_to_character " + value);
+        logger.log(Level.FINE,"\rtype is " + value.getClass());
         throw new Exception();
     }
 
@@ -458,8 +473,8 @@ public class JavaErlang {
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).byteValue();
         }
-        System.err.println("\rerror: convert_to_byte " + value);
-        System.err.println("\rtype is " + value.getClass());
+        logger.log(Level.FINE,"\rerror: convert_to_byte " + value);
+        logger.log(Level.FINE,"\rtype is " + value.getClass());
         throw new Exception();
     }
 
@@ -468,8 +483,8 @@ public class JavaErlang {
         if (value instanceof OtpErlangDouble) {
             return ((OtpErlangDouble) value).floatValue();
         }
-        System.err.println("\rerror: convert_to_float " + value);
-        System.err.println("\rtype is " + value.getClass());
+        logger.log(Level.FINE,"\rerror: convert_to_float " + value);
+        logger.log(Level.FINE,"\rtype is " + value.getClass());
         throw new Exception();
     }
 
@@ -478,14 +493,14 @@ public class JavaErlang {
         if (value instanceof OtpErlangDouble) {
             return ((OtpErlangDouble) value).doubleValue();
         }
-        System.err.println("\rerror: convert_to_double " + value);
-        System.err.println("\rtype is " + value.getClass());
+        logger.log(Level.FINE,"\rerror: convert_to_double " + value);
+        logger.log(Level.FINE,"\rtype is " + value.getClass());
         throw new Exception();
     }
 
     static Object convert_to_void(final OtpErlangObject value) throws Exception {
-        System.err.println("\rerror: convert_to_void " + value);
-        System.err.println("\rtype is " + value.getClass());
+        logger.log(Level.FINE,"\rerror: convert_to_void " + value);
+        logger.log(Level.FINE,"\rtype is " + value.getClass());
         throw new Exception();
     }
 
@@ -494,8 +509,8 @@ public class JavaErlang {
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).shortValue();
         }
-        System.err.println("\rerror: convert_to_short " + value);
-        System.err.println("\rtype is " + value.getClass());
+        logger.log(Level.FINE,"\rerror: convert_to_short " + value);
+        logger.log(Level.FINE,"\rtype is " + value.getClass());
         throw new Exception();
     }
 
@@ -504,8 +519,8 @@ public class JavaErlang {
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).intValue();
         }
-        System.err.println("\rerror: convert_to_integer " + value);
-        System.err.println("\rtype is " + value.getClass());
+        logger.log(Level.FINE,"\rerror: convert_to_integer " + value);
+        logger.log(Level.FINE,"\rtype is " + value.getClass());
         throw new Exception();
     }
 
@@ -513,8 +528,8 @@ public class JavaErlang {
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).longValue();
         }
-        System.err.println("\rerror: convert_to_long " + value);
-        System.err.println("\rtype is " + value.getClass());
+        logger.log(Level.FINE,"\rerror: convert_to_long " + value);
+        logger.log(Level.FINE,"\rtype is " + value.getClass());
         throw new Exception();
     }
 
@@ -585,7 +600,7 @@ public class JavaErlang {
     static Type[] fromErlTypes(final OtpErlangObject[] erlTypes)
             throws Exception {
         final int len = erlTypes.length;
-        // System.err.println("\rfromErlTypes(len="+len+")");
+        // logger.log(Level.FINER,"\rfromErlTypes(len="+len+")");
         final Type types[] = new Type[len];
         for (int i = 0; i < len; i++) {
             types[i] = fromErlType(erlTypes[i]);
@@ -635,7 +650,7 @@ public class JavaErlang {
                 return arrayClass;
             }
         }
-        System.err.println("\rtype " + erlType + " is not understood?");
+        logger.log(Level.WARNING,"\rtype " + erlType + " is not understood?");
         throw new Exception();
     }
 
@@ -650,12 +665,13 @@ public class JavaErlang {
         do {
             final int lastIndex = str.lastIndexOf(".");
             if (lastIndex == -1) {
-                System.err.println
-		    ("findClass: cannot locate class " + str +
+                logger.log
+		    (Level.WARNING,
+		     "findClass: cannot locate class " + str +
 		     "using classpath\n"+System.getProperty("java.class.path")+
 		     "\nworking directory is "+System.getProperty("user.dir"));
-                if (verbose) {
-                    System.err.println("findClass: cannot locate class " + str);
+                if (logger.isLoggable(Level.WARNING)) {
+                    logger.log(Level.WARNING,"findClass: cannot locate class " + str);
                 }
                 throw new Exception();
             }
@@ -832,29 +848,13 @@ public class JavaErlang {
         return new OtpErlangBoolean(true);
     }
 
-    OtpErlangObject invhandler(final OtpErlangObject cmd) throws Exception {
-        final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final OtpErlangPid pid = (OtpErlangPid) t.elementAt(0);
-        final Object obj = java_value_from_erlang(t.elementAt(1));
-        final InvocationHandler handler = new InvHandler(this, pid, obj);
-        return map_to_erlang(handler);
-    }
-
-    OtpErlangObject proxy_reply(final OtpErlangObject cmd) throws Exception {
-        final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final InvHandler handler = (InvHandler) fromErlangMap.get(t
-                .elementAt(0));
-        handler.setAnswer(t.elementAt(1));
-        return new OtpErlangAtom("ok");
-    }
-
     OtpErlangObject getConstructor(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
         final OtpErlangTuple typeList = (OtpErlangTuple) t.elementAt(2);
         final Constructor cnstr = getConstructor(className, typeList.elements());
-        if (verbose) {
-            System.err.println("\rcmd " + cmd + " has typelist "
+        if (logger.isLoggable(Level.FINER)) {
+            logger.log(Level.FINER,"\rcmd " + cmd + " has typelist "
                     + typeList.elements());
         }
         return acc_map_to_erlang(cnstr);
@@ -982,8 +982,8 @@ public class JavaErlang {
         final ArrayList<OtpErlangTuple> erlMethods = new ArrayList<OtpErlangTuple>();
         for (final Method method : methods) {
             if (method.isBridge() || method.isSynthetic()) {
-                if (verbose) {
-                    System.err.println("Skipping synthetic or bridge method "
+                if (logger.isLoggable(Level.FINER)) {
+                    logger.log(Level.FINER,"Skipping synthetic or bridge method "
                             + method + " in class " + className);
                 }
                 continue;
@@ -999,8 +999,8 @@ public class JavaErlang {
                     erlTypes[i] = toErlType(parameterTypes[i]);
                 }
                 erlMethods.add(makeErlangTuple(name, new OtpErlangList(erlTypes)));
-            } else if (verbose) {
-                System.err.println("\rMethod is not visible to us");
+            } else if (logger.isLoggable(Level.FINER)) {
+                logger.log(Level.FINER,"\rMethod is not visible to us");
             }
         }
         final OtpErlangTuple[] tmp_arr = new OtpErlangTuple[erlMethods.size()];
@@ -1048,8 +1048,8 @@ public class JavaErlang {
             final OtpErlangAtom name = new OtpErlangAtom(field.getName());
             final OtpErlangObject fieldType = toErlType(field.getType());
             if (field.isSynthetic()) {
-                if (verbose) {
-                    System.err.println("Skipping synthetic or bridge field "
+                if (logger.isLoggable(Level.FINER)) {
+                    logger.log(Level.FINER,"Skipping synthetic or bridge field "
                             + field + " in class " + className);
                 }
                 continue;
@@ -1115,15 +1115,15 @@ public class JavaErlang {
                 return cnstr;
             }
         }
-        System.err.print("No constructor found for " + cl.getName() + ":");
+        logger.log(Level.FINE,"No constructor found for " + cl.getName() + ":");
         printObjectArray(types);
-        System.err.println();
-        System.err.print("Available constructors: ");
+        logger.log(Level.FINER,"");
+        logger.log(Level.FINER,"Available constructors: ");
         for (final Constructor cnstr : cl.getConstructors()) {
-            System.err.print("constructor: ");
+            logger.log(Level.FINER,"constructor: ");
             printObjectArray(cnstr.getParameterTypes());
         }
-        System.err.println("\r------------------------");
+        logger.log(Level.FINER,"\r------------------------");
         throw new Exception();
     }
 
@@ -1139,9 +1139,9 @@ public class JavaErlang {
                 return field;
             }
         }
-        System.err.println("\rNo field found");
+        logger.log(Level.FINE,"\rNo field found");
         for (final Field field : cl.getFields()) {
-            System.err.println("\rfield: " + field.getName());
+            logger.log(Level.FINER,"\rfield: " + field.getName());
         }
         throw new Exception();
     }
@@ -1161,18 +1161,18 @@ public class JavaErlang {
                 return method;
             }
         }
-        System.err.print("No method found for " + cl.getName() + "."
+        logger.log(Level.FINE,"No method found for " + cl.getName() + "."
                 + methodName + ":");
         printObjectArray(types);
-        System.err.println();
-        System.err.print("Available methods: ");
+        logger.log(Level.FINER,"");
+        logger.log(Level.FINER,"Available methods: ");
         for (final Method method : cl.getMethods()) {
             if (method.getName().equals(methodName)) {
-                System.err.print("method: ");
+                logger.log(Level.FINER,"method: ");
                 printObjectArray(method.getParameterTypes());
             }
         }
-        System.err.println("\r------------------------");
+        logger.log(Level.FINER,"\r------------------------");
         throw new Exception();
     }
 
@@ -1181,11 +1181,11 @@ public class JavaErlang {
         if (result instanceof Method || result instanceof Constructor) {
             return result;
         }
-        System.err.println(cmd + " is not a method/constructor");
+        logger.log(Level.FINE,cmd + " is not a method/constructor");
         final Set<OtpErlangObject> keys = accFromErlangMap.keySet();
-        System.err.println("\rMap contains:");
+        logger.log(Level.FINER,"\rMap contains:");
         for (final OtpErlangObject key : keys) {
-            System.err.print(key + ",");
+            logger.log(Level.FINER,key + ",");
         }
         throw new Exception();
     }
@@ -1252,7 +1252,7 @@ public class JavaErlang {
 
     static void printObjectArray(final Object[] arr) {
         for (final Object t : arr) {
-            System.err.print(t + ", ");
+            logger.log(Level.FINER,t + ", ");
         }
     }
 
@@ -1268,7 +1268,7 @@ public class JavaErlang {
                 return new OtpErlangAtom(c.getCanonicalName());
             }
         } else {
-            System.err.println("\rCannot handle " + t + " yet");
+            logger.log(Level.WARNING,"\rCannot handle " + t + " yet");
             throw new Exception();
         }
     }
@@ -1294,7 +1294,7 @@ public class JavaErlang {
             return makeErlangTuple(new OtpErlangAtom("exception"),
                     map_to_erlang(t));
         }
-        System.err.println("Cannot return non-Erlang/non-Exception " + obj);
+        logger.log(Level.SEVERE,"Cannot return non-Erlang/non-Exception " + obj);
         throw new Exception();
     }
 }

@@ -147,10 +147,10 @@ tca(Node,Params,[Alternative={Types,_}|Rest]) ->
   Result = java:javaCall(Node,objTypeCompat,{list_to_tuple(Types),Params}),
   if
     Result -> 
-      ?LOG("Params ~p matches ~p~n",[Params,Types]),
+      java:format(debug,"Params ~p matches ~p~n",[Params,Types]),
       {ok,Alternative};
     true ->
-      ?LOG("Params ~p do not match ~p~n",[Params,Types]),
+      java:format(debug,"Params ~p do not match ~p~n",[Params,Types]),
       tca(Node,Params,Rest)
   end.
 
@@ -251,9 +251,9 @@ find_static_method(NodeId,ClassName,Name,Args) ->
     false ->
       java:format
 	(warning,
-	 "*** Warning: cannot find static method for class ~p with arity ~p "++
+	 "*** Warning: cannot find static method ~p for class ~p with arity ~p "++
 	   "that matches arguments ~s~n",
-	 [ClassName,LenArgs,print_parameters(Args)]),
+	 [Name,ClassName,LenArgs,print_parameters(Args)]),
       throw(badarg)
   end.
 

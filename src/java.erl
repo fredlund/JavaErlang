@@ -98,7 +98,7 @@
     | {add_to_java_classpath,[string()]}
     | {java_classpath,[string()]}
     | {java_exception_as_value,boolean()}
-    | {java_verbose,boolean()}
+    | {java_verbose,string()}
     | {java_executable,string()}
     | {erlang_remote,string()}
     | {log_level,loglevel()}
@@ -117,7 +117,7 @@
 %% <li>`java_executable' determines which program will be used
 %% to start the Java interpreter (by default "java").</li>
 %% <li>`java_verbose' provides diagnostic output from the 
-%% Java interface class (default false).</li>
+%% Java interface class using the Java standard logger.</li>
 %% <li>`erlang_remote' specifies a (possibly remote)
 %% Erlang node which is responsible
 %% for starting the new Java node.</li>
@@ -323,7 +323,7 @@ run_java(Identity,NodeName,Name,Executable,Verbose,Paths,Class) ->
       "" -> [];
       PathSpec -> ["-cp",PathSpec]
     end,
-  VerboseArg = if Verbose -> ["-verbose"]; true -> [] end,
+  VerboseArg = if Verbose=/=undefined -> ["-loglevel",Verbose]; true -> [] end,
   Args =
     ClassPath++
     [Class,NodeName]++
@@ -485,7 +485,6 @@ msg_type(reset) -> non_thread_msg;
 msg_type(terminate) -> non_thread_msg;
 msg_type(connect) -> non_thread_msg;
 msg_type(define_invocation_handler) -> non_thread_msg;
-msg_type(proxy_reply) -> non_thread_msg;
 msg_type(getConstructors) -> non_thread_msg;
 msg_type(getClassLocation) -> non_thread_msg;
 msg_type(getMethods) -> non_thread_msg;
@@ -526,13 +525,16 @@ throw_java_exception(ExceptionValue) ->
   throw({java_exception,ExceptionValue}).
 
 report_java_exception({java_exception,Exception}) ->
-  StackTrace = erlang:get_stacktrace(),
-  io:format
-    ("*** Warning: unexpected Java exception; Erlang stacktrace:~n~p~n~n",
-     [StackTrace]),
-  Err = get_static(node_id(Exception),'java.lang.System',err),
-  call(Exception,printStackTrace,[Err]),
-  throw_java_exception(Exception);
+  try throw(generate_stacktrace)
+  catch _:_ ->
+      StackTrace = erlang:get_stacktrace(),
+      io:format
+	("*** Warning: unexpected Java exception; Erlang stacktrace:~n~p~n~n",
+	 [StackTrace]),
+      Err = get_static(node_id(Exception),'java.lang.System',err),
+      call(Exception,printStackTrace,[Err]),
+      throw_java_exception(Exception)
+  end;
 report_java_exception(Other) ->
   Other.
 
@@ -764,7 +766,6 @@ default_options() ->
   [{java_class,"javaErlang.JavaErlang"},
    {java_classpath,ClassPath},
    {java_executable,JavaExecutable},
-   {java_verbose,false},
    {call_timeout,10000},
    {log_level,notice}].
 

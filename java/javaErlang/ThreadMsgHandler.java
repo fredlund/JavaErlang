@@ -38,6 +38,8 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 import com.ericsson.otp.erlang.OtpErlangAtom;
 import com.ericsson.otp.erlang.OtpErlangBoolean;
@@ -78,8 +80,8 @@ class ThreadMsgHandler implements Runnable {
 
         do {
             final OtpErlangTuple t = (OtpErlangTuple) queue.take();
-            if (JavaErlang.verbose) {
-                System.err.println(this + " got " + t);
+            if (JavaErlang.logger.isLoggable(Level.FINER)) {
+                JavaErlang.logger.log(Level.FINER,this + " got " + t);
             }
             try {
                 tag = ((OtpErlangAtom) t.elementAt(0)).atomValue();
