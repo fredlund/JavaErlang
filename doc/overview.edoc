@@ -133,7 +133,7 @@ to true).
 
 <h2>Creating Java Objects</h2>
 An object of class "c" can be
-created by calling ``java:new(c,Args)'',
+created by calling ``java:new(NodeId,c,Args)'',
 where ``Args'' is the list
 of arguments of the constructor.
 
@@ -141,15 +141,6 @@ An example:<br/>
 ```
 {ok,NodeId} = java:start_node(),
 I2 = java:new(NodeId,'java.lang.Integer',[2]).
-'''
-
-Alternatively, the Erlang module corresponding to a Java class
-provides functions to directly call the constructor.
-An example:<br/>
-```
-{ok,NodeId} = java:start_node(),
-java:acquire_class(NodeId,'java.lang.Integer'),
-I2 = java_lang_Integer:'Integer'(NodeId,2).
 '''
 
 <h2>Calling Java Instance and Static Methods</h2>
