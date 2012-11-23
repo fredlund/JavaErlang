@@ -668,7 +668,7 @@ public class JavaErlang {
                 logger.log
 		    (Level.WARNING,
 		     "findClass: cannot locate class " + str +
-		     "using classpath\n"+System.getProperty("java.class.path")+
+		     " using classpath\n"+System.getProperty("java.class.path")+
 		     "\nworking directory is "+System.getProperty("user.dir"));
                 if (logger.isLoggable(Level.WARNING)) {
                     logger.log(Level.WARNING,"findClass: cannot locate class " + str);
