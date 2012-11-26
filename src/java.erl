@@ -73,7 +73,6 @@
 -export([getClassName/1,getSimpleClassName/1,instanceof/2,is_subtype/3]).
 -export([identity/2]).
 -export([print_stacktrace/1,get_stacktrace/1]).
--export([report_java_exception/1]).
 -export([set_loglevel/1,format/2,format/3]).
 -export_type([node_id/0,object_ref/0]).
 
@@ -317,6 +316,7 @@ get_option(Option,NodeId,Default) ->
 get_java_node_id() ->
   ets:update_counter(java_nodes,java_node_counter,1).
 
+%% @private
 run_java(Identity,NodeName,Name,Executable,Verbose,Paths,Class) ->
   ClassPath = 
     case combine_paths(Paths) of
@@ -524,20 +524,6 @@ wait_for_reply(Node) ->
 throw_java_exception(ExceptionValue) ->
   throw({java_exception,ExceptionValue}).
 
-report_java_exception({java_exception,Exception}) ->
-  try throw(generate_stacktrace)
-  catch _:_ ->
-      StackTrace = erlang:get_stacktrace(),
-      io:format
-	("*** Warning: unexpected Java exception; Erlang stacktrace:~n~p~n~n",
-	 [StackTrace]),
-      Err = get_static(node_id(Exception),'java.lang.System',err),
-      call(Exception,printStackTrace,[Err]),
-      throw_java_exception(Exception)
-  end;
-report_java_exception(Other) ->
-  Other.
-
 create_thread(NodeId) ->
   javaCall(NodeId,createThread,0).
 
@@ -551,6 +537,7 @@ get_thread(Node) ->
       Thread
   end.
 
+%% @private
 %% @doc
 %% An identity function for Java objects.
 identity(NodeId,Value) ->
@@ -1068,7 +1055,7 @@ print_stacktrace(Exception) ->
   call(Exception,printStackTrace,[Err]).
 
 %% @doc
-%% Returns the Java stacktrace as an Erlang list
+%% Returns the Java stacktrace as an Erlang list.
 %% This function is for convenience only; it is implementable using
 %% the rest of the Java API.
 -spec get_stacktrace(object_ref()) -> list().
@@ -1153,6 +1140,7 @@ node_lookup(NodeId) ->
 node_store(Node) ->
   ets:insert(java_nodes,{Node#node.node_id,Node}).
   
+%% @private
 find_class(Object) ->
   case ets:lookup(java_objects,Object) of
     [{_,Class}] -> Class;
