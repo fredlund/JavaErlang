@@ -63,7 +63,7 @@
 -export([default_options/0,version/0]). 
 -export([free/1,reset/1,terminate/1,terminate_all/0]).
 -export([brutally_terminate/1,recreate_node/1]).
--export([acquire_class/2,node_id/1]).
+-export([node_id/1]).
 -export([new/3,new/4]).
 -export([call/3,call/4,call_static/4,call_static/5]).
 -export([set_timeout/1]).
@@ -1068,16 +1068,7 @@ get_stacktrace(Exception) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 
-%% @doc
-%% Ensures that the Erlang representation of
-%% the Java class with name ClassName is loaded into the Erlang
-%% runtime system. If necessary, this function will generate
-%% the source code for the Erlang module (from the Java class),
-%% compile it, and load it. Returns the name of the Erlang module
-%% implementing the Java class.
-%% Example: 
-%% ``` java:acquire_class(NodeId,'java.lang.Integer'),
-%%     JavaInt10 = java_lang_Integer:'Integer'(NodeId,10).'''
+%% @private
 -spec acquire_class(node_id(),class_name()) -> #class{}.
 acquire_class(NodeId,ClassName) when is_atom(ClassName) ->
   ?LOG("acquire_class(~p,~p)~n",[NodeId,ClassName]),
