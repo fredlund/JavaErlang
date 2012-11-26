@@ -1093,8 +1093,7 @@ acquire_class_int(NodeId,ClassName) ->
   end.
 
 %% Since classes can be loaded from multiple processes simultaneously
-%% we have to serialize such attempts (to prevent getting purge errors
-%% for instance).
+%% we have to serialize such attempts.
 get_load_permission(NodeId,ClassName) ->
   case ets:insert_new(java_classes,{{loading,NodeId,ClassName},self()}) of
     true ->
