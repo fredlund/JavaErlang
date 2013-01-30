@@ -75,6 +75,7 @@
 -export([print_stacktrace/1,get_stacktrace/1]).
 -export([set_loglevel/1,format/2,format/3]).
 -export_type([node_id/0,object_ref/0]).
+-export([acquire_class/2,report_java_exception/1]).
 
 %% Private
 -export([javaCall/3]).
@@ -523,6 +524,17 @@ wait_for_reply(Node) ->
 
 throw_java_exception(ExceptionValue) ->
   throw({java_exception,ExceptionValue}).
+
+report_java_exception({java_exception,Exception}) ->
+  StackTrace = erlang:get_stacktrace(),
+  io:format
+    ("*** Warning: unexpected Java exception; Erlang stacktrace:~n~p~n~n",
+     [StackTrace]),
+  Err = get_static(node_id(Exception),'java.lang.System',err),
+  call(Exception,printStackTrace,[Err]),
+  throw_java_exception(Exception);
+report_java_exception(Other) ->
+  Other.
 
 create_thread(NodeId) ->
   javaCall(NodeId,createThread,0).
