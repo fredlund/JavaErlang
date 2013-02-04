@@ -43,7 +43,7 @@ import java.net.URL;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -113,11 +113,11 @@ public class JavaErlang {
     }
 
     public JavaErlang(final String name) {
-        toErlangMap = new HashMap<RefEqualsObject, OtpErlangObject>();
-        fromErlangMap = new HashMap<OtpErlangObject, Object>();
-        accToErlangMap = new HashMap<Object, OtpErlangObject>();
-        accFromErlangMap = new HashMap<OtpErlangObject, Object>();
-        threadMap = new HashMap<OtpErlangObject, ThreadMsgHandler>();
+        toErlangMap = new ConcurrentHashMap<RefEqualsObject, OtpErlangObject>();
+        fromErlangMap = new ConcurrentHashMap<OtpErlangObject, Object>();
+        accToErlangMap = new ConcurrentHashMap<Object, OtpErlangObject>();
+        accFromErlangMap = new ConcurrentHashMap<OtpErlangObject, Object>();
+        threadMap = new ConcurrentHashMap<OtpErlangObject, ThreadMsgHandler>();
         try {
             final OtpNode node = new OtpNode(name);
 
@@ -219,12 +219,12 @@ public class JavaErlang {
             throws Exception {
         if (tag.equals("reset")) {
             objCounter = 0;
-            toErlangMap = new HashMap<RefEqualsObject, OtpErlangObject>();
-            fromErlangMap = new HashMap<OtpErlangObject, Object>();
+            toErlangMap = new ConcurrentHashMap<RefEqualsObject, OtpErlangObject>();
+            fromErlangMap = new ConcurrentHashMap<OtpErlangObject, Object>();
             for (final ThreadMsgHandler th : threadMap.values()) {
                 stop_thread(th, replyPid);
             }
-            threadMap = new HashMap<OtpErlangObject, ThreadMsgHandler>();
+            threadMap = new ConcurrentHashMap<OtpErlangObject, ThreadMsgHandler>();
             System.gc();
             return new OtpErlangAtom("ok");
         } else if (tag.equals("terminate")) {
@@ -685,7 +685,7 @@ public class JavaErlang {
         } while (true);
     }
 
-    public OtpErlangObject map_to_erlang(final Object obj) {
+    public synchronized OtpErlangObject map_to_erlang(final Object obj) {
         if (obj == null) {
             return map_to_erlang_null();
         }
@@ -704,7 +704,7 @@ public class JavaErlang {
         return erlangKey;
     }
 
-    public OtpErlangObject acc_map_to_erlang(final Object obj) {
+    public synchronized OtpErlangObject acc_map_to_erlang(final Object obj) {
         final Object obj_key = obj;
         final OtpErlangObject oldValue = accToErlangMap.get(obj_key);
         if (oldValue != null) {
@@ -719,7 +719,7 @@ public class JavaErlang {
         return erlangKey;
     }
 
-    OtpErlangObject map_new_thread_to_erlang(final ThreadMsgHandler th) {
+    synchronized OtpErlangObject map_new_thread_to_erlang(final ThreadMsgHandler th) {
         final IntKey key = new IntKey(threadCounter++);
         final OtpErlangObject erlangKey = makeErlangKey("thread", key,
                 nodeIdentifier);
