@@ -59,7 +59,7 @@
 -include("class.hrl").
 
 -export([init/1]).
--export([start_node/0,start_node/1,nodes/0,symbolic_name/1]).
+-export([connect/2,start_node/0,start_node/1,nodes/0,symbolic_name/1]).
 -export([default_options/0,version/0]). 
 -export([free/1,reset/1,terminate/1,terminate_all/0]).
 -export([brutally_terminate/1,recreate_node/1]).
@@ -193,17 +193,7 @@ start_node() ->
 %%
 -spec start_node([option()]) -> {ok,node_id()} | {error,any()}.
 start_node(UserOptions) ->
-  case whereis(net_kernel) of
-    undefined ->
-      format
-	(error,
-	 "*** Error: net_kernel system process is not running.~n"++
-	 "Make sure to start erlang using \"erl -sname nodename ...\"~nor "++
-	 "call net_kernel:start/1~n~n"),
-      throw(net_kernel_undefined);
-    _ ->
-      ok
-  end,
+  check_net_kernel(),
   Options = UserOptions++default_options(),
   check_options(Options),
   LogLevel = proplists:get_value(log_level,Options),
@@ -218,6 +208,18 @@ start_node(UserOptions) ->
 	  symbolic_name=SymbolicName},
   spawn_java(PreNode,get_java_node_id()).
   
+check_net_kernel() ->
+  case whereis(net_kernel) of
+    undefined ->
+      format
+	(error,
+	 "*** Error: net_kernel system process is not running.~n"++
+	 "Make sure to start erlang using \"erl -sname nodename ...\"~nor "++
+	 "call net_kernel:start/1~n~n"),
+      throw(net_kernel_undefined);
+    _ ->
+      ok
+  end.
 
 spawn_java(PreNode,PreNodeId) ->
   SymbolicName = PreNode#node.symbolic_name,
@@ -371,6 +373,21 @@ java_reader(Port,Identity) ->
 	 "java_reader ~p got strange message~n  ~p~n",[Identity,Other]),
       java_reader(Port,Identity)
   end.
+
+connect(NodeName,UserOptions) ->
+  check_net_kernel(),
+  Options = UserOptions++default_options(),
+  check_options(Options),
+  LogLevel = proplists:get_value(log_level,Options),
+  init([{log_level,LogLevel}]),
+  SymbolicName = proplists:get_value(symbolic_name,Options,void),
+  CallTimeout = proplists:get_value(call_timeout,Options),
+  NodeId = get_java_node_id(),
+  connectToNode
+    (#node
+     {node_id=NodeId,
+      node_name=NodeName,
+      symbolic_name=SymbolicName}).
 
 connectToNode(Node) ->
   connectToNode
