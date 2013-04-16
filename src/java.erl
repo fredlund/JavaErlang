@@ -384,11 +384,30 @@ connect(NodeName,UserOptions) ->
   SymbolicName = proplists:get_value(symbolic_name,Options,void),
   CallTimeout = proplists:get_value(call_timeout,Options),
   NodeId = get_java_node_id(),
-  connectToNode
-    (#node
-     {node_id=NodeId,
-      node_name=NodeName,
-      symbolic_name=SymbolicName}).
+  PreNode =
+    #node
+    {node_id=NodeId,
+     call_timeout=CallTimeout,
+     node_name=NodeName,
+     symbolic_name=SymbolicName},
+  case connectToNode(PreNode) of
+    {ok,Node} ->
+      java:format
+	(debug,"~p: connect succeeded with pid ~p~n",
+	 [Node#node.symbolic_name,Node#node.node_pid]),
+      node_store(Node),
+      java:format
+	(debug,
+	 "~p: fresh connection to ~p established~n",
+	 [Node#node.symbolic_name,NodeId]),
+      {ok,NodeId};
+    Error = {error,Reason} ->
+      java:format
+	(debug,
+	 "~p: failed to connect with reason ~p~n",
+	 [PreNode#node.symbolic_name,Reason]),
+      Error
+  end.
 
 connectToNode(Node) ->
   connectToNode
