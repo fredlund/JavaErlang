@@ -375,6 +375,11 @@ java_reader(Port,Identity) ->
       java_reader(Port,Identity)
   end.
 
+%% @doc Connects to an already started Java node.
+%% Returns a Java library "node identifier" (not a normal
+%% Erlang node identifier).
+%%
+-spec connect(atom(),[option()]) -> {ok,node_id()} | {error,any()}.
 connect(NodeName,UserOptions) ->
   check_net_kernel(),
   Options = UserOptions++default_options(),
