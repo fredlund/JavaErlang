@@ -843,7 +843,7 @@ nodes() ->
 	 ets:tab2list(java_nodes))
   end.
 
-%% @doc
+%% @doc 
 %% Resets the state of a Java node, i.e., 
 %% the object proxy is reset.
 %% This operation will cause all Java object references
