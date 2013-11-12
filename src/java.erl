@@ -836,8 +836,10 @@ nodes() ->
   case ets:info(java_nodes) of
     undefined -> [];
     _ ->
-      lists:map
-	(fun ({NodeId,_Node}) when is_integer(NodeId) -> NodeId end,
+      lists:foldl
+	(fun ({NodeId,_},Acc) when is_integer(NodeId) -> [NodeId|Acc];
+	     (_,Acc) -> Acc
+	 end, [],
 	 ets:tab2list(java_nodes))
   end.
 
@@ -878,7 +880,7 @@ terminate_all() ->
     undefined -> ok;
     _ ->
       lists:foreach
-	(fun ({NodeId,_Node}) ->
+	(fun ({NodeId,_Node}) when is_integer(NodeId) ->
 	     javaCall(NodeId,terminate,void),
 	     {ok,Node} = node_lookup(NodeId),
 	     Node#node.port_pid!{control,terminate_reader};

@@ -38,8 +38,8 @@
 
 -include_lib("eqc/include/eqc.hrl").
 
--record(state,{sets=[]}).
-
+sample_commands() ->
+  eqc_gen:sample(eqc_statem:commands(hashset)).
 
 %% @doc
 %% Tests the Java HashSet data structure.
