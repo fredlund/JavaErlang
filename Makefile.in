@@ -1,10 +1,8 @@
 JAVA_ERLANG_VERSION = @PACKAGE_VERSION@
 JINTERFACE_LIB_DIR = @ERLANG_LIB_DIR_jinterface@
 
-# Try to determine the location of the Java compiler if JAVA_HOME is not set
-ifeq ($(JAVA_HOME),)
-	JAVA_HOME=$(shell readlink -f /usr/bin/javac | sed "s:bin/javac::")
-endif
+RESOURCE = c/java_int_resource.so
+#RESOURCE =
 
 OTPERLANG=$(JINTERFACE_LIB_DIR)/priv/OtpErlang.jar
 
@@ -22,7 +20,7 @@ JAR = JavaErlang.jar
 CLASSES = classes/javaErlang/JavaErlang.class classes/javaErlang/testing/Test.class classes/javaErlang/testing/Test2.class 
 DOCDIR=doc
 
-tool: ebin classes $(JAR) $(BEAMS) c/java_int_resource.so
+tool: ebin classes $(JAR) $(BEAMS) $(RESOURCE)
 
 eqcjavademo: ebin/hashset_test.beam
 
