@@ -530,8 +530,10 @@ javaCall(NodeId,Type,Msg) ->
     {ok, Node} ->
       JavaMsg = create_msg(Type,Msg,Node),
       Node#node.node_pid!JavaMsg,
-      Reply = wait_for_reply(Node),
-      enable_gc(Reply,Node#node.gc_pid);
+      case wait_for_reply(Node) of
+	{zzzzz,Msg} -> throw(impossible);
+	Reply -> enable_gc(Reply,Node#node.gc_pid)
+      end;
     _ ->
       format(error,"javaCall: nodeId ~p not found~n",[NodeId]),
       format(error,"type: ~p message: ~p~n",[Type,Msg]),
