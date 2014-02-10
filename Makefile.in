@@ -1,6 +1,11 @@
 JAVA_ERLANG_VERSION = @PACKAGE_VERSION@
 JINTERFACE_LIB_DIR = @ERLANG_LIB_DIR_jinterface@
 
+# Try to determine the location of the Java compiler if JAVA_HOME is not set
+ifeq ($(JAVA_HOME),)
+        JAVA_HOME=$(shell readlink -f /usr/bin/javac | sed "s:bin/javac::")
+endif
+
 RESOURCE = c/java_int_resource.so
 #RESOURCE =
 

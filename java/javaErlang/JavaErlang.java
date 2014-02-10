@@ -709,12 +709,19 @@ public class JavaErlang {
 
         if (oldValue != null) {
 	    long refCount = oldValue.alias();
-	    return makeErlangObjectKey(oldValue.key(),refCount,oldValue.nodeId());
+	    System.out.println
+		("increasing count for "+
+		 System.identityHashCode(oldValue.object()));
+	    return makeErlangObjectKey
+		(oldValue.key(),refCount,oldValue.nodeId());
         }
 
 	final int newCounter = objCounter++;
 	final JavaObjectEntry entry =
 	    new JavaObjectEntry(obj, newCounter, nodeIdentifier);
+	System.out.println
+	    ("returning new object "+
+	     System.identityHashCode(entry.object()));
         toErlangMap.put(obj_key, entry);
 	final JavaObjectKey key =
 	    new JavaObjectKey(newCounter,nodeIdentifier);
@@ -855,13 +862,16 @@ public class JavaErlang {
 	final JavaObjectKey key = objectKeyFromErlang(arg);
         final JavaObjectEntry entry = fromErlangMap.get(key);
 	if (entry.free() <= 0) {
-	    System.out.println("freeing "+entry.object());
+	    System.out.println
+		("freeing "+System.identityHashCode(entry.object()));
 	    final RefEqualsObject objKey = new RefEqualsObject(entry.object());
 	    toErlangMap.remove(objKey);
 	    fromErlangMap.remove(key);
 	    return new OtpErlangBoolean(true);
 	} else {
-	    System.out.println(entry.object()+" has "+entry.references()+" references");
+	    System.out.println
+		(System.identityHashCode(entry.object())+
+		 " has "+entry.references()+" references");
 	    return new OtpErlangBoolean(false);
 	}
     }
