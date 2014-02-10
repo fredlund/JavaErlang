@@ -97,7 +97,17 @@ class ThreadMsgHandler implements Runnable {
                     } else {
                         result = e;
                     }
+		    if (JavaErlang.logger.isLoggable(Level.WARNING)) {
+			JavaErlang.logger.log(Level.WARNING,"\r\n*** Exception " + result + " thrown");
+			JavaErlang.logger.log(Level.WARNING,"\r");
+			((Throwable) result).printStackTrace();
+		    }
                 } catch (final Throwable e) {
+		    if (JavaErlang.logger.isLoggable(Level.WARNING)) {
+			JavaErlang.logger.log(Level.WARNING,"\r\n*** Exception " + e + " thrown");
+			JavaErlang.logger.log(Level.WARNING,"\r");
+			e.printStackTrace();
+		    }
                     result = e;
                 }
                 if (result != null) {

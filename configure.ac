@@ -2,7 +2,7 @@ AC_INIT([javaErlang],[1.1],[lfredlund@fi.upm.es])
 
 AC_PREREQ([2.64])  
 
-AC_COPYRIGHT([Copyright (C) 2006-2010 Lars-Åke Fredlund]) 
+AC_COPYRIGHT([Copyright (C) 2006-2014 Lars-Åke Fredlund]) 
 
 AC_ERLANG_NEED_ERLC
 

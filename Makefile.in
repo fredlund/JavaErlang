@@ -22,7 +22,8 @@ JAR = JavaErlang.jar
 CLASSES = classes/javaErlang/JavaErlang.class classes/javaErlang/testing/Test.class classes/javaErlang/testing/Test2.class 
 DOCDIR=doc
 
-tool: ebin classes $(JAR) $(BEAMS)
+tool: ebin classes $(JAR) $(BEAMS) c/java_int_resource.so
+
 eqcjavademo: ebin/hashset_test.beam
 
 qctest: ebin/hashset_test.ebin
@@ -44,6 +45,9 @@ classes/javaErlang/testing/Test.class: java/javaErlang/testing/Test.java
 
 classes/javaErlang/testing/Test2.class: java/javaErlang/testing/Test2.java
 	$(JAVA_HOME)/bin/javac -d classes java/javaErlang/testing/Test2.java
+
+c/java_int_resource.so: c/java_int_resource.c
+	gcc -fPIC -Icprops/include -shared -o c/java_int_resource.so c/java_int_resource.c -I $(JINTERFACE_LIB_DIR)/../../usr/include
 
 ebin:
 	mkdir -p ebin
