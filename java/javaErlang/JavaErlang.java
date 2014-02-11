@@ -849,7 +849,7 @@ public class JavaErlang {
 	return new JavaObjectKey(key.longValue(),nodeIdentifier);
     }
 
-    OtpErlangObject free(final OtpErlangObject arg) {
+    synchronized OtpErlangObject free(final OtpErlangObject arg) {
 	final JavaObjectKey key = objectKeyFromErlang(arg);
         final JavaObjectEntry entry = fromErlangMap.get(key);
 	final RefEqualsObject objKey = new RefEqualsObject(entry.object());
@@ -858,7 +858,7 @@ public class JavaErlang {
         return new OtpErlangBoolean(true);
     }
 
-    OtpErlangObject freeInstance(final OtpErlangObject arg) {
+    synchronized OtpErlangObject freeInstance(final OtpErlangObject arg) {
 	final JavaObjectKey key = objectKeyFromErlang(arg);
         final JavaObjectEntry entry = fromErlangMap.get(key);
 	if (entry.free() <= 0) {
