@@ -66,6 +66,7 @@
 -export([node_id/1]).
 -export([new/3,new/4]).
 -export([call/3,call/4,call_static/4,call_static/5]).
+-export([eq/2]).
 -export([set_timeout/1]).
 -export([get/2,get_static/3,set/3,set_static/4]).
 -export([is_object_ref/1]).
@@ -747,6 +748,15 @@ set(Object,Field,Value) ->
 set_static(NodeId,ClassName,Field,Value) ->
   JavaField = java_to_erlang:find_static_field(NodeId,ClassName,Field),
   javaCall(NodeId,setFieldValue,{null,JavaField,Value}).
+
+%% @doc
+%% Checks if two Java objects references refer to the same object.
+%% Note that using normal Erlang term equality is not safe.
+-spec eq(object_ref(),object_ref()) -> bool().
+eq({object,Id,_,NodeId},{object,Id,_,NodeId}) ->
+  true;
+eq(_,_) ->
+  false.
 
 %% @doc Initializes the Java interface library
 %% providing default options.
