@@ -442,7 +442,7 @@ public class JavaErlang {
             return convert_to_double(value);
         } else if ((value instanceof OtpErlangString) &&
 		   (type == java.lang.String.class)) {
-	    return value.toString();
+	    return ((OtpErlangString) value).stringValue();
 	}
 	else {
             if (type instanceof Class) {
