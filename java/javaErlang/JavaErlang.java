@@ -69,8 +69,8 @@ import com.ericsson.otp.erlang.OtpNode;
 
 @SuppressWarnings("rawtypes")
 public class JavaErlang {
-    volatile Map<RefEqualsObject, OtpErlangObject> toErlangMap;
-    volatile Map<OtpErlangObject, Object> fromErlangMap;
+    volatile Map<RefEqualsObject, JavaObjectEntry> toErlangMap;
+    volatile Map<JavaObjectKey, JavaObjectEntry> fromErlangMap;
     volatile Map<Object, OtpErlangObject> accToErlangMap;
     volatile Map<OtpErlangObject, Object> accFromErlangMap;
     volatile Map<OtpErlangObject, ThreadMsgHandler> threadMap;
@@ -113,8 +113,8 @@ public class JavaErlang {
     }
 
     public JavaErlang(final String name) {
-        toErlangMap = new ConcurrentHashMap<RefEqualsObject, OtpErlangObject>();
-        fromErlangMap = new ConcurrentHashMap<OtpErlangObject, Object>();
+        toErlangMap = new ConcurrentHashMap<RefEqualsObject, JavaObjectEntry>();
+        fromErlangMap = new ConcurrentHashMap<JavaObjectKey, JavaObjectEntry>();
         accToErlangMap = new ConcurrentHashMap<Object, OtpErlangObject>();
         accFromErlangMap = new ConcurrentHashMap<OtpErlangObject, Object>();
         threadMap = new ConcurrentHashMap<OtpErlangObject, ThreadMsgHandler>();
@@ -219,8 +219,8 @@ public class JavaErlang {
             throws Exception {
         if (tag.equals("reset")) {
             objCounter = 0;
-            toErlangMap = new ConcurrentHashMap<RefEqualsObject, OtpErlangObject>();
-            fromErlangMap = new ConcurrentHashMap<OtpErlangObject, Object>();
+            toErlangMap = new ConcurrentHashMap<RefEqualsObject, JavaObjectEntry>();
+            fromErlangMap = new ConcurrentHashMap<JavaObjectKey, JavaObjectEntry>();
             for (final ThreadMsgHandler th : threadMap.values()) {
                 stop_thread(th, replyPid);
             }
@@ -256,6 +256,10 @@ public class JavaErlang {
             return objTypeCompat(argument);
         } else if (tag.equals("free")) {
             return free(argument);
+        } else if (tag.equals("freeInstance")) {
+            return freeInstance(argument);
+        } else if (tag.equals("memoryUsage")) {
+            return memoryUsage(argument);
         } else if (tag.equals("identity")) {
             return identity(argument);
         } else if (tag.equals("createThread")) {
@@ -362,10 +366,12 @@ public class JavaErlang {
                         return array;
                     }
                 }
-            } else if (arity == 3) {
+            } else if (arity == 4) {
                 final String tag = ((OtpErlangAtom) t.elementAt(0)).atomValue();
                 if (tag.equals("object")) {
-                    final Object result = fromErlangMap.get(t);
+		    final JavaObjectKey key = objectKeyFromErlang(t);
+		    final JavaObjectEntry entry = fromErlangMap.get(key);
+                    final Object result = entry.object();
                     if (result == null) {
                         if (logger.isLoggable(Level.FINE)) {
                             logger.log(Level.FINE,"\rTranslating " + value);
@@ -685,23 +691,49 @@ public class JavaErlang {
         } while (true);
     }
 
+    public OtpErlangObject makeErlangObjectKey(final long key, final long counter, final OtpErlangObject nodeId) {
+	return makeErlangTuple
+	    (new OtpErlangAtom("object"),
+	     new OtpErlangLong(key),
+	     new OtpErlangLong(counter),
+	     nodeId);
+    }
+
     public synchronized OtpErlangObject map_to_erlang(final Object obj) {
         if (obj == null) {
             return map_to_erlang_null();
         }
 
-        final RefEqualsObject obj_key = new RefEqualsObject(obj);
-        final OtpErlangObject oldValue = toErlangMap.get(obj_key);
+        final RefEqualsObject obj_key =
+	    new RefEqualsObject(obj);
+	final JavaObjectEntry oldValue = 
+	    toErlangMap.get(obj_key);
+
         if (oldValue != null) {
-            return oldValue;
+	    long refCount = oldValue.alias();
+	    if (logger.isLoggable(Level.INFO))
+		logger.log
+		    (Level.INFO,
+		     "increasing count for "+
+		     System.identityHashCode(oldValue.object()));
+	    return makeErlangObjectKey
+		(oldValue.key(),refCount,oldValue.nodeId());
         }
 
-        final IntKey key = new IntKey(objCounter++);
-        final OtpErlangObject erlangKey = makeErlangKey("object", key,
-                nodeIdentifier);
-        toErlangMap.put(obj_key, erlangKey);
-        fromErlangMap.put(erlangKey, obj);
-        return erlangKey;
+	final int newCounter = objCounter++;
+	final JavaObjectEntry entry =
+	    new JavaObjectEntry(obj, newCounter, nodeIdentifier);
+	    if (logger.isLoggable(Level.INFO))
+		logger.log
+		    (Level.INFO,
+		     "returning new object "+
+		     System.identityHashCode(entry.object()));
+        toErlangMap.put(obj_key, entry);
+	final JavaObjectKey key =
+	    new JavaObjectKey(newCounter,nodeIdentifier);
+        fromErlangMap.put(key, entry);
+	long refCount = entry.alias();
+        return makeErlangObjectKey(key.key(), refCount, key.nodeId());
     }
 
     public synchronized OtpErlangObject acc_map_to_erlang(final Object obj) {
@@ -817,11 +849,51 @@ public class JavaErlang {
         return new OtpErlangAtom("null");
     }
 
-    OtpErlangObject free(final OtpErlangObject arg) {
-        final Object object = fromErlangMap.remove(arg);
-        final RefEqualsObject obj_key = new RefEqualsObject(object);
-        final OtpErlangObject oldValue = toErlangMap.remove(obj_key);
-        return map_to_erlang_void();
+    public JavaObjectKey objectKeyFromErlang(OtpErlangObject obj) {
+        final OtpErlangTuple tuple = (OtpErlangTuple) obj;
+        final OtpErlangLong key = (OtpErlangLong) tuple.elementAt(1);
+	return new JavaObjectKey(key.longValue(),nodeIdentifier);
+    }
+
+    synchronized OtpErlangObject free(final OtpErlangObject arg) {
+	final JavaObjectKey key = objectKeyFromErlang(arg);
+        final JavaObjectEntry entry = fromErlangMap.get(key);
+	final RefEqualsObject objKey = new RefEqualsObject(entry.object());
+	toErlangMap.remove(objKey);
+	fromErlangMap.remove(key);
+        return new OtpErlangBoolean(true);
+    }
+
+    synchronized OtpErlangObject freeInstance(final OtpErlangObject arg) {
+	final JavaObjectKey key = objectKeyFromErlang(arg);
+        final JavaObjectEntry entry = fromErlangMap.get(key);
+	if (entry.free() <= 0) {
+	    if (logger.isLoggable(Level.INFO))
+		logger.log
+		    (Level.INFO,
+		     "freeing "+System.identityHashCode(entry.object()));
+	    final RefEqualsObject objKey = new RefEqualsObject(entry.object());
+	    toErlangMap.remove(objKey);
+	    fromErlangMap.remove(key);
+	    return new OtpErlangBoolean(true);
+	} else {
+	    if (logger.isLoggable(Level.INFO))
+		logger.log
+		    (Level.INFO,
+		     System.identityHashCode(entry.object())+
+		     " has "+entry.references()+" references");
+	    return new OtpErlangBoolean(false);
+	}
+    }
+
+    synchronized OtpErlangObject memoryUsage(final OtpErlangObject arg) {
+	int N = toErlangMap.size();
+	int M = fromErlangMap.size();
+	if (N != M && logger.isLoggable(Level.WARNING))
+	    logger.log
+		(Level.WARNING,
+		 "Warning: from table has size "+M+"=/="+N+" to table");
+	return new OtpErlangInt(N);
     }
 
     OtpErlangObject identity(final OtpErlangObject arg) {

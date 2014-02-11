@@ -50,7 +50,7 @@
 -include_lib("kernel/include/file.hrl").
 
 -record(node,
-	{node_name=void,node_pid=void,port_pid=void,node_id=void,
+	{node_name=void,node_pid=void,port_pid=void,node_id=void,gc_pid=void,
 	 node_node,
 	 options,symbolic_name,
 	 unix_pid=void,ping_retry=5000,connect_timeout=1000,
@@ -66,16 +66,18 @@
 -export([node_id/1]).
 -export([new/3,new/4]).
 -export([call/3,call/4,call_static/4,call_static/5]).
+-export([eq/2]).
 -export([set_timeout/1]).
 -export([get/2,get_static/3,set/3,set_static/4]).
 -export([is_object_ref/1]).
 -export([array_to_list/1,string_to_list/1,list_to_string/2,list_to_array/3,convert/3]).
 -export([getClassName/1,getSimpleClassName/1,instanceof/2,is_subtype/3]).
--export([identity/2]).
+-export([identity/1]).
 -export([print_stacktrace/1,get_stacktrace/1]).
 -export([set_loglevel/1,format/2,format/3]).
 -export_type([node_id/0,object_ref/0]).
 -export([acquire_class/2,report_java_exception/1]).
+-export([memory_usage/0,memory_usage/1]).
 
 %% Private
 -export([javaCall/3]).
@@ -102,6 +104,7 @@
     | {java_executable,string()}
     | {erlang_remote,string()}
     | {log_level,loglevel()}
+    | {enable_gc,boolean()}
     | {call_timeout,integer() | infinity}.
 %% <ul>
 %% <li>`symbolic_name' provides a symbolic name for the node.</li>
@@ -130,9 +133,10 @@
 %% Identifies a connected Java node.
 
 %% Likely to change.
--opaque object_type() :: object | executable | thread.
+%%-opaque object_type() :: object | executable | thread.
+-opaque object_type() :: object.
 
--opaque object_ref() :: {object_type(), integer(), node_id()}.
+-opaque object_ref() :: {object_type(), integer(), integer(), node_id()}.
 %%-type object_ref() :: {atom(), integer(), node_id()}.
 %% A Java object reference.
 
@@ -198,10 +202,15 @@ start_node(UserOptions) ->
   Options = UserOptions++default_options(),
   check_options(Options),
   LogLevel = proplists:get_value(log_level,Options),
+  EnableGC = proplists:get_value(enable_gc,Options,false),
   init([{log_level,LogLevel}]),
   CallTimeout = proplists:get_value(call_timeout,Options),
   SymbolicName = proplists:get_value(symbolic_name,Options,void),
   NodeNode = proplists:get_value(erlang_remote,Options,node()),
+  if
+    EnableGC -> java_resource:init();
+    true -> ok
+  end,
   PreNode =
     #node{options=Options,
 	  call_timeout=CallTimeout,
@@ -246,7 +255,6 @@ spawn_java(PreNode,PreNodeId) ->
 	    JavaVerbose,ClassPath,
 	    proplists:get_value(java_class,Options)
 	   ]),
-      %%io:format("spawned java ~p~n",[PortPid]),
       PreNode1 =
 	PreNode#node{node_id=NodeId,
 		     node_name=NodeName,
@@ -292,7 +300,7 @@ check_options(Options) ->
 	   end,
 	 case lists:member
 	   (OptionName,
-	    [symbolic_name,log_level,
+	    [symbolic_name,log_level,enable_gc,
 	     erlang_remote,
 	     java_class,java_classpath,add_to_java_classpath,
 	     java_exception_as_value,java_verbose,
@@ -449,7 +457,8 @@ connect_receive(NodeName,SymbolicName,PreNode,KeepOnTryingUntil) ->
       java:format
 	(debug,"~p (~p): got Java pid ~p~n",
 	 [NodeName,SymbolicName,Pid]),
-      Node = PreNode#node{node_pid=Pid,unix_pid=UnixPid},
+      GC_pid = spawn_link(fun () -> handle_gc() end),
+      Node = PreNode#node{node_pid=Pid,unix_pid=UnixPid,gc_pid=GC_pid},
       {ok,Node};
     {value,already_connected} ->
       %% Oops. We are talking to an old Java node...
@@ -465,6 +474,22 @@ connect_receive(NodeName,SymbolicName,PreNode,KeepOnTryingUntil) ->
   after PreNode#node.connect_timeout -> 
       %% Failed to connect. We should try to start another node.
       {error,connect_timeout}
+  end.
+
+handle_gc() ->
+  receive
+    Msg ->
+      format(debug,"gc_process got message ~p~n",[Msg]),
+      Result = javaCall(node_id(Msg),freeInstance,Msg),
+      format(debug,"result is ~p~n",[Result]),
+      if 
+	Result ->
+	  {object,Id,_,NodeId} = Msg,
+	  ets:delete(java_objects,{object,Id,NodeId});	  
+	true ->
+	  ok
+      end,
+      handle_gc()
   end.
 
 compareTimes_ge({M1,S1,Mic1}, {M2,S2,Mic2}) ->
@@ -506,13 +531,25 @@ javaCall(NodeId,Type,Msg) ->
     {ok, Node} ->
       JavaMsg = create_msg(Type,Msg,Node),
       Node#node.node_pid!JavaMsg,
-      Reply = wait_for_reply(Node),
-      Reply;
+      case wait_for_reply(Node) of
+	{zzzzz,Msg} -> throw(impossible);
+	Reply -> enable_gc(Reply,Node#node.gc_pid)
+      end;
     _ ->
       format(error,"javaCall: nodeId ~p not found~n",[NodeId]),
       format(error,"type: ~p message: ~p~n",[Type,Msg]),
       throw(javaCall)
   end.
+
+enable_gc(D={object,Key,Counter,NodeId},GC) ->
+  Resource = java_resource:create(D,GC),
+  {object,Key,Resource,NodeId};
+enable_gc(T,GC) when is_tuple(T) ->
+  list_to_tuple(enable_gc(tuple_to_list(T),GC));
+enable_gc([First|Rest],GC) ->
+  [enable_gc(First,GC)|enable_gc(Rest,GC)];
+enable_gc(Item,GC) ->
+  Item.
 
 create_msg(Type,Msg,Node) ->
   case msg_type(Type) of
@@ -539,6 +576,8 @@ msg_type(objTypeCompat) -> non_thread_msg;
 msg_type(createThread) -> non_thread_msg;
 msg_type(stopThread) -> non_thread_msg;
 msg_type(free) -> non_thread_msg;
+msg_type(freeInstance) -> non_thread_msg;
+msg_type(memoryUsage) -> non_thread_msg;
 msg_type(_) -> thread_msg.
 
 wait_for_reply(Node) ->
@@ -593,8 +632,8 @@ get_thread(Node) ->
 %% @private
 %% @doc
 %% An identity function for Java objects.
-identity(NodeId,Value) ->
-  javaCall(NodeId,identity,Value).
+identity(Value) ->
+  javaCall(node_id(Value),identity,Value).
 
 %% @doc
 %% Calls the constructor of a Java class.
@@ -711,6 +750,15 @@ set_static(NodeId,ClassName,Field,Value) ->
   JavaField = java_to_erlang:find_static_field(NodeId,ClassName,Field),
   javaCall(NodeId,setFieldValue,{null,JavaField,Value}).
 
+%% @doc
+%% Checks if two Java objects references refer to the same object.
+%% Note that using normal Erlang term equality is not safe.
+-spec eq(object_ref(),object_ref()) -> bool().
+eq({object,Id,_,NodeId},{object,Id,_,NodeId}) ->
+  true;
+eq(_,_) ->
+  false.
+
 %% @doc Initializes the Java interface library
 %% providing default options.
 %% It is called automatically by `start_node/0' and
@@ -819,7 +867,7 @@ version() ->
 
 %% @doc Returns the node where the object argument is located.
 -spec node_id(object_ref()) -> node_id().
-node_id({_,_,NodeId}) ->
+node_id({_,_,_,NodeId}) ->
   NodeId.
 
 %% @doc
@@ -1008,7 +1056,7 @@ get_value(ValueName,Default) ->
 %% @doc
 %% Returns true if its argument is a Java object reference, false otherwise.
 -spec is_object_ref(any()) -> boolean().
-is_object_ref({object,_,_}) ->
+is_object_ref({object,_,_,_}) ->
   true;
 is_object_ref({executable,_,_}) ->
   true;
@@ -1121,6 +1169,22 @@ get_stacktrace(Exception) ->
   string_to_list(call(StringWriter,toString,[])).
 
 
+%% @doc
+%% Returns an integer corresponding to the number of Java object that are
+%% currently known to the Erlang part of the java library.
+-spec memory_usage() -> integer().
+memory_usage() ->
+  case ets:info(java_objects,size) of
+    N when is_integer(N) -> N
+  end.
+
+%% @doc
+%% Returns an integer corresponding to the number of Java object that are
+%% currently known to the Java part of the java library, at the node argument.
+-spec memory_usage(node_id()) -> integer().
+memory_usage(NodeId) ->
+  javaCall(NodeId,memoryUsage,void).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 
 %% @private
@@ -1186,12 +1250,13 @@ node_store(Node) ->
   ets:insert(java_nodes,{Node#node.node_id,Node}).
   
 %% @private
-find_class(Object) ->
+find_class(RealObject={object,Id,_,NodeId}) ->
+  Object = {object,Id,NodeId},  
   case ets:lookup(java_objects,Object) of
     [{_,Class}] -> Class;
     _ ->
-      ClassName = getClassName(node_id(Object),Object),
-      Class = acquire_class_int(node_id(Object),ClassName),
+      ClassName = getClassName(NodeId,RealObject),
+      Class = acquire_class_int(NodeId,ClassName),
       ets:insert(java_objects,{Object,Class}),
       Class
   end.

@@ -1,0 +1,19 @@
+At Java we had two tables:
+   ref -> {tag, Key_as_int, Node_id}
+   {tag, Key_as_int, Node_id} -> ref
+
+We change this to:
+   ref -> [[Counter,FreeKeys,Key_as_int,Node_id]]
+   {Key_as_int,Node_id} -> ref
+and we communicate to Erlang the extended reference:
+    {tag,Key_as_int,CounterValue,Node_id},
+and increase the FreeKeys count,
+but probably coded as a Java key since we anyway have to take apart the
+key that comes from Erlang.
+
+At Erlang we have to analyse the incoming data, to change keys into
+keys with references.
+
+
+
+   

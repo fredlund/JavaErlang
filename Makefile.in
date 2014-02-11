@@ -3,8 +3,13 @@ JINTERFACE_LIB_DIR = @ERLANG_LIB_DIR_jinterface@
 
 # Try to determine the location of the Java compiler if JAVA_HOME is not set
 ifeq ($(JAVA_HOME),)
-	JAVA_HOME=$(shell readlink -f /usr/bin/javac | sed "s:bin/javac::")
+        JAVA_HOME=$(shell readlink -f /usr/bin/javac | sed "s:bin/javac::")
 endif
+
+# The following file is needed to implement garbage collection.
+# If garbage collection is not needed, simply comment out the following line.
+RESOURCE = c/java_int_resource.so
+#RESOURCE =
 
 OTPERLANG=$(JINTERFACE_LIB_DIR)/priv/OtpErlang.jar
 
@@ -22,7 +27,8 @@ JAR = JavaErlang.jar
 CLASSES = classes/javaErlang/JavaErlang.class classes/javaErlang/testing/Test.class classes/javaErlang/testing/Test2.class 
 DOCDIR=doc
 
-tool: ebin classes $(JAR) $(BEAMS)
+tool: ebin classes $(JAR) $(BEAMS) $(RESOURCE)
+
 eqcjavademo: ebin/hashset_test.beam
 
 qctest: ebin/hashset_test.ebin
@@ -44,6 +50,9 @@ classes/javaErlang/testing/Test.class: java/javaErlang/testing/Test.java
 
 classes/javaErlang/testing/Test2.class: java/javaErlang/testing/Test2.java
 	$(JAVA_HOME)/bin/javac -d classes java/javaErlang/testing/Test2.java
+
+c/java_int_resource.so: c/java_int_resource.c
+	gcc -fPIC -Icprops/include -shared -o c/java_int_resource.so c/java_int_resource.c -I $(JINTERFACE_LIB_DIR)/../../usr/include
 
 ebin:
 	mkdir -p ebin
