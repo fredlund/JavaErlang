@@ -258,6 +258,8 @@ public class JavaErlang {
             return free(argument);
         } else if (tag.equals("freeInstance")) {
             return freeInstance(argument);
+        } else if (tag.equals("memoryUsage")) {
+            return memoryUsage(argument);
         } else if (tag.equals("identity")) {
             return identity(argument);
         } else if (tag.equals("createThread")) {
@@ -709,9 +711,11 @@ public class JavaErlang {
 
         if (oldValue != null) {
 	    long refCount = oldValue.alias();
-	    System.out.println
-		("increasing count for "+
-		 System.identityHashCode(oldValue.object()));
+	    if (logger.isLoggable(Level.INFO))
+		logger.log
+		    (Level.INFO,
+		     "increasing count for "+
+		     System.identityHashCode(oldValue.object()));
 	    return makeErlangObjectKey
 		(oldValue.key(),refCount,oldValue.nodeId());
         }
@@ -719,9 +723,11 @@ public class JavaErlang {
 	final int newCounter = objCounter++;
 	final JavaObjectEntry entry =
 	    new JavaObjectEntry(obj, newCounter, nodeIdentifier);
-	System.out.println
-	    ("returning new object "+
-	     System.identityHashCode(entry.object()));
+	    if (logger.isLoggable(Level.INFO))
+		logger.log
+		    (Level.INFO,
+		     "returning new object "+
+		     System.identityHashCode(entry.object()));
         toErlangMap.put(obj_key, entry);
 	final JavaObjectKey key =
 	    new JavaObjectKey(newCounter,nodeIdentifier);
@@ -862,18 +868,32 @@ public class JavaErlang {
 	final JavaObjectKey key = objectKeyFromErlang(arg);
         final JavaObjectEntry entry = fromErlangMap.get(key);
 	if (entry.free() <= 0) {
-	    System.out.println
-		("freeing "+System.identityHashCode(entry.object()));
+	    if (logger.isLoggable(Level.INFO))
+		logger.log
+		    (Level.INFO,
+		     "freeing "+System.identityHashCode(entry.object()));
 	    final RefEqualsObject objKey = new RefEqualsObject(entry.object());
 	    toErlangMap.remove(objKey);
 	    fromErlangMap.remove(key);
 	    return new OtpErlangBoolean(true);
 	} else {
-	    System.out.println
-		(System.identityHashCode(entry.object())+
-		 " has "+entry.references()+" references");
+	    if (logger.isLoggable(Level.INFO))
+		logger.log
+		    (Level.INFO,
+		     System.identityHashCode(entry.object())+
+		     " has "+entry.references()+" references");
 	    return new OtpErlangBoolean(false);
 	}
+    }
+
+    synchronized OtpErlangObject memoryUsage(final OtpErlangObject arg) {
+	int N = toErlangMap.size();
+	int M = fromErlangMap.size();
+	if (N != M && logger.isLoggable(Level.WARNING))
+	    logger.log
+		(Level.WARNING,
+		 "Warning: from table has size "+M+"=/="+N+" to table");
+	return new OtpErlangInt(N);
     }
 
     OtpErlangObject identity(final OtpErlangObject arg) {

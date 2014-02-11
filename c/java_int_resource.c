@@ -11,6 +11,10 @@ struct resource_term {
   ErlNifEnv* env;
 };
 
+static ERL_NIF_TERM is_loaded(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+  return enif_make_atom(env, "true");
+}
+
 static ERL_NIF_TERM create(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
   if (argc != 2 || !enif_is_pid(env,argv[1])) return enif_make_badarg(env);
@@ -65,7 +69,8 @@ void our_destructor(ErlNifEnv *env, void *destr_obj) {
 
 static ErlNifFunc nif_funcs[] =
 {
-  {"create", 2, create}
+  {"create", 2, create},
+  {"is_loaded", 0, is_loaded}
 };
 
 ERL_NIF_INIT(java_int_resource,nif_funcs,load,NULL,NULL,NULL)

@@ -77,6 +77,7 @@
 -export([set_loglevel/1,format/2,format/3]).
 -export_type([node_id/0,object_ref/0]).
 -export([acquire_class/2,report_java_exception/1]).
+-export([memory_usage/0,memory_usage/1]).
 
 %% Private
 -export([javaCall/3]).
@@ -254,7 +255,6 @@ spawn_java(PreNode,PreNodeId) ->
 	    JavaVerbose,ClassPath,
 	    proplists:get_value(java_class,Options)
 	   ]),
-      %%io:format("spawned java ~p~n",[PortPid]),
       PreNode1 =
 	PreNode#node{node_id=NodeId,
 		     node_name=NodeName,
@@ -479,9 +479,9 @@ connect_receive(NodeName,SymbolicName,PreNode,KeepOnTryingUntil) ->
 handle_gc() ->
   receive
     Msg ->
-      io:format("gc_process got message ~p~n",[Msg]),
+      format(debug,"gc_process got message ~p~n",[Msg]),
       Result = javaCall(node_id(Msg),freeInstance,Msg),
-      io:format("result is ~p~n",[Result]),
+      format(debug,"result is ~p~n",[Result]),
       if 
 	Result ->
 	  {object,Id,_,NodeId} = Msg,
@@ -577,6 +577,7 @@ msg_type(createThread) -> non_thread_msg;
 msg_type(stopThread) -> non_thread_msg;
 msg_type(free) -> non_thread_msg;
 msg_type(freeInstance) -> non_thread_msg;
+msg_type(memoryUsage) -> non_thread_msg;
 msg_type(_) -> thread_msg.
 
 wait_for_reply(Node) ->
@@ -1165,6 +1166,22 @@ get_stacktrace(Exception) ->
   call(Exception,printStackTrace,[PrintWriter]),
   string_to_list(call(StringWriter,toString,[])).
 
+
+%% @doc
+%% Returns an integer corresponding to the number of Java object that are
+%% currently known to the Erlang part of the java library.
+-spec memory_usage() -> integer().
+memory_usage() ->
+  case ets:info(java_objects,size) of
+    N when is_integer(N) -> N
+  end.
+
+%% @doc
+%% Returns an integer corresponding to the number of Java object that are
+%% currently known to the Java part of the java library, at the node argument.
+-spec memory_usage(node_id()) -> integer().
+memory_usage(NodeId) ->
+  javaCall(NodeId,memoryUsage,void).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 

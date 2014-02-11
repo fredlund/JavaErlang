@@ -13,32 +13,60 @@ proxy(N, Pid, M) ->
 
 start(N,M,J) ->
   {ok,Nid} = java:start_node([{enable_gc,true}]),
+  io:format
+    ("\nAt start: #(Erlang objects)=~p #(Java objects)=~p~n~n",
+     [java:memory_usage(),java:memory_usage(Nid)]),
   Seq =
     lists:map
       (fun (I) -> java:new(Nid,'java.lang.Integer',[I]) end,
        lists:seq(1,J)),
   lists:foreach
     (fun (_) ->
-	 D = self(),
-	 B = proxy(N, D, M),
-	 do_send(B,Seq),
-	 do_receive(M)
+	 spawn
+	   (fun () ->
+		D = self(),
+		B = proxy(N,D,J),
+		do_send(B,Seq),
+		do_receive(Seq)
+	    end)
      end,
-     lists:seq(1,M)).
+     lists:seq(1,M)),
+  io:format
+    ("\nAt end, before gc: #(Erlang objects)=~p #(Java objects)=~p~n~n",
+     [java:memory_usage(),java:memory_usage(Nid)]),
+  erlang:garbage_collect(),
+  receive after 10000 -> ok end,
+  erlang:garbage_collect(),
+  io:format
+    ("\nAt end, after gc: #(Erlang objects)=~p #(Java objects)=~p~n~n",
+     [java:memory_usage(),java:memory_usage(Nid)]).
 
 do_send(_B,[]) ->
   ok;
 do_send(B,L) ->
   N = random:uniform(length(L)),
   {Before,Item,After} = split(N,L),
+  java:call(Item,intValue,[]),
   B!Item,
   do_send(B,Before++After).
 
-do_receive(0) ->
+do_receive([]) ->
   ok;
-do_receive(N) when is_integer(N), N>0 ->
+do_receive(L) ->
   receive
-    _ -> do_receive(N-1)
+    Msg ->
+      case lists:any(fun (Obj) -> java:eq(Obj,Msg) end, L) of
+	true ->
+	  do_receive(lists:filter(fun (Obj) -> not(java:eq(Obj,Msg)) end,L));
+	false ->
+	  io:format
+	    ("Object ~p not in ~p~n",[Msg,L]),
+	  throw(bad)
+      end
+  after
+    5000 ->
+      io:format("very slow in receiving values~n  ~p~n",[L]),
+      throw(bad)
   end.
 
 do_receive_forward(_P,0) ->
