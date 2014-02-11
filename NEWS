@@ -1,3 +1,13 @@
+11/2 -- 2014:
+
+JavaErlang now has support for garbage collection of Java objects passed
+to Erlang. This is (for now) disabled by default, to enable it use the
+option {gc_enable,true} (an option to java:start_node/1).
+
+Due to the support for garbage collection it is no longer safe to
+check whether two Java object references in Erlang are equal using normal
+Erlang term equality ("=="); the function java:eq/2 should be used instead.
+
 21/11 -- 2012:
 
 The code for generating an Erlang module corresponding to
