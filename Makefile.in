@@ -6,6 +6,8 @@ ifeq ($(JAVA_HOME),)
         JAVA_HOME=$(shell readlink -f /usr/bin/javac | sed "s:bin/javac::")
 endif
 
+# The following file is needed to implement garbage collection.
+# If garbage collection is not needed, simply comment out the following line.
 RESOURCE = c/java_int_resource.so
 #RESOURCE =
 

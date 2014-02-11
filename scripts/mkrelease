@@ -85,7 +85,8 @@ popd
 popd
 
 cp $ABSSRCDIR/README .
-cp $ABSSRCDIR/LICENSING .
+cp $ABSSRCDIR/COPYING .
+cp $ABSSRCDIR/COPYING LICENSING
 cp $ABSSRCDIR/NEWS .
 cp $ABSSRCDIR/bininst/INSTALLATION .
 cp $ABSSRCDIR/ebin/java_erlang_install.beam .

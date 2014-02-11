@@ -1,4 +1,4 @@
-AC_INIT([javaErlang],[1.1],[lfredlund@fi.upm.es])
+AC_INIT([javaErlang],[1.2],[lfredlund@fi.upm.es])
 
 AC_PREREQ([2.64])  
 

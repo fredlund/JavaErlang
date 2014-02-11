@@ -8,6 +8,16 @@ Due to the support for garbage collection it is no longer safe to
 check whether two Java object references in Erlang are equal using normal
 Erlang term equality ("=="); the function java:eq/2 should be used instead.
 
+Moreover, the implementation of garbage collection requires to use the NIF
+(foreign function interface) of Erlang. Concretely a file C program
+c/java_int_resource.c must be compiled and loaded. In case this creates
+difficulties it is possible to simply comment out the line beginning
+with "RESOURCE = ".
+Yes, we should probably use a better build system. What this is, given
+a mix of Erlang, Java and C code, and the requirement to have a system
+usable on both Linux and Windows, I don't know.
+
+
 21/11 -- 2012:
 
 The code for generating an Erlang module corresponding to
