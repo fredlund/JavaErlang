@@ -842,7 +842,7 @@ default_options() ->
     case code:priv_dir(java_erlang) of
       {error,_} -> [];
       JavaErlangPath when is_list(JavaErlangPath) ->
-	[JavaErlangPath++"/JavaErlang.jar"]
+	[JavaErlangPath++"/JavaErlang.jar",JavaErlangPath++"/javassist.jar"]
     end,
   ClassPath = OtpClassPath++JavaErlangClassPath,
   JavaExecutable = 
@@ -1097,6 +1097,7 @@ string_to_list(String) ->
 %% the rest of the Java API.
 -spec list_to_string(node_id(),string()) -> object_ref().
 list_to_string(NodeId,List) when is_list(List) ->
+  io:format("length of list is ~p~n",[length(List)]),
   java:new(NodeId,'java.lang.String',[List]).
 
 %% @doc Widens or narrows a number.

@@ -312,18 +312,20 @@ class ThreadMsgHandler implements Runnable {
             throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final Object fun = root.get_fun(t.elementAt(0));
-        final OtpErlangObject[] args = ((OtpErlangTuple) t.elementAt(1))
-                .elements();
+        final OtpErlangObject[] args =
+	    ((OtpErlangTuple) t.elementAt(1)).elements();
         Object result;
 
         final Constructor cnstr = (Constructor) fun;
-        result = cnstr.newInstance(root.java_values_from_erlang(args,
-                cnstr.getParameterTypes()));
+        result =
+	    cnstr.newInstance
+	    (root.java_values_from_erlang
+	     (args,cnstr.getParameterTypes()));
         return root.map_to_erlang(result);
     }
 
     OtpErlangObject call_method(final OtpErlangObject cmd) throws Exception {
-        // System.err.println("cmd="+cmd+"\n");
+        System.err.println("cmd="+cmd+"\n");
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final Object fun = root.get_fun(t.elementAt(1));
         final OtpErlangObject[] args = ((OtpErlangTuple) t.elementAt(2))
@@ -335,7 +337,7 @@ class ThreadMsgHandler implements Runnable {
         final Object obj = root.java_value_from_erlang(otpObj);
         final Object[] translated_args = root.java_values_from_erlang(args,
                 method.getParameterTypes());
-        // System.err.println("method="+method+" obj="+obj);
+        System.err.println("method="+method+" obj="+obj);
         result = method.invoke(obj, translated_args);
         return root.map_to_erlang(result, method.getReturnType());
     }

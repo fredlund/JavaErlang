@@ -35,7 +35,6 @@ import java.lang.management.ManagementFactory;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
@@ -49,6 +48,8 @@ import java.util.Set;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import java.util.logging.ConsoleHandler;
+
+import javassist.util.proxy.ProxyFactory;
 
 import com.ericsson.otp.erlang.OtpErlangAtom;
 import com.ericsson.otp.erlang.OtpErlangBoolean;
@@ -135,7 +136,7 @@ public class JavaErlang {
 		     e);
         }
     }
-
+ 
     void do_receive() throws Exception {
         do {
             final OtpErlangObject msg = msgs.receive();
@@ -274,6 +275,10 @@ public class JavaErlang {
                 throw new Exception();
             }
             return map_to_erlang_void();
+        } else if (tag.equals("proxy_reply")) {
+            return proxy_reply(argument);
+        } else if (tag.equals("define_invocation_handler")) {
+            return invhandler(argument);
         } else {
             logger.log
 		(Level.SEVERE,
@@ -407,6 +412,12 @@ public class JavaErlang {
 
     Object java_value_from_erlang(final OtpErlangObject value, final Type type)
             throws Exception {
+
+	if (logger.isLoggable(Level.FINE)) {
+	    logger.log(Level.FINE,"\rvalue_from_erlang " + value + 
+		       " type "+type);
+	}
+	
         if (value instanceof OtpErlangTuple) {
             return java_value_from_erlang(value);
         }
@@ -442,7 +453,7 @@ public class JavaErlang {
             return convert_to_double(value);
         } else if ((value instanceof OtpErlangString) &&
 		   (type == java.lang.String.class)) {
-	    return value.toString();
+	    return ((OtpErlangString) value).stringValue();
 	}
 	else {
             if (type instanceof Class) {
@@ -1369,4 +1380,22 @@ public class JavaErlang {
         logger.log(Level.SEVERE,"Cannot return non-Erlang/non-Exception " + obj);
         throw new Exception();
     }
+
+    //////////////////////////////////////////////////////////////////////
+    OtpErlangObject proxy_reply(final OtpErlangObject cmd) throws Exception {
+        final OtpErlangTuple t = (OtpErlangTuple) cmd;
+	final JavaObjectEntry entry = fromErlangMap.get(t.elementAt(0));
+        final InvHandler handler = (InvHandler) entry.object();
+        handler.setAnswer(t.elementAt(1));
+        return new OtpErlangAtom("ok");
+    }
+
+    OtpErlangObject invhandler(final OtpErlangObject cmd) throws Exception {
+        final OtpErlangTuple t = (OtpErlangTuple) cmd;
+        final OtpErlangPid pid = (OtpErlangPid) t.elementAt(0);
+        final Object obj = java_value_from_erlang(t.elementAt(1));
+        final ProxyFactory pf = new ProxyFactoryClass(this, pid, obj);
+        return map_to_erlang(pf);
+    }
+
 }
