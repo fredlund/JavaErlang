@@ -103,28 +103,27 @@ define_invocation_handler(Proxy,Pid) when is_pid(Pid) ->
      {Pid,Proxy#proxy.backing_object}).
 
 class(NodeId,Name,ClassName,Methods,Fun) ->
-  class(NodeId,Name,ClassName,Methods,Fun,[]).
-class(NodeId,Name,ClassName,Methods,Fun,Options) ->
-  IsSynchronized = proplists:get_value(synchronized,Options,false),
   Proxy = 
     java:javaCall
       (NodeId,
        new_proxy_class,
        {ClassName,Methods}),
-  ets:insert(proxy_classes,{Name,NodeId,Proxy,Fun,IsSynchronized}),
+  ets:insert(proxy_classes,{Name,NodeId,Proxy,Fun}),
   Proxy.
 
 new(Name,Init) ->
   case ets:lookup(proxy_classes,Name) of
-    [{_,NodeId,Proxy,Fun,Synchronized}] ->
+    [{_,NodeId,Proxy,Fun}] ->
       Counter = ets:update_counter(proxy_objects,proxy_counter,1),
       [{_,ProxyPid}] = ets:lookup(proxy_classes,proxy_pid),
-      Object = 
+      {Object,Handler} = 
 	java:javaCall
 	  (NodeId,
 	   new_proxy_object,
 	   {Proxy,Counter,ProxyPid}),
-      ets:insert(proxy_objects,{object,Counter,Init,not_running,Fun,Synchronized}),
+      ets:insert
+	(proxy_objects,
+	 {object,Counter,Init,not_running,Fun,Handler}),
       Object
   end.
 
