@@ -1385,7 +1385,7 @@ public class JavaErlang {
     OtpErlangObject proxy_reply(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
 	final JavaObjectEntry entry = fromErlangMap.get(t.elementAt(0));
-        final InvHandler handler = (InvHandler) entry.object();
+        final ProxyHandler handler = (ProxyHandler) entry.object();
         handler.setAnswer(t.elementAt(1));
         return new OtpErlangAtom("ok");
     }
@@ -1395,17 +1395,16 @@ public class JavaErlang {
 	final OtpErlangAtom className = (OtpErlangAtom) t.elementAt(0);
 	final OtpErlangObject methods = t.elementAt(1);
         final Class cl = Class.forName(className.atomValue());
-        final ProxyFactory pf = ProxyFactoryClass.newClass(cl, methods);
-        return map_to_erlang(pf);
+        final Class pcl = ProxyFactoryClass.newClass(cl, methods);
+        return map_to_erlang(pcl);
     }
 
     OtpErlangObject new_proxy_object(final OtpErlangObject cmd) throws Exception {
 	final OtpErlangTuple t = (OtpErlangTuple) cmd;
-	final ProxyFactory pf = (ProxyFactory) java_value_from_erlang(t.elementAt(0));
-	final int objectId = ((OtpErlangInt) t.elementAt(1)).intValue();
+	final Class pcl = (Class) java_value_from_erlang(t.elementAt(0));
+	final int objectId = ((OtpErlangLong) t.elementAt(1)).intValue();
 	final OtpErlangPid pid = (OtpErlangPid) t.elementAt(2);
-        final Object obj = ProxyInstanceFactory.newObject(pf,objectId,pid);
-        return map_to_erlang(obj);
+        final OtpErlangObject obj = ProxyInstanceFactory.newInstance(this,pcl,objectId,pid);
+        return obj;
     }
-
 }
