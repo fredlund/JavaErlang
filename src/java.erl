@@ -563,7 +563,6 @@ msg_type(identity) -> non_thread_msg;
 msg_type(reset) -> non_thread_msg;
 msg_type(terminate) -> non_thread_msg;
 msg_type(connect) -> non_thread_msg;
-msg_type(define_invocation_handler) -> non_thread_msg;
 msg_type(getConstructors) -> non_thread_msg;
 msg_type(getClassLocation) -> non_thread_msg;
 msg_type(getMethods) -> non_thread_msg;
@@ -578,6 +577,7 @@ msg_type(stopThread) -> non_thread_msg;
 msg_type(free) -> non_thread_msg;
 msg_type(freeInstance) -> non_thread_msg;
 msg_type(memoryUsage) -> non_thread_msg;
+msg_type(new_class) -> non_thread_msg;
 msg_type(_) -> thread_msg.
 
 wait_for_reply(Node) ->

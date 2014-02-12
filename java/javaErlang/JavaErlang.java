@@ -277,8 +277,8 @@ public class JavaErlang {
             return map_to_erlang_void();
         } else if (tag.equals("proxy_reply")) {
             return proxy_reply(argument);
-        } else if (tag.equals("define_invocation_handler")) {
-            return invhandler(argument);
+        } else if (tag.equals("new_class")) {
+            return new_class(argument);
         } else {
             logger.log
 		(Level.SEVERE,
@@ -675,8 +675,7 @@ public class JavaErlang {
         try {
             final Class c = Class.forName(className);
             return c;
-        } catch (final Exception e) {
-        }
+        } catch (final Exception e) {  }
 
         final StringBuilder str = new StringBuilder(className);
         do {
@@ -696,8 +695,7 @@ public class JavaErlang {
             try {
                 final Class c = Class.forName(str.toString());
                 return c;
-            } catch (final Exception exc) {
-            }
+            } catch (final Exception exc) { }
 
         } while (true);
     }
@@ -1390,11 +1388,12 @@ public class JavaErlang {
         return new OtpErlangAtom("ok");
     }
 
-    OtpErlangObject invhandler(final OtpErlangObject cmd) throws Exception {
-        final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final OtpErlangPid pid = (OtpErlangPid) t.elementAt(0);
-        final Object obj = java_value_from_erlang(t.elementAt(1));
-        final ProxyFactory pf = new ProxyFactoryClass(this, pid, obj);
+    OtpErlangObject new_class(final OtpErlangObject cmd) throws Exception {
+	final OtpErlangTuple t = (OtpErlangTuple) cmd;
+	final OtpErlangAtom className = (OtpErlangAtom) t.elementAt(0);
+	final OtpErlangObject methods = t.elementAt(1);
+        final Class cl = Class.forName(className.atomValue());
+        final ProxyFactory pf = ProxyFactoryClass.newClass(cl, methods);
         return map_to_erlang(pf);
     }
 
