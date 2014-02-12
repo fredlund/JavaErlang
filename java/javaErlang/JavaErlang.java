@@ -277,8 +277,10 @@ public class JavaErlang {
             return map_to_erlang_void();
         } else if (tag.equals("proxy_reply")) {
             return proxy_reply(argument);
-        } else if (tag.equals("new_class")) {
-            return new_class(argument);
+        } else if (tag.equals("new_proxy_class")) {
+            return new_proxy_class(argument);
+        } else if (tag.equals("new_proxy_object")) {
+            return new_proxy_object(argument);
         } else {
             logger.log
 		(Level.SEVERE,
@@ -1388,13 +1390,22 @@ public class JavaErlang {
         return new OtpErlangAtom("ok");
     }
 
-    OtpErlangObject new_class(final OtpErlangObject cmd) throws Exception {
+    OtpErlangObject new_proxy_class(final OtpErlangObject cmd) throws Exception {
 	final OtpErlangTuple t = (OtpErlangTuple) cmd;
 	final OtpErlangAtom className = (OtpErlangAtom) t.elementAt(0);
 	final OtpErlangObject methods = t.elementAt(1);
         final Class cl = Class.forName(className.atomValue());
         final ProxyFactory pf = ProxyFactoryClass.newClass(cl, methods);
         return map_to_erlang(pf);
+    }
+
+    OtpErlangObject new_proxy_object(final OtpErlangObject cmd) throws Exception {
+	final OtpErlangTuple t = (OtpErlangTuple) cmd;
+	final ProxyFactory pf = (ProxyFactory) java_value_from_erlang(t.elementAt(0));
+	final int objectId = ((OtpErlangInt) t.elementAt(1)).intValue();
+	final OtpErlangPid pid = (OtpErlangPid) t.elementAt(2);
+        final Object obj = ProxyInstanceFactory.newObject(pf,objectId,pid);
+        return map_to_erlang(obj);
     }
 
 }

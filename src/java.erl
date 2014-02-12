@@ -577,7 +577,8 @@ msg_type(stopThread) -> non_thread_msg;
 msg_type(free) -> non_thread_msg;
 msg_type(freeInstance) -> non_thread_msg;
 msg_type(memoryUsage) -> non_thread_msg;
-msg_type(new_class) -> non_thread_msg;
+msg_type(new_proxy_class) -> non_thread_msg;
+msg_type(new_proxy_object) -> non_thread_msg;
 msg_type(_) -> thread_msg.
 
 wait_for_reply(Node) ->

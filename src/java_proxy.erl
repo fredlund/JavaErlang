@@ -59,13 +59,21 @@ start() ->
     undefined ->
       spawn(
 	fun () ->
-	    _ = ets:new(proxy_table,[named_table,public]),
+	    _ = ets:new(proxy_classes,[named_table,public]),
+	    wait_forever()
+	end),
+      spawn(
+	fun () ->
+	    _ = ets:new(proxy_objects,[named_table,public]),
 	    wait_forever()
 	end),
       wait_until_stable(),
       ets:insert
-	(proxy_table,
-	 {default_proxy_pid,spawn_link(fun () -> start_looper() end)}),
+	(proxy_classes,
+	 {proxy_pid,spawn_link(fun () -> start_looper() end)}),
+      ets:insert
+	(proxy_objects,
+	 {proxy_counter,0}),
       proxy_table;
     _ ->
       proxy_table
@@ -79,8 +87,8 @@ wait_forever() ->
   receive _ -> wait_forever() end.
 
 wait_until_stable() ->
-  case ets:info(proxy_table) of
-    Info when is_list(Info) ->
+  case {ets:info(proxy_classes), ets:info(proxy_classes)} of
+    {Info1,Info2} when is_list(Info1), is_list(Info2) ->
       ok;
     _ ->
       timer:sleep(10),
@@ -94,19 +102,34 @@ define_invocation_handler(Proxy,Pid) when is_pid(Pid) ->
      define_invocation_handler,
      {Pid,Proxy#proxy.backing_object}).
 
-class(NodeId,ClassName,Methods) ->
-  java:javaCall
-    (NodeId,
-     new_class,
-     {ClassName,Methods}).
+class(NodeId,Name,ClassName,Methods,Fun) ->
+  class(NodeId,Name,ClassName,Methods,Fun,[]).
+class(NodeId,Name,ClassName,Methods,Fun,Options) ->
+  IsSynchronized = proplists:get_value(synchronized,Options,false),
+  Proxy = 
+    java:javaCall
+      (NodeId,
+       new_proxy_class,
+       {ClassName,Methods}),
+  ets:insert(proxy_classes,{Name,NodeId,Proxy,Fun,IsSynchronized}),
+  Proxy.
+
+new(Name,Init) ->
+  case ets:lookup(proxy_classes,Name) of
+    [{_,NodeId,Proxy,Fun,Synchronized}] ->
+      Counter = ets:update_counter(proxy_objects,proxy_counter,1),
+      [{_,ProxyPid}] = ets:lookup(proxy_classes,proxy_pid),
+      Object = 
+	java:javaCall
+	  (NodeId,
+	   new_proxy_object,
+	   {Proxy,Counter,ProxyPid}),
+      ets:insert(proxy_objects,{object,Counter,Init,not_running,Fun,Synchronized}),
+      Object
+  end.
 
 reply_to_handler(HandlerObj={object,_,NodeId},ValueObj) ->
   java:javaCall(NodeId,proxy_reply,{HandlerObj,ValueObj}).
-
-%% @private
-new(Proxy,InitialState) when is_record(Proxy,proxy) ->
-  [{_,ProxyPid}] = ets:lookup(proxy_table,default_proxy_pid),
-  new(Proxy,InitialState,ProxyPid).
 
 %% @private
 new(Proxy,InitialState,ProxyPid)
