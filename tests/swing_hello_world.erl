@@ -28,6 +28,8 @@
 %% @copyright 2011 Lars-Ake Fredlund
 %%
 
+%% A simple Swing example using the proxy facilities of JavaErlang.
+
 -module(swing_hello_world).
 -export([start/0]).
 

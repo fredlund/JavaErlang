@@ -56,7 +56,7 @@ print_exception(F) ->
 
 tc() ->
   io:format("Starting tc~n",[]),
-  {ok,NodeId} = java:start_node([{java_verbose,false}]),
+  {ok,NodeId} = java:start_node(),
   I = java:new(NodeId,'java.lang.Integer',[2]),
   io:format("Obtained an integer ~p~n",[I]),
   Cl = java:call(I,getClass,[]),
@@ -168,7 +168,7 @@ tc7() ->
   ok.
 
 tc8() ->
-  {ok,NodeId} = java:start_node([]),
+  {ok,NodeId} = java:start_node([{add_to_java_classpath,["classes"]}]),
   Obj = java:new(NodeId,'javaErlang.testing.Test',[]),
   java:call(Obj,print,[]),
   io:format("value is ~p~n",[java:get(Obj,v)]),
@@ -182,8 +182,8 @@ tc8() ->
   java:call(I,intValue,[]).
 
 tc9() ->
-  {ok,NodeId1} = java:start_node([]),
-  {ok,NodeId2} = java:start_node(),
+  {ok,NodeId1} = java:start_node([{add_to_java_classpath,["classes"]}]),
+  {ok,NodeId2} = java:start_node([{add_to_java_classpath,["classes"]}]),
   Obj1 = java:new(NodeId1,'javaErlang.testing.Test',[]),
   Obj2 = java:new(NodeId2,'javaErlang.testing.Test',[]),
   java:call(Obj1,print,[]),
@@ -199,8 +199,8 @@ tc9() ->
   java:get(Obj2,v)-java:get(Obj1,v).
 
 tc10() ->
-  {ok,NodeId1} = java:start_node(),
-  {ok,NodeId2} = java:start_node(),
+  {ok,NodeId1} = java:start_node([{add_to_java_classpath,["classes"]}]),
+  {ok,NodeId2} = java:start_node([{add_to_java_classpath,["classes"]}]),
   Obj1 = java:new(NodeId1,'javaErlang.testing.Test',[]),
   Obj2 = java:new(NodeId2,'javaErlang.testing.Test',[]),
   java:call(Obj1,print,[]),
@@ -264,7 +264,7 @@ tc13() ->
   end.
 
 tc14() ->
-  {ok,NodeId} = java:start_node([{java_verbose,false}]),
+  {ok,NodeId} = java:start_node([]),
   False = java:new(NodeId,'java.lang.Boolean',[false]),
   false == java:call(False,booleanValue,[]).
 
@@ -290,7 +290,7 @@ tc16() ->
   false == java:call(Zero,equals,[0.0]).
 
 set_get_report(Parent,Value) ->
-  {ok,N} = java:start_node(),
+  {ok,N} = java:start_node([{add_to_java_classpath,["classes"]}]),
   Parent!{node,N},
   Obj = java:new(N,'javaErlang.testing.Test',[]),
   timer:sleep(random:uniform(2)*1000),

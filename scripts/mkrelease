@@ -79,6 +79,7 @@ cp ${ABSSRCDIR}/ebin/tests.beam tests/ebin
 cp ${ABSSRCDIR}/JavaErlang.jar priv
 cp ${ABSSRCDIR}/javassist.jar priv
 cp ${ABSSRCDIR}/c/java_int_resource.so priv
+cp ${ABSSRCDIR}/tests/*erl tests
 
 pushd $ABSSRCDIR/doc/doc
 find . | grep -v '/\.svn' | cpio -dump $ABSTRGDIR2/doc

@@ -43,8 +43,8 @@ $(JAR): $(CLASSES)
 ebin/%.beam: src/%.erl
 	erlc $(EFLAGS) -o ebin $<
 
-classes/javaErlang/JavaErlang.class: $(JAVASOURCES)
-	$(JAVA_HOME)/bin/javac -d classes -cp $(OTPERLANG):$(JAVASSIST) $(JAVASOURCES)
+classes/javaErlang/JavaErlang.class: $(JAVASOURCES) $(JAVATESTSOURCES)
+	$(JAVA_HOME)/bin/javac -d classes -cp $(OTPERLANG):$(JAVASSIST) $(JAVASOURCES) $(JAVATESTSOURCES)
 
 classes/javaErlang/testing/Test.class: java/javaErlang/testing/Test.java
 	$(JAVA_HOME)/bin/javac -d classes java/javaErlang/testing/Test.java

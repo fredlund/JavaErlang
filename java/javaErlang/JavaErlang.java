@@ -70,14 +70,14 @@ import com.ericsson.otp.erlang.OtpNode;
 
 @SuppressWarnings("rawtypes")
 public class JavaErlang {
-    volatile Map<RefEqualsObject, JavaObjectEntry> toErlangMap;
-    volatile Map<JavaObjectKey, JavaObjectEntry> fromErlangMap;
-    volatile Map<Object, OtpErlangObject> accToErlangMap;
-    volatile Map<OtpErlangObject, Object> accFromErlangMap;
-    volatile Map<OtpErlangObject, ThreadMsgHandler> threadMap;
+    volatile private Map<RefEqualsObject, JavaObjectEntry> toErlangMap;
+    volatile private Map<JavaObjectKey, JavaObjectEntry> fromErlangMap;
+    volatile private Map<Object, OtpErlangObject> accToErlangMap;
+    volatile private Map<OtpErlangObject, Object> accFromErlangMap;
+    volatile private Map<OtpErlangObject, ThreadMsgHandler> threadMap;
     volatile int objCounter = 0;
-    volatile int accCounter = 0;
-    volatile int threadCounter = 0;
+    volatile private int accCounter = 0;
+    volatile private int threadCounter = 0;
 
     volatile OtpMbox msgs;
     volatile OtpErlangObject nodeIdentifier = null;
