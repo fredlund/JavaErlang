@@ -32,6 +32,7 @@ public class ProxyHandler implements MethodHandler {
 			 Object[] args) throws Throwable {
 	System.out.println("method "+m+"invoked, pid="+pid);
 	System.out.println("methods_length="+methods.length);
+	
 	int index = -1;
 	for (int i=0; i<methods.length; i++) {
 	    System.out.println("checking "+methods[i]+" against "+m);

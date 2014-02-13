@@ -53,6 +53,7 @@ public class ProxyInstanceFactory {
     public ProxyInstanceFactory(final JavaErlang root, final Class cl, OtpErlangObject methods) {
 	this.root = root;
 	this.cl = cl;
+
 	OtpErlangList methodList = (OtpErlangList) methods;
 	this.mths = new Method[methodList.arity()];
 	for (int i=0; i<methodList.arity(); i++) {
@@ -63,12 +64,17 @@ public class ProxyInstanceFactory {
 		(OtpErlangList) t.elementAt(1);
 	    try {
 		final Method method =
-		    JavaErlang.getMethod
+		    root.getMethod
 		    (cl.getSuperclass(), 
 		     methodName,
 		     typeList.elements());
 		mths[i] = method;
-	    } catch (Exception exc) { mths[i] = null; }
+	    } catch (Exception exc) {
+		if (root.logger.isLoggable(Level.WARNING)) 
+		    root.logger.log
+			(Level.WARNING,"Method "+methodList.elementAt(i)+" not found");
+		mths[i] = null;
+	    }
 	}
     }
 

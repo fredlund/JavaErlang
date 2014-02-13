@@ -40,7 +40,7 @@
 -record(proxy,{id,state,status,queue,funs,handler}).
 
 -export([start/0]).
--export([class/4,new/2]).
+-export([class/4,new/3]).
 
 -define(debug,true).
 
@@ -87,17 +87,18 @@ wait_until_stable() ->
   end.
 
 class(NodeId,Name,ClassName,MethodFuns) ->
-  {Methods,Funs} = lists:unzip(MethodFuns),
+  {Methods,Functions} =
+    lists:unzip(MethodFuns),
   Proxy = 
     java:javaCall
       (NodeId,
        new_proxy_class,
        {ClassName,Methods}),
-  ets:insert(proxy_classes,{Name,NodeId,Proxy,list_to_tuple(Funs)}),
+  ets:insert(proxy_classes,{{NodeId,Name},NodeId,Proxy,list_to_tuple(Functions)}),
   Proxy.
 
-new(Name,Init) ->
-  case ets:lookup(proxy_classes,Name) of
+new(NodeId,Name,Init) ->
+  case ets:lookup(proxy_classes,{NodeId,Name}) of
     [{_,NodeId,ProxyClass,Funs}] ->
       Counter = ets:update_counter(proxy_objects,proxy_counter,1),
       [{_,ProxyPid}] = ets:lookup(proxy_classes,proxy_pid),

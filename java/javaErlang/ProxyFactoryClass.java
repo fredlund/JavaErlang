@@ -45,9 +45,10 @@ import com.ericsson.otp.erlang.OtpErlangObject;
 
 class ProxyFactoryClass {
     public static ProxyInstanceFactory newClass(JavaErlang root, final Class superClass, final OtpErlangObject methods) {
-	OtpErlangList methodsList = (OtpErlangList) methods;
 	ProxyFactory f = new ProxyFactory();
 	f.setSuperclass(superClass);
+
+	OtpErlangList methodsList = (OtpErlangList) methods;
 	final Method m[] = new Method[methodsList.arity()];
 	for (int i=0; i<methodsList.arity(); i++) {
 	    OtpErlangTuple t = (OtpErlangTuple) methodsList.elementAt(i);
