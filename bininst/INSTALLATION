@@ -27,7 +27,7 @@ the installation to succeed.
 After restarting Erlang, you can verify the status of the 
 JavaErlang installation by typing:
 
-> java_erlang_version:version().
+> java:version().
 
 in the Erlang shell.
 
