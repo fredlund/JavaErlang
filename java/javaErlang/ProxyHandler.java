@@ -9,13 +9,15 @@ import com.ericsson.otp.erlang.OtpErlangObject;
 import com.ericsson.otp.erlang.OtpErlangPid;
 import com.ericsson.otp.erlang.OtpErlangAtom;
 import com.ericsson.otp.erlang.OtpErlangLong;
+import com.ericsson.otp.erlang.OtpErlangList;
 
 public class ProxyHandler implements MethodHandler {
     int objectId;
     OtpErlangPid pid;
-    Object answer;
+    OtpErlangObject answer;
     JavaErlang root;
     Method methods[];
+    Method method = null;
 
     public ProxyHandler(JavaErlang root, int objectId, OtpErlangPid pid, Method[] methods) {
 	this.root = root;
@@ -39,6 +41,12 @@ public class ProxyHandler implements MethodHandler {
 	    }
 	}
 	System.out.println("index is "+index);
+
+	OtpErlangObject elements[] =
+	    new OtpErlangObject[args.length];
+	for (int i=0; i<args.length; i++)
+	    elements[i] = root.map_to_erlang(args[i]);
+
 	OtpErlangObject msg = 
 	     root.makeErlangTuple
 	     (new OtpErlangAtom("proxy_invoke"),
@@ -46,21 +54,22 @@ public class ProxyHandler implements MethodHandler {
 	      root.map_to_erlang(self),
 	      root.map_to_erlang(m),
 	      new OtpErlangLong(index+1),
-	      root.map_to_erlang(args));
+	      new OtpErlangList(elements));
         root.msgs.send(pid,msg);
-	return null;
+	method = m;
+	return waitForAnswer();
     }
 
-    public synchronized Object waitForAnswer() {
+    public synchronized Object waitForAnswer() throws Exception {
 	try {
 	    this.wait();
 	} catch (final InterruptedException exc) {
 	    return waitForAnswer();
 	}
-	return answer;
+	return root.java_value_from_erlang(answer,method.getReturnType());
     }
     
-    public synchronized void setAnswer(final Object answer) {
+    public synchronized void setAnswer(final OtpErlangObject answer) {
 	this.answer = answer;
 	notifyAll();
     }

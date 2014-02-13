@@ -42,7 +42,7 @@
 	       interface,class,object,handler,erlang_state}).
 
 -export([start/0,create_proxy_server/0]).
--export([new/5,new/3,new/6,new/2,proxySkeleton/4]).
+-export([new/2]).
 
 -define(debug,true).
 
@@ -81,7 +81,7 @@ start() ->
 
 %% @private
 create_proxy_server() ->
-  spawn(fun () -> looper() end).
+  spawn(fun () -> looper(self()) end).
 
 wait_forever() ->
   receive _ -> wait_forever() end.
@@ -124,163 +124,42 @@ new(Name,Init) ->
 	   {Proxy,Counter,ProxyPid}),
       ets:insert
 	(proxy_objects,
-o	 {{object,Counter},Init,not_running,Funs,Handler}),
+	 {{object,Counter},Init,idle,Funs,Handler}),
       Object
   end.
 
-reply_to_handler(HandlerObj={object,_,NodeId},ValueObj) ->
-  java:javaCall(NodeId,proxy_reply,{HandlerObj,ValueObj}).
-
-%% @private
-new(Proxy,InitialState,ProxyPid)
-  when is_pid(ProxyPid) ->
-  InvHandler =
-    define_invocation_handler(Proxy,ProxyPid),
-  N =
-    Proxy#proxy.node_id,
-  Class =
-    Proxy#proxy.class,
-  ClassLoader = 
-    java:call(Class,getClassLoader,[]),
-  ClassArr =
-    java:list_to_array(N,[Class],'java.lang.Class'),
-  ProxyObject =
-    java:call_static
-      (N,
-       'java.lang.reflect.Proxy',
-       newProxyInstance,
-       [ClassLoader,
-	ClassArr,
-	InvHandler]),
-  ProxyWithObject =
-    Proxy#proxy
-    {handler=InvHandler,object=ProxyObject,erlang_state=InitialState},
-  ets:insert(proxy_table,{{proxy,ProxyObject},ProxyWithObject}),
-  ProxyObject.
-
-%% @doc
-%% Creates an Erlang proxy object corresponding to the Java Interface
-%% argument.
-
-%%-spec new(java:node_id(),java:object_ref(),[{{java:method_name(),[java:type()]},fun((...) -> any())}],java:object_ref(),any()) -> any().
--spec new(java:node_id(),java:class_name(),[{{java:method_name(),[java:type()]},fun()}],java:object_ref()|null,any()) -> any().
-new(N,Interface,Funs,BackingObject,InitialState) ->
-  start(),
-  [{_,ProxyPid}] = ets:lookup(proxy_table,default_proxy_pid),
-  new(N,Interface,Funs,BackingObject,InitialState,ProxyPid).
-
-%% @private
-new(N,Interface,Funs,BackingObject,InitialState,ProxyPid)
-  when is_pid(ProxyPid) ->
-  start(),
-  new
-    (proxySkeleton(N,Interface,Funs,BackingObject),
-     InitialState,
-     ProxyPid).
-
-%% @private
-proxySkeleton(N,Interface,Funs,BackingObject) ->
-  Class = java:acquire_class(N,Interface),
-  {Methods,_} = Class#class.methods,
-  InterfaceString = java:list_to_string(N,atom_to_list(Interface)),
-  io:format
-    ("methods of ~p are~n  ~p~nfuns are~n  ~p~n",
-     [Interface,Methods,Funs]),
-  MethodFuns =
-    lists:map
-      (fun ({Spec,Fun}) ->
-	   case lists:keyfind(Spec,1,Methods) of
-	     {_,JavaMethod} ->
-	       {JavaMethod,Fun};
-	     _ ->
-	       java:format
-		 (error,
-		  "method ~p of class ~p not found~n",
-		  [Spec,Interface]),
-	       throw(bad)
-	   end
-       end, Funs),
-  InterfaceClass =
-    java:call_static(N,'java.lang.Class',forName,[InterfaceString]),
-  #proxy{method_funs=MethodFuns,
-	 backing_object=BackingObject,
-	 node_id=N,
-	 class=InterfaceClass,
-	 interface=Interface}.
-
-handle_call(Object,Method,Args,Proxy) ->
-  ArgList =
-    if Args==null -> [];
-       true -> tuple_to_list(Args)
-    end,
-  ?LOG
-    ("~nMethod is ~p~nTable is ~p~n",
-     [Method,Proxy#proxy.method_funs]),
-  if
-    is_list(Proxy#proxy.method_funs) ->
-      case lists:keyfind(Method,1,Proxy#proxy.method_funs) of
-	{_,Fun} ->
-	  ?LOG
-	     ("found a specific function, arity will be ~p~n",
-	      [length([Object|ArgList])]),
-	  apply(Fun,[Proxy#proxy.erlang_state,Object,Method|ArgList]);
-	false ->
-	  ?LOG("no specific function found, passing the buck...~n",[]),
-	  passbuck
-      end;
-    true ->
-      apply(Proxy#proxy.method_funs,[Proxy#proxy.erlang_state,Object,Method|ArgList])
-  end.
+handle_call(Fun,Args,Context,Handler,ProxyServer,ObjectId) ->
+  NodeId = java:node_id(Handler),
+  Result = Fun([Context|Args]),
+  java:javaCall(NodeId,proxy_reply,{Handler,Result}),
+  ProxyServer!{done,ObjectId}.
 
 start_looper() ->
-  looper().
+  looper(self()).
 
-looper() ->
+looper(ProxyServer) ->
   receive
-    Msg={proxy_invoke,ObjectId,Self,Method,FunIndex,Args} ->
-      Context = {Self,Method},
+    Msg={proxy_invoke,ObjectId,JavaSelf,Method,FunIndex,Args} ->
+      Context = {JavaSelf,Method},
       ?LOG("got message ~p~n",[Msg]),
       case ets:lookup(proxy_objects,{object,ObjectId}) of
 	[{_,State,Status,Funs,Handler}] ->
 	  spawn
 	    (fun () ->
-		 Reply = handle_call(ProxyObject,Method,Arguments,Proxy),
-		 do_reply_and_update_state(Reply,Key,Proxy)
+		 handle_call
+		   (element(FunIndex,Funs),Args,Context,Handler,ProxyServer,ObjectId)
 	     end),
-	  looper();
+	  looper(ProxyServer);
 	[] ->
 	  io:format
-	    ("*** error: proxy table does not contain object ~p~n"++
-	     "All keys: ",
-	     [Key]),
-	  lists:foreach
-	    (fun ({{proxy,KeyT},_}) -> io:format("~p,",[KeyT]);
-		 (_) -> ok
-	     end,
-	     ets:tab2list(proxy_table)),
-	  io:format("~n"),
+	    ("*** error: proxy table does not contain object ~p~n",
+	     [ObjectId]),
 	  throw(proxy)
       end;
     Other -> 
       io:format
 	("looper at pid ~p~nstrange message ~p received~n",
 	 [self(),Other]),
-      looper()
+      looper(ProxyServer)
   end.
-
-do_reply_and_update_state(Reply,LocalKey,Proxy) ->
-  ?LOG("Reply is ~p~n",[Reply]),
-  ResultValue =
-    case Reply of
-      {reply_local,Result,NewLocalState} ->
-	ets:insert
-	  (proxy_table,
-	   {LocalKey,Proxy#proxy{erlang_state=NewLocalState}}),
-	Result;
-      {reply,Result} ->
-	Result;
-      passbuck ->
-	passbuck
-    end,
-  reply_to_handler(Proxy#proxy.handler,ResultValue).
   
