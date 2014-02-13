@@ -24,18 +24,11 @@
 %% OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
 %% ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-%% @doc This module implements a highly experimental and probably useless 
-%% facility for permitting Erlang to define Java (proxy) classes and 
-%% handle calls to such classes. What use is this? 
-%% Well, one possibility is to implement ActionListeners for the Swing
-%% graphics library in Erlang.
+%% @doc This module implements a facility for creating Java object
+%% with an implementation in Erlang, using the <a href="http://www.csg.ci.i.u-tokyo.ac.jp/~chiba/javassist/">Javassist</a> byte code manipulation library.
 %% @author Lars-Ake Fredlund (lfredlund@fi.upm.es)
-%% @copyright 2011 Lars-Ake Fredlund
-%%
-
+%% @copyright 2014 Lars-Ake Fredlund
 -module(java_proxy).
-
--include("class.hrl").
 
 -record(proxy,{id,state,status,queue,funs,handler}).
 
@@ -50,6 +43,8 @@
 -else.
 -define(LOG(X,Y), true).
 -endif.
+
+-type reply() :: {reply, java:value(), any()}.
 
 %% @private
 start() ->
@@ -86,17 +81,57 @@ wait_until_stable() ->
       wait_until_stable()
   end.
 
-class(NodeId,Name,ClassName,MethodFuns) ->
+%% @doc Creates a new proxy class with the given name and superclass.
+%% A method of that class is handled by including in the list in the last
+%% argument a tuple ``{Methodname,Types,Fun}''
+%% where ''Methodname'' is the atom corresponding to a method in the class,
+%% ``Types'' is a list corresponding to the types of the arguments to the method,
+%% and ``Fun'' is a function of arity ``length(Types)+2'' which provides the
+%% implementation of the method. Any method not listed is handled by the superclass.
+%% The function implementing the method receives a first argument a
+%% binary tuple where the first element is the Java object on which the method was
+%% invoked, and the second element is the Java representation of the method invoked.
+%% The second argument is the state of the (Erlang) object, which is kept between
+%% successive invocations of methods of the object.
+%% The rest of the arguments correspond to the arguments of the method.
+%% The function should return a tuple ``{reply,Result,NewState}''
+%% where ``Result'' is the result of the method call, and ``NewState'' 
+%% is the new (Erlang) object state.
+%% An example:<br/>
+%% ```
+%% _ActionListenerClass =
+%%    java_proxy:class
+%%    (N, 
+%%     'myActionListener', 
+%%     'javax.swing.AbstractAction',
+%%     [{{actionPerformed,['java.awt.event.ActionEvent']},fun actionPerformed/3}]).
+%%
+%%actionPerformed(_Context,NumCalls,Event) ->
+%%  io:format("An action was performed!~n",[]),
+%%  ..
+%%  {reply,void,NumCalls+1}.
+%% '''
+%% creates a new Java class that handles invocations of ``actionPerformed'' 
+%% (typically in a Java Swing application).
+-spec class(java:node_id(),atom(),atom(),[{[{atom(),java:type()}],fun((...) -> reply())}]) -> java:obj_ref().
+class(NodeId,Name,SuperClassName,MethodFuns) ->
   {Methods,Functions} =
     lists:unzip(MethodFuns),
   Proxy = 
     java:javaCall
       (NodeId,
        new_proxy_class,
-       {ClassName,Methods}),
+       {SuperClassName,Methods}),
   ets:insert(proxy_classes,{{NodeId,Name},NodeId,Proxy,list_to_tuple(Functions)}),
   Proxy.
 
+%% @doc Creates a new instance of a proxy class.
+%% The third argument corresponds to the initial state of the (Erlang) object created.
+%% An example:<br/>
+%% ```
+%% java_proxy:new(N,'myActionListener',0).
+%% '''
+-spec new(java:node_id(),atom(),any()) -> java:obj_ref().
 new(NodeId,Name,Init) ->
   case ets:lookup(proxy_classes,{NodeId,Name}) of
     [{_,NodeId,ProxyClass,Funs}] ->
@@ -116,7 +151,7 @@ handle_call(FunIndex,Proxy,Args,Context,ProxyServer) ->
   Fun = element(FunIndex,Proxy#proxy.funs),
   Handler = Proxy#proxy.handler,
   NodeId = java:node_id(Handler),
-  io:format("calling function with arguments of length ~p~n",[length(Args)+2]),
+  java:format(info,"calling function with arguments of length ~p~n",[length(Args)+2]),
   case apply(Fun,[Context,Proxy#proxy.state|Args]) of
     {reply,PreResult,NewState} ->
       Result =
@@ -131,7 +166,7 @@ handle_call(FunIndex,Proxy,Args,Context,ProxyServer) ->
 looper() ->
   receive
     Msg={proxy_invoke,{ObjectId,_,_,_,_}} ->
-      ?LOG("got message ~p~n",[Msg]),
+      java:format(info,"got message ~p~n",[Msg]),
       case ets:lookup(proxy_objects,ObjectId) of
 	[Proxy] when Proxy#proxy.status==idle ->
 	  maybe_run_one(Proxy#proxy{queue=Proxy#proxy.queue++[Msg]}),
@@ -140,8 +175,9 @@ looper() ->
 	  ets:insert(proxy_objects,Proxy#proxy{queue=Proxy#proxy.queue++[Msg]}),
 	  looper();
 	[] ->
-	  io:format
-	    ("*** error: proxy table does not contain object ~p~n",
+	  java:format
+	    (error,
+	     "*** error: proxy table does not contain object ~p~n",
 	     [ObjectId]),
 	  throw(proxy)
       end;
@@ -151,8 +187,9 @@ looper() ->
       maybe_run_one(Proxy),
       looper();
     Other -> 
-      io:format
-	("looper at pid ~p~nstrange message ~p received~n",
+      java:format
+	(warning,
+	 "looper at pid ~p~nstrange message ~p received~n",
 	 [self(),Other]),
       looper()
   end.

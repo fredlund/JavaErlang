@@ -1,6 +1,7 @@
 package javaErlang;
 
 import java.lang.reflect.Method;
+import java.util.logging.Level;
 
 import javassist.util.proxy.MethodHandler;
 import javassist.util.proxy.Proxy;
@@ -30,18 +31,23 @@ public class ProxyHandler implements MethodHandler {
 			 Method m,
 			 Method proceed,
 			 Object[] args) throws Throwable {
-	System.out.println("method "+m+"invoked, pid="+pid);
-	System.out.println("methods_length="+methods.length);
+
+	if (root.logger.isLoggable(Level.FINE))
+	    root.logger.log
+		(Level.FINE,
+		 "proxy method "+m+"invoked, pid="+pid+"methods_length="+methods.length);
 	
 	int index = -1;
 	for (int i=0; i<methods.length; i++) {
-	    System.out.println("checking "+methods[i]+" against "+m);
+	    if (root.logger.isLoggable(Level.FINE))
+		root.logger.log(Level.FINE,"checking "+methods[i]+" against "+m);
 	    if (methods[i].equals(m)) {
 		index=i;
 		break;
 	    }
 	}
-	System.out.println("index is "+index);
+	if (root.logger.isLoggable(Level.FINE))
+	    root.logger.log(Level.FINE,"index is "+index);
 
 	OtpErlangObject elements[] =
 	    new OtpErlangObject[args.length];

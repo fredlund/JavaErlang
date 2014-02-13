@@ -30,7 +30,7 @@
 %% @copyright 2011 Lars-Ake Fredlund
 %%
 
-%% New features?
+%% Wishlist:
 %%
 %% - Supporting synchronized? This possibly means to lock, and synchronize
 %% on a variable, a particular thread in JavaErlang until it is unlocked
@@ -40,8 +40,6 @@
 %% non-public constructors and methods of public classes.
 %%
 %% - If a field is final, don't generate a setter function.
-%%
-%% - Supporting long node names.
 %%
 
 -module(java).
@@ -125,6 +123,11 @@
 %% <li>`erlang_remote' specifies a (possibly remote)
 %% Erlang node which is responsible
 %% for starting the new Java node.</li>
+%% <li>`enable_gc' determines whether to garbage collect
+%% Java objects communicated to Erlang or not.</li>
+%% <li>`enable_proxies' determines whether the proxy facility provided
+%% by the `java_proxy' library can be used.
+%% Java objects communicated to Erlang or not.</li>
 %% <li>`call_timeout' sets a timeout value for all calls 
 %% to Java from Erlang (default 10 seconds).</li>
 %% </ul>
@@ -547,14 +550,14 @@ javaCall(NodeId,Type,Msg) ->
       throw(javaCall)
   end.
 
-enable_gc(D={object,Key,Counter,NodeId},GC) ->
+enable_gc(D={object,Key,_Counter,NodeId},GC) ->
   Resource = java_resource:create(D,GC),
   {object,Key,Resource,NodeId};
 enable_gc(T,GC) when is_tuple(T) ->
   list_to_tuple(enable_gc(tuple_to_list(T),GC));
 enable_gc([First|Rest],GC) ->
   [enable_gc(First,GC)|enable_gc(Rest,GC)];
-enable_gc(Item,GC) ->
+enable_gc(Item,_GC) ->
   Item.
 
 create_msg(Type,Msg,Node) ->
@@ -761,7 +764,7 @@ set_static(NodeId,ClassName,Field,Value) ->
 %% @doc
 %% Checks if two Java objects references refer to the same object.
 %% Note that using normal Erlang term equality is not safe.
--spec eq(object_ref(),object_ref()) -> bool().
+-spec eq(object_ref(),object_ref()) -> boolean().
 eq({object,Id,_,NodeId},{object,Id,_,NodeId}) ->
   true;
 eq(_,_) ->
@@ -1105,7 +1108,6 @@ string_to_list(String) ->
 %% the rest of the Java API.
 -spec list_to_string(node_id(),string()) -> object_ref().
 list_to_string(NodeId,List) when is_list(List) ->
-  io:format("length of list is ~p~n",[length(List)]),
   java:new(NodeId,'java.lang.String',[List]).
 
 %% @doc Widens or narrows a number.

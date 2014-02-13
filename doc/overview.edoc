@@ -37,10 +37,26 @@ to the classpath of the started Java interpreter
 </p>
 
 <h2>News</h2>
+The library now provides a facility to construct
+Java classes using Erlang, see the ``java_proxy''
+module for details.
+To disable this
+(the option is enabled by default)
+provide ``{enable_proxies,false}''
+as an option to ``start_node/2''.
+<p>
+Garbage collection is now implemented. To enable this
+(the option is currently disabled by default, but the default
+can change without warning)
+provide ``{enable_gc,TrueOrfalse}''
+as an option to ``start_node/2''.
+</p>
+<p>
 The code for generating an Erlang module corresponding to
 a Java class has been removed in this version of the library.
 Thus, Java objects can be created and accessed only
 using the functions exported from the ``java'' module.
+</p>
 <p>
 Java nodes can now be started on remote Erlang nodes --
 see the options for the ``java:start_node/1'' function.
@@ -235,13 +251,6 @@ to call the ``reset/0'' function.
 <li> Speed: the scheme used for communicating between Erlang and
 Java is clearly suboptimal. Many aspects are 
 trivial to improve: use integer tags instead of atom tags, etc.
-</li>
-<li>There is no support for implementing a Java object using 
-Erlang code (this would be occasionally be very useful when calling
-methods that use a callback communication style).
-It would be possible to provide partial support for this using
-Java's "proxy" reflection feature, or using
-one of the byte code instrumentation packages for Java.
 </li>
 <li>
 Inability to use the calling context of a Java call to determine
