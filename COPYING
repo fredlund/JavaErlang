@@ -1,3 +1,6 @@
 The source code for the JavaErlang library is generally licensed 
 under the modified 3-clause BSD software license. See individual files
 for detailed licensing conditions or exceptions.
+
+For licensing details concerning the Javassist library consult
+http://www.csg.ci.i.u-tokyo.ac.jp/~chiba/javassist/.
