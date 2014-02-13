@@ -50,11 +50,12 @@ public class ProxyHandler implements MethodHandler {
 	OtpErlangObject msg = 
 	     root.makeErlangTuple
 	     (new OtpErlangAtom("proxy_invoke"),
-	      new OtpErlangLong(objectId),
-	      root.map_to_erlang(self),
-	      root.map_to_erlang(m),
-	      new OtpErlangLong(index+1),
-	      new OtpErlangList(elements));
+	      root.makeErlangTuple
+	      (new OtpErlangLong(objectId),
+	       root.map_to_erlang(self),
+	       root.map_to_erlang(m),
+	       new OtpErlangLong(index+1),
+	       new OtpErlangList(elements)));
         root.msgs.send(pid,msg);
 	method = m;
 	return waitForAnswer();

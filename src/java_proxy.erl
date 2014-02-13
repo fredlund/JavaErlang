@@ -38,8 +38,7 @@
 
 -include("class.hrl").
 
--record(proxy,{method_funs,backing_object,node_id,
-	       interface,class,object,handler,erlang_state}).
+-record(proxy,{id,state,status,queue,funs,handler}).
 
 -export([start/0,create_proxy_server/0]).
 -export([new/2]).
@@ -64,16 +63,14 @@ start() ->
 	end),
       spawn(
 	fun () ->
-	    _ = ets:new(proxy_objects,[named_table,public]),
+	    _ = ets:new(proxy_objects,[named_table,public,{keypos,2}]),
 	    wait_forever()
 	end),
       wait_until_stable(),
       ets:insert
 	(proxy_classes,
 	 {proxy_pid,spawn_link(fun () -> start_looper() end)}),
-      ets:insert
-	(proxy_objects,
-	 {proxy_counter,0}),
+      ets:insert(proxy_objects,{proxy_counter,proxy_counter,0}),
       proxy_table;
     _ ->
       proxy_table
@@ -81,7 +78,7 @@ start() ->
 
 %% @private
 create_proxy_server() ->
-  spawn(fun () -> looper(self()) end).
+  spawn(fun () -> looper() end).
 
 wait_forever() ->
   receive _ -> wait_forever() end.
@@ -95,13 +92,6 @@ wait_until_stable() ->
       wait_until_stable()
   end.
 
-%% Note. It is dangerous to create proxy objects from inside a proxy context.
-define_invocation_handler(Proxy,Pid) when is_pid(Pid) ->
-  java:javaCall
-    (Proxy#proxy.node_id,
-     define_invocation_handler,
-     {Pid,Proxy#proxy.backing_object}).
-
 class(NodeId,Name,ClassName,MethodFuns) ->
   {Methods,Funs} = lists:unzip(MethodFuns),
   Proxy = 
@@ -114,17 +104,16 @@ class(NodeId,Name,ClassName,MethodFuns) ->
 
 new(Name,Init) ->
   case ets:lookup(proxy_classes,Name) of
-    [{_,NodeId,Proxy,Funs}] ->
+    [{_,NodeId,ProxyClass,Funs}] ->
       Counter = ets:update_counter(proxy_objects,proxy_counter,1),
       [{_,ProxyPid}] = ets:lookup(proxy_classes,proxy_pid),
       {Object,Handler} = 
 	java:javaCall
 	  (NodeId,
 	   new_proxy_object,
-	   {Proxy,Counter,ProxyPid}),
-      ets:insert
-	(proxy_objects,
-	 {{object,Counter},Init,idle,Funs,Handler}),
+	   {ProxyClass,Counter,ProxyPid}),
+      Proxy = #proxy{id=Counter,state=Init,status=idle,queue=[],funs=Funs,handler=Handler},
+      ets:insert(proxy_objects,Proxy),
       Object
   end.
 
@@ -135,31 +124,51 @@ handle_call(Fun,Args,Context,Handler,ProxyServer,ObjectId) ->
   ProxyServer!{done,ObjectId}.
 
 start_looper() ->
-  looper(self()).
+  looper().
 
-looper(ProxyServer) ->
+looper() ->
   receive
-    Msg={proxy_invoke,ObjectId,JavaSelf,Method,FunIndex,Args} ->
-      Context = {JavaSelf,Method},
+    Msg={proxy_invoke,{ObjectId,_,_,_,_}} ->
       ?LOG("got message ~p~n",[Msg]),
-      case ets:lookup(proxy_objects,{object,ObjectId}) of
-	[{_,State,Status,Funs,Handler}] ->
-	  spawn
-	    (fun () ->
-		 handle_call
-		   (element(FunIndex,Funs),Args,Context,Handler,ProxyServer,ObjectId)
-	     end),
-	  looper(ProxyServer);
+      case ets:lookup(proxy_objects,ObjectId) of
+	[Proxy] when Proxy#proxy.status==idle ->
+	  maybe_run_one(Proxy#proxy{queue=Proxy#proxy.queue++[Msg]}),
+	  looper();
+	[Proxy] when Proxy#proxy.status==running ->
+	  ets:insert(proxy_objects,Proxy#proxy{queue=Proxy#proxy.queue++[Msg]}),
+	  looper();
 	[] ->
 	  io:format
 	    ("*** error: proxy table does not contain object ~p~n",
 	     [ObjectId]),
 	  throw(proxy)
       end;
+    Msg={done,ObjectId} ->
+      [Proxy] = ets:lookup(proxy_objects,ObjectId),
+      ets:insert(proxy_objects,Proxy#proxy{status=idle}),
+      maybe_run_one(Proxy),
+      looper();
     Other -> 
       io:format
 	("looper at pid ~p~nstrange message ~p received~n",
 	 [self(),Other]),
-      looper(ProxyServer)
+      looper()
   end.
+  
+maybe_run_one(Proxy) ->
+  case Proxy#proxy.queue of
+    [{proxy_invoke,{ObjectId,JavaSelf,Method,FunIndex,Args}}=Msg|Rest] ->
+      ProxyServer = self(),
+      ets:insert(proxy_objects,Proxy#proxy{status=running,queue=Rest}),
+      spawn
+	(fun () ->
+	     Context = {JavaSelf,Method},
+	     handle_call
+	       (element(FunIndex,Proxy#proxy.funs),Args,Context,
+		Proxy#proxy.handler,ProxyServer,ObjectId)
+	 end);
+    _ -> ok
+  end.
+
+  
   
