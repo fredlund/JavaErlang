@@ -105,6 +105,7 @@
     | {erlang_remote,string()}
     | {log_level,loglevel()}
     | {enable_gc,boolean()}
+    | {enable_proxies,boolean()}
     | {call_timeout,integer() | infinity}.
 %% <ul>
 %% <li>`symbolic_name' provides a symbolic name for the node.</li>
@@ -203,12 +204,17 @@ start_node(UserOptions) ->
   check_options(Options),
   LogLevel = proplists:get_value(log_level,Options),
   EnableGC = proplists:get_value(enable_gc,Options,false),
+  EnableProxies = proplists:get_value(enable_proxies,Options,true),
   init([{log_level,LogLevel}]),
   CallTimeout = proplists:get_value(call_timeout,Options),
   SymbolicName = proplists:get_value(symbolic_name,Options,void),
   NodeNode = proplists:get_value(erlang_remote,Options,node()),
   if
     EnableGC -> java_resource:init();
+    true -> ok
+  end,
+  if
+    EnableProxies -> java_proxy:start();
     true -> ok
   end,
   PreNode =
@@ -300,7 +306,7 @@ check_options(Options) ->
 	   end,
 	 case lists:member
 	   (OptionName,
-	    [symbolic_name,log_level,enable_gc,
+	    [symbolic_name,log_level,enable_gc,enable_proxies,
 	     erlang_remote,
 	     java_class,java_classpath,add_to_java_classpath,
 	     java_exception_as_value,java_verbose,

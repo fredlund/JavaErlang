@@ -331,7 +331,7 @@ public class JavaErlang {
             if (stringValue.equals("false")) {
                 return new Boolean(false);
             }
-            logger.log(Level.FINE,"java_value_from_erlang: " + value);
+            logger.log(Level.WARNING,"java_value_from_erlang: " + value);
             throw new Exception();
         }
 

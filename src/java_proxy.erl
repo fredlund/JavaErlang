@@ -34,14 +34,13 @@
 %%
 
 -module(java_proxy).
--compile(export_all).
 
 -include("class.hrl").
 
 -record(proxy,{id,state,status,queue,funs,handler}).
 
--export([start/0,create_proxy_server/0]).
--export([new/2]).
+-export([start/0]).
+-export([class/4,new/2]).
 
 -define(debug,true).
 
@@ -54,7 +53,7 @@
 
 %% @private
 start() ->
-  case ets:info(proxy_table) of
+  case ets:info(proxy_classes) of
     undefined ->
       spawn(
 	fun () ->
@@ -69,16 +68,11 @@ start() ->
       wait_until_stable(),
       ets:insert
 	(proxy_classes,
-	 {proxy_pid,spawn_link(fun () -> start_looper() end)}),
-      ets:insert(proxy_objects,{proxy_counter,proxy_counter,0}),
-      proxy_table;
+	 {proxy_pid,spawn_link(fun () -> looper() end)}),
+      ets:insert(proxy_objects,{proxy_counter,proxy_counter,0});
     _ ->
-      proxy_table
+      ok
   end.
-
-%% @private
-create_proxy_server() ->
-  spawn(fun () -> looper() end).
 
 wait_forever() ->
   receive _ -> wait_forever() end.
@@ -117,14 +111,21 @@ new(Name,Init) ->
       Object
   end.
 
-handle_call(Fun,Args,Context,Handler,ProxyServer,ObjectId) ->
+handle_call(FunIndex,Proxy,Args,Context,ProxyServer) ->
+  Fun = element(FunIndex,Proxy#proxy.funs),
+  Handler = Proxy#proxy.handler,
   NodeId = java:node_id(Handler),
-  Result = Fun([Context|Args]),
-  java:javaCall(NodeId,proxy_reply,{Handler,Result}),
-  ProxyServer!{done,ObjectId}.
-
-start_looper() ->
-  looper().
+  io:format("calling function with arguments of length ~p~n",[length(Args)+2]),
+  case apply(Fun,[Context,Proxy#proxy.state|Args]) of
+    {reply,PreResult,NewState} ->
+      Result =
+	if
+	  PreResult==void -> null;
+	  true -> PreResult
+	end,
+      java:javaCall(NodeId,proxy_reply,{Handler,Result}),
+      ProxyServer!{done,Proxy#proxy.id,NewState}
+  end.
 
 looper() ->
   receive
@@ -143,9 +144,9 @@ looper() ->
 	     [ObjectId]),
 	  throw(proxy)
       end;
-    Msg={done,ObjectId} ->
+    {done,ObjectId,NewState} ->
       [Proxy] = ets:lookup(proxy_objects,ObjectId),
-      ets:insert(proxy_objects,Proxy#proxy{status=idle}),
+      ets:insert(proxy_objects,Proxy#proxy{state=NewState,status=idle}),
       maybe_run_one(Proxy),
       looper();
     Other -> 
@@ -157,15 +158,13 @@ looper() ->
   
 maybe_run_one(Proxy) ->
   case Proxy#proxy.queue of
-    [{proxy_invoke,{ObjectId,JavaSelf,Method,FunIndex,Args}}=Msg|Rest] ->
+    [{proxy_invoke,{_,JavaSelf,Method,FunIndex,Args}}|Rest] ->
       ProxyServer = self(),
       ets:insert(proxy_objects,Proxy#proxy{status=running,queue=Rest}),
       spawn
 	(fun () ->
 	     Context = {JavaSelf,Method},
-	     handle_call
-	       (element(FunIndex,Proxy#proxy.funs),Args,Context,
-		Proxy#proxy.handler,ProxyServer,ObjectId)
+	     handle_call(FunIndex,Proxy,Args,Context,ProxyServer)
 	 end);
     _ -> ok
   end.
