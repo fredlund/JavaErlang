@@ -12,6 +12,7 @@ RESOURCE = c/java_int_resource.so
 #RESOURCE =
 
 OTPERLANG=$(JINTERFACE_LIB_DIR)/priv/OtpErlang.jar
+JAVASSIST=javassist.jar
 
 SOURCES = $(notdir $(wildcard src/*.erl))
 JAVASOURCES = $(wildcard java/javaErlang/*.java)
@@ -43,7 +44,7 @@ ebin/%.beam: src/%.erl
 	erlc $(EFLAGS) -o ebin $<
 
 classes/javaErlang/JavaErlang.class: $(JAVASOURCES)
-	$(JAVA_HOME)/bin/javac -d classes -cp $(OTPERLANG) $(JAVASOURCES)
+	$(JAVA_HOME)/bin/javac -d classes -cp $(OTPERLANG):$(JAVASSIST) $(JAVASOURCES)
 
 classes/javaErlang/testing/Test.class: java/javaErlang/testing/Test.java
 	$(JAVA_HOME)/bin/javac -d classes java/javaErlang/testing/Test.java

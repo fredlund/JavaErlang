@@ -74,8 +74,10 @@ cp ${ABSSRCDIR}/ebin/java.beam ebin
 cp ${ABSSRCDIR}/ebin/java_to_erlang.beam ebin
 cp ${ABSSRCDIR}/ebin/java_resource.beam ebin
 cp ${ABSSRCDIR}/ebin/java_int_resource.beam ebin
+cp ${ABSSRCDIR}/ebin/java_proxy.beam ebin
 cp ${ABSSRCDIR}/ebin/tests.beam tests/ebin
 cp ${ABSSRCDIR}/JavaErlang.jar priv
+cp ${ABSSRCDIR}/javassist.jar priv
 cp ${ABSSRCDIR}/c/java_int_resource.so priv
 
 pushd $ABSSRCDIR/doc/doc

@@ -1,3 +1,10 @@
+13/2 -- 2014:
+
+JavaErlang now has support for implementing Java objects in Erlang
+using the Javassist byte code manipulation library.
+For details consult the new module "java_proxy" and the example
+new example tests/swing_hello_world.erl.
+
 11/2 -- 2014:
 
 JavaErlang now has support for garbage collection of Java objects passed

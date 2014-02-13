@@ -30,7 +30,7 @@
 %% @copyright 2011 Lars-Ake Fredlund
 %%
 
-%% New features?
+%% Wishlist:
 %%
 %% - Supporting synchronized? This possibly means to lock, and synchronize
 %% on a variable, a particular thread in JavaErlang until it is unlocked
@@ -40,8 +40,6 @@
 %% non-public constructors and methods of public classes.
 %%
 %% - If a field is final, don't generate a setter function.
-%%
-%% - Supporting long node names.
 %%
 
 -module(java).
@@ -105,6 +103,7 @@
     | {erlang_remote,string()}
     | {log_level,loglevel()}
     | {enable_gc,boolean()}
+    | {enable_proxies,boolean()}
     | {call_timeout,integer() | infinity}.
 %% <ul>
 %% <li>`symbolic_name' provides a symbolic name for the node.</li>
@@ -124,6 +123,11 @@
 %% <li>`erlang_remote' specifies a (possibly remote)
 %% Erlang node which is responsible
 %% for starting the new Java node.</li>
+%% <li>`enable_gc' determines whether to garbage collect
+%% Java objects communicated to Erlang or not.</li>
+%% <li>`enable_proxies' determines whether the proxy facility provided
+%% by the `java_proxy' library can be used.
+%% Java objects communicated to Erlang or not.</li>
 %% <li>`call_timeout' sets a timeout value for all calls 
 %% to Java from Erlang (default 10 seconds).</li>
 %% </ul>
@@ -203,12 +207,17 @@ start_node(UserOptions) ->
   check_options(Options),
   LogLevel = proplists:get_value(log_level,Options),
   EnableGC = proplists:get_value(enable_gc,Options,false),
+  EnableProxies = proplists:get_value(enable_proxies,Options,true),
   init([{log_level,LogLevel}]),
   CallTimeout = proplists:get_value(call_timeout,Options),
   SymbolicName = proplists:get_value(symbolic_name,Options,void),
   NodeNode = proplists:get_value(erlang_remote,Options,node()),
   if
     EnableGC -> java_resource:init();
+    true -> ok
+  end,
+  if
+    EnableProxies -> java_proxy:start();
     true -> ok
   end,
   PreNode =
@@ -300,7 +309,7 @@ check_options(Options) ->
 	   end,
 	 case lists:member
 	   (OptionName,
-	    [symbolic_name,log_level,enable_gc,
+	    [symbolic_name,log_level,enable_gc,enable_proxies,
 	     erlang_remote,
 	     java_class,java_classpath,add_to_java_classpath,
 	     java_exception_as_value,java_verbose,
@@ -541,14 +550,14 @@ javaCall(NodeId,Type,Msg) ->
       throw(javaCall)
   end.
 
-enable_gc(D={object,Key,Counter,NodeId},GC) ->
+enable_gc(D={object,Key,_Counter,NodeId},GC) ->
   Resource = java_resource:create(D,GC),
   {object,Key,Resource,NodeId};
 enable_gc(T,GC) when is_tuple(T) ->
   list_to_tuple(enable_gc(tuple_to_list(T),GC));
 enable_gc([First|Rest],GC) ->
   [enable_gc(First,GC)|enable_gc(Rest,GC)];
-enable_gc(Item,GC) ->
+enable_gc(Item,_GC) ->
   Item.
 
 create_msg(Type,Msg,Node) ->
@@ -563,7 +572,6 @@ msg_type(identity) -> non_thread_msg;
 msg_type(reset) -> non_thread_msg;
 msg_type(terminate) -> non_thread_msg;
 msg_type(connect) -> non_thread_msg;
-msg_type(define_invocation_handler) -> non_thread_msg;
 msg_type(getConstructors) -> non_thread_msg;
 msg_type(getClassLocation) -> non_thread_msg;
 msg_type(getMethods) -> non_thread_msg;
@@ -578,6 +586,9 @@ msg_type(stopThread) -> non_thread_msg;
 msg_type(free) -> non_thread_msg;
 msg_type(freeInstance) -> non_thread_msg;
 msg_type(memoryUsage) -> non_thread_msg;
+msg_type(new_proxy_class) -> non_thread_msg;
+msg_type(new_proxy_object) -> non_thread_msg;
+msg_type(proxy_reply) -> non_thread_msg;
 msg_type(_) -> thread_msg.
 
 wait_for_reply(Node) ->
@@ -753,7 +764,7 @@ set_static(NodeId,ClassName,Field,Value) ->
 %% @doc
 %% Checks if two Java objects references refer to the same object.
 %% Note that using normal Erlang term equality is not safe.
--spec eq(object_ref(),object_ref()) -> bool().
+-spec eq(object_ref(),object_ref()) -> boolean().
 eq({object,Id,_,NodeId},{object,Id,_,NodeId}) ->
   true;
 eq(_,_) ->
@@ -842,7 +853,7 @@ default_options() ->
     case code:priv_dir(java_erlang) of
       {error,_} -> [];
       JavaErlangPath when is_list(JavaErlangPath) ->
-	[JavaErlangPath++"/JavaErlang.jar"]
+	[JavaErlangPath++"/JavaErlang.jar",JavaErlangPath++"/javassist.jar"]
     end,
   ClassPath = OtpClassPath++JavaErlangClassPath,
   JavaExecutable = 
