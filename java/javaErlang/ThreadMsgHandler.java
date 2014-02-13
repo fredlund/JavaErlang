@@ -291,7 +291,6 @@ class ThreadMsgHandler implements Runnable {
     }
 
     OtpErlangObject getFieldValue(final OtpErlangObject cmd) throws Exception {
-	System.out.println("getFieldValue("+cmd+")");
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final Object obj = root.java_value_from_erlang(t.elementAt(0));
         final Field field = root.get_field(t.elementAt(1));
