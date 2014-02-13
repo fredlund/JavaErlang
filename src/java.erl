@@ -493,8 +493,7 @@ handle_gc() ->
       format(debug,"result is ~p~n",[Result]),
       if 
 	Result ->
-	  {object,Id,_,NodeId} = Msg,
-	  ets:delete(java_objects,{object,Id,NodeId});	  
+	  ets:delete(java_objects,{object,object_id(Msg),node_id(Msg)});	  
 	true ->
 	  ok
       end,
@@ -881,6 +880,10 @@ version() ->
 node_id({_,_,_,NodeId}) ->
   NodeId.
 
+-spec object_id(object_ref()) -> integer().
+object_id({_,ObjectId,_,_}) ->
+  ObjectId.
+
 %% @doc
 %% Returns the symbolic name of a Java node.
 -spec symbolic_name(node_id()) -> string().
@@ -1261,8 +1264,9 @@ node_store(Node) ->
   ets:insert(java_nodes,{Node#node.node_id,Node}).
   
 %% @private
-find_class(RealObject={object,Id,_,NodeId}) ->
-  Object = {object,Id,NodeId},  
+find_class(RealObject) ->
+  NodeId = node_id(RealObject),
+  Object = {object,object_id(RealObject),NodeId},  
   case ets:lookup(java_objects,Object) of
     [{_,Class}] -> Class;
     _ ->
