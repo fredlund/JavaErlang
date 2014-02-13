@@ -73,7 +73,7 @@ docs:
 edoc: 
 	mkdir -p doc/doc
 	cp doc/overview.edoc doc/doc
-	erl -noshell -run edoc_run files '["src/java.erl"]' '[{sort_functions,false},{dir,"doc/doc"}]'
+	erl -noshell -run edoc_run files '["src/java.erl","src/java_proxy.erl"]' '[{sort_functions,false},{dir,"doc/doc"}]'
 
 $(DOCDIR)/%.html: %.erl
 	erl -noshell -run edoc_run file '"$<"' '[{sort_functions,false},{dir,"$(DOCDIR)"}]'

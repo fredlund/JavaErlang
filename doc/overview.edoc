@@ -242,12 +242,6 @@ call non-public methods should be easy to implement
 (either using the new Java 7 approach, or by changing "permissions"
 using reflection).
 </li>
-<li>
-No garbage collection of Java objects created or passed to Erlang.
-The only manner in which to enable such Java objects to be
-potentially garbage collected is
-to call the ``reset/0'' function.
-</li>
 <li> Speed: the scheme used for communicating between Erlang and
 Java is clearly suboptimal. Many aspects are 
 trivial to improve: use integer tags instead of atom tags, etc.
