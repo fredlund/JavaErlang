@@ -44,7 +44,7 @@ import com.ericsson.otp.erlang.OtpErlangList;
 import com.ericsson.otp.erlang.OtpErlangObject;
 
 class ProxyFactoryClass {
-    public static Class newClass(final Class superClass, final OtpErlangObject methods) {
+    public static ProxyInstanceFactory newClass(JavaErlang root, final Class superClass, final OtpErlangObject methods) {
 	OtpErlangList methodsList = (OtpErlangList) methods;
 	ProxyFactory f = new ProxyFactory();
 	f.setSuperclass(superClass);
@@ -70,7 +70,8 @@ class ProxyFactoryClass {
 			return false;
 		    }
 		});
-	Class c = f.createClass();
-	return c;
+	Class cl = f.createClass();
+	ProxyInstanceFactory pif = new ProxyInstanceFactory(root, cl, methods);
+	return pif;
     }
 }

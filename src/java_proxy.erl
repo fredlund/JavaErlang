@@ -102,18 +102,19 @@ define_invocation_handler(Proxy,Pid) when is_pid(Pid) ->
      define_invocation_handler,
      {Pid,Proxy#proxy.backing_object}).
 
-class(NodeId,Name,ClassName,Methods,Fun) ->
+class(NodeId,Name,ClassName,MethodFuns) ->
+  {Methods,Funs} = lists:unzip(MethodFuns),
   Proxy = 
     java:javaCall
       (NodeId,
        new_proxy_class,
        {ClassName,Methods}),
-  ets:insert(proxy_classes,{Name,NodeId,Proxy,Fun}),
+  ets:insert(proxy_classes,{Name,NodeId,Proxy,list_to_tuple(Funs)}),
   Proxy.
 
 new(Name,Init) ->
   case ets:lookup(proxy_classes,Name) of
-    [{_,NodeId,Proxy,Fun}] ->
+    [{_,NodeId,Proxy,Funs}] ->
       Counter = ets:update_counter(proxy_objects,proxy_counter,1),
       [{_,ProxyPid}] = ets:lookup(proxy_classes,proxy_pid),
       {Object,Handler} = 
@@ -123,7 +124,7 @@ new(Name,Init) ->
 	   {Proxy,Counter,ProxyPid}),
       ets:insert
 	(proxy_objects,
-	 {object,Counter,Init,not_running,Fun,Handler}),
+o	 {{object,Counter},Init,not_running,Funs,Handler}),
       Object
   end.
 
@@ -236,11 +237,11 @@ start_looper() ->
 
 looper() ->
   receive
-    Msg={proxy_msg,ProxyObject,Method,Arguments} ->
+    Msg={proxy_invoke,ObjectId,Self,Method,FunIndex,Args} ->
+      Context = {Self,Method},
       ?LOG("got message ~p~n",[Msg]),
-      Key = {proxy,ProxyObject},
-      case ets:lookup(proxy_table,Key) of
-	[{_,Proxy}] ->
+      case ets:lookup(proxy_objects,{object,ObjectId}) of
+	[{_,State,Status,Funs,Handler}] ->
 	  spawn
 	    (fun () ->
 		 Reply = handle_call(ProxyObject,Method,Arguments,Proxy),
