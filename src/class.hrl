@@ -1,5 +1,6 @@
 -record(class,
 	{name,
+	 id,
 	 node,
 	 class_location,
 	 constructors,

@@ -491,12 +491,6 @@ handle_gc() ->
       format(debug,"gc_process got message ~p~n",[Msg]),
       Result = javaCall(node_id(Msg),freeInstance,Msg),
       format(debug,"result is ~p~n",[Result]),
-      if 
-	Result ->
-	  ets:delete(java_objects,{object,object_id(Msg),node_id(Msg)});	  
-	true ->
-	  ok
-      end,
       handle_gc()
   end.
 
@@ -572,6 +566,7 @@ msg_type(reset) -> non_thread_msg;
 msg_type(terminate) -> non_thread_msg;
 msg_type(connect) -> non_thread_msg;
 msg_type(getConstructors) -> non_thread_msg;
+msg_type(lookupClass) -> non_thread_msg;
 msg_type(getClassLocation) -> non_thread_msg;
 msg_type(getMethods) -> non_thread_msg;
 msg_type(getClasses) -> non_thread_msg;
@@ -798,7 +793,7 @@ open_db(Init,Options) ->
 		  ets:insert(java_nodes,{java_node_counter,0}),
 		  ets:new(java_classes,[named_table,public]),
 		  ets:new(java_threads,[named_table,public]),
-		  ets:new(java_objects,[named_table,public]),
+		  ets:new(java_class_ids,[named_table,public]),
 		  wait_until_stable(),
 		  if
 		    Init ->
@@ -826,7 +821,7 @@ wait_until_stable() ->
   case {ets:info(java_nodes),
 	ets:info(java_classes),
 	ets:info(java_threads),
-	ets:info(java_objects)} of
+	ets:info(java_class_ids)} of
     {Info1,Info2,Info3,Info4}
       when is_list(Info1), is_list(Info2), is_list(Info3), is_list(Info4) ->
       ok;
@@ -877,12 +872,16 @@ version() ->
 
 %% @doc Returns the node where the object argument is located.
 -spec node_id(object_ref()) -> node_id().
-node_id({_,_,_,NodeId}) ->
+node_id({_,_,_,_,NodeId}) ->
   NodeId.
 
 -spec object_id(object_ref()) -> integer().
-object_id({_,ObjectId,_,_}) ->
+object_id({_,ObjectId,_,_,_}) ->
   ObjectId.
+
+-spec class_id(object_ref()) -> integer().
+class_id({_,_,_,ClassId,_}) ->
+  ClassId.
 
 %% @doc
 %% Returns the symbolic name of a Java node.
@@ -919,7 +918,6 @@ nodes() ->
 reset(NodeId) ->
   %% Threads are removed, so we have to clean up the Erlang thread table
   remove_thread_mappings(NodeId),
-  remove_object_mappings(NodeId),
   javaCall(NodeId,reset,void).
 
 %% @doc
@@ -928,7 +926,6 @@ reset(NodeId) ->
 terminate(NodeId) ->
   javaCall(NodeId,terminate,void),
   remove_thread_mappings(NodeId),
-  remove_object_mappings(NodeId),
   remove_class_mappings(NodeId),
   {ok,Node} = node_lookup(NodeId),
   Node#node.port_pid!{control,terminate_reader},
@@ -950,7 +947,7 @@ terminate_all() ->
 	 end, ets:tab2list(java_nodes)),
       ets:delete(java_nodes),
       ets:delete(java_classes),
-      ets:delete(java_objects),
+      ets:delete(java_class_ids),
       ets:delete(java_threads)
   end.
 
@@ -963,7 +960,6 @@ terminate_all() ->
 brutally_terminate(NodeId) ->
   {ok,Node} = node_lookup(NodeId),
   remove_thread_mappings(NodeId),
-  remove_object_mappings(NodeId),
   remove_class_mappings(NodeId),
   ets:delete(java_nodes,NodeId),
   spawn(Node#node.node_node,?MODULE,terminate_brutally,[Node]).
@@ -1012,14 +1008,6 @@ remove_class_mappings(NodeId) ->
 	   _ -> ok
          end
      end, Classes).
-
-remove_object_mappings(NodeId) ->
-  lists:foreach
-    (fun ({Key={_,_,NodeIdKey},_}) ->
-	 if NodeId==NodeIdKey -> ets:delete(java_objects,Key);
-	    true -> ok
-	 end
-     end, ets:tab2list(java_objects)).
 
 %% @doc
 %% Lets Java know that an object can be freed.
@@ -1188,9 +1176,7 @@ get_stacktrace(Exception) ->
 %% currently known to the Erlang part of the java library.
 -spec memory_usage() -> integer().
 memory_usage() ->
-  case ets:info(java_objects,size) of
-    N when is_integer(N) -> N
-  end.
+  0.
 
 %% @doc
 %% Returns an integer corresponding to the number of Java object that are
@@ -1248,6 +1234,7 @@ class_lookup(NodeId,ClassName) when is_atom(ClassName) ->
 class_store(NodeId,ClassName,Class) when is_atom(ClassName) ->
   java:format(debug,"Storing class info for class ~p~n",[ClassName]),
   ets:insert(java_classes,{{NodeId,ClassName},Class}),
+  ets:insert(java_class_ids,{{NodeId,Class#class.id},Class}),
   Class.
 
 %% @private
@@ -1264,15 +1251,14 @@ node_store(Node) ->
   ets:insert(java_nodes,{Node#node.node_id,Node}).
   
 %% @private
-find_class(RealObject) ->
-  NodeId = node_id(RealObject),
-  Object = {object,object_id(RealObject),NodeId},  
-  case ets:lookup(java_objects,Object) of
+find_class(Object) ->
+  ClassId = class_id(Object),
+  NodeId = node_id(Object),
+  case ets:lookup(java_class_ids,{NodeId,ClassId}) of
     [{_,Class}] -> Class;
     _ ->
-      ClassName = getClassName(NodeId,RealObject),
+      ClassName = getClassName(NodeId,Object),
       Class = acquire_class_int(NodeId,ClassName),
-      ets:insert(java_objects,{Object,Class}),
       Class
   end.
 

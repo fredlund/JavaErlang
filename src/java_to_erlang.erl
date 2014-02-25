@@ -44,6 +44,9 @@
 
 
 compute_class(NodeId,ClassName) when is_atom(ClassName) ->
+  ClassId =
+    java:report_java_exception
+      (lookup_class(NodeId,ClassName)),
   RawConstructors =
     java:report_java_exception
       (get_constructors(NodeId,ClassName,true)),
@@ -82,6 +85,7 @@ compute_class(NodeId,ClassName) when is_atom(ClassName) ->
 
   #class{
 	  name=ClassName,
+          id=ClassId,
 	  constructors={ConstructorsWithType,ConstructorsWithArity},
 	  methods={MethodsWithType,MethodsWithArity},
 	  static_methods={StaticMethodsWithType,StaticMethodsWithArity},
@@ -157,6 +161,8 @@ tca(Node,Params,[Alternative={Types,_}|Rest]) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+lookup_class(NodeId,ClassName) ->
+  java:javaCall(NodeId,lookupClass,ClassName).
 get_constructors(NodeId,ClassName,ObserverInPackage) ->
   java:javaCall(NodeId,getConstructors,{ClassName,ObserverInPackage}).
 get_methods(NodeId,ClassName,Static,ObserverInPackage) ->

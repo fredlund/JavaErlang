@@ -75,7 +75,9 @@ public class JavaErlang {
     volatile private Map<Object, OtpErlangObject> accToErlangMap;
     volatile private Map<OtpErlangObject, Object> accFromErlangMap;
     volatile private Map<OtpErlangObject, ThreadMsgHandler> threadMap;
+    volatile private Map<Class,Integer> classMap;
     volatile int objCounter = 0;
+    volatile int classCounter = 0;
     volatile private int accCounter = 0;
     volatile private int threadCounter = 0;
 
@@ -118,6 +120,7 @@ public class JavaErlang {
         fromErlangMap = new ConcurrentHashMap<JavaObjectKey, JavaObjectEntry>();
         accToErlangMap = new ConcurrentHashMap<Object, OtpErlangObject>();
         accFromErlangMap = new ConcurrentHashMap<OtpErlangObject, Object>();
+	classMap = new ConcurrentHashMap<Class, Integer>();
         threadMap = new ConcurrentHashMap<OtpErlangObject, ThreadMsgHandler>();
         try {
             final OtpNode node = new OtpNode(name);
@@ -237,6 +240,8 @@ public class JavaErlang {
             return map_to_erlang_void();
         } else if (tag.equals("connect")) {
             return new OtpErlangAtom("already_connected");
+        } else if (tag.equals("lookupClass")) {
+            return lookupClass(argument);
         } else if (tag.equals("getConstructors")) {
             return getConstructors(argument);
         } else if (tag.equals("getMethods")) {
@@ -375,7 +380,7 @@ public class JavaErlang {
                         return array;
                     }
                 }
-            } else if (arity == 4) {
+            } else if (arity == 5) {
                 final String tag = ((OtpErlangAtom) t.elementAt(0)).atomValue();
                 if (tag.equals("object")) {
 		    final JavaObjectKey key = objectKeyFromErlang(t);
@@ -704,11 +709,12 @@ public class JavaErlang {
         } while (true);
     }
 
-    public OtpErlangObject makeErlangObjectKey(final long key, final long counter, final OtpErlangObject nodeId) {
+    public OtpErlangObject makeErlangObjectKey(final long key, final long counter, final long classNumber, final OtpErlangObject nodeId) {
 	return makeErlangTuple
 	    (new OtpErlangAtom("object"),
 	     new OtpErlangLong(key),
 	     new OtpErlangLong(counter),
+	     new OtpErlangLong(classNumber),
 	     nodeId);
     }
 
@@ -730,12 +736,18 @@ public class JavaErlang {
 		     "increasing count for "+
 		     System.identityHashCode(oldValue.object()));
 	    return makeErlangObjectKey
-		(oldValue.key(),refCount,oldValue.nodeId());
+		(oldValue.key(),refCount,oldValue.classNumber(), oldValue.nodeId());
         }
 
 	final int newCounter = objCounter++;
+	Class cl = obj.getClass();
+	Integer classNumber = classMap.get(cl);
+	if (classNumber == null) {
+	    classNumber = classCounter;
+	    classMap.put(cl,classCounter++);
+	}
 	final JavaObjectEntry entry =
-	    new JavaObjectEntry(obj, newCounter, nodeIdentifier);
+	    new JavaObjectEntry(obj, newCounter, classNumber, nodeIdentifier);
 	    if (logger.isLoggable(Level.INFO))
 		logger.log
 		    (Level.INFO,
@@ -746,7 +758,7 @@ public class JavaErlang {
 	    new JavaObjectKey(newCounter,nodeIdentifier);
         fromErlangMap.put(key, entry);
 	long refCount = entry.alias();
-        return makeErlangObjectKey(key.key(), refCount, key.nodeId());
+        return makeErlangObjectKey(key.key(), refCount, entry.classNumber(), key.nodeId());
     }
 
     public synchronized OtpErlangObject acc_map_to_erlang(final Object obj) {
@@ -931,6 +943,19 @@ public class JavaErlang {
             }
         }
         return new OtpErlangBoolean(true);
+    }
+
+    synchronized OtpErlangObject lookupClass(final OtpErlangObject cmd) throws Exception {
+        final String className = ((OtpErlangAtom) cmd).atomValue();
+	final Class cl = findClass(className);
+	final Integer classNumber = classMap.get(cl);
+	
+	if (classNumber != null) {
+	    return new OtpErlangLong(classNumber);
+	} else {
+	    classMap.put(cl,classCounter);
+	    return new OtpErlangLong(classCounter++);
+	}
     }
 
     OtpErlangObject getConstructor(final OtpErlangObject cmd) throws Exception {
