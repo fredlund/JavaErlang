@@ -528,7 +528,7 @@ javaNodeName(Identity,Node) ->
 
 %% @private
 -spec javaCall(node_id(),integer(),any()) -> any().
-javaCall(NodeId,Type,Msg) when is_integer(Type), Type>0, Type=<?last_tag ->
+javaCall(NodeId,Type,Msg) when is_integer(Type), Type>=0, Type=<?last_tag ->
   case node_lookup(NodeId) of
     {ok, Node} ->
       JavaMsg = create_msg(Type,Msg,Node),
@@ -543,9 +543,9 @@ javaCall(NodeId,Type,Msg) when is_integer(Type), Type>0, Type=<?last_tag ->
       throw(javaCall)
   end.
 
-enable_gc(D={object,Key,_Counter,NodeId},GC) ->
+enable_gc(D={object,Key,_Counter,ClassId,NodeId},GC) ->
   Resource = java_resource:create(D,GC),
-  {object,Key,Resource,NodeId};
+  {object,Key,Resource,ClassId,NodeId};
 enable_gc(T,GC) when is_tuple(T) ->
   list_to_tuple(enable_gc(tuple_to_list(T),GC));
 enable_gc([First|Rest],GC) ->
@@ -740,7 +740,7 @@ set_static(NodeId,ClassName,Field,Value) ->
 %% Checks if two Java objects references refer to the same object.
 %% Note that using normal Erlang term equality is not safe.
 -spec eq(object_ref(),object_ref()) -> boolean().
-eq({object,Id,_,NodeId},{object,Id,_,NodeId}) ->
+eq({object,Id,_,_,NodeId},{object,Id,_,_,NodeId}) ->
   true;
 eq(_,_) ->
   false.
@@ -1039,7 +1039,7 @@ get_value(ValueName,Default) ->
 %% @doc
 %% Returns true if its argument is a Java object reference, false otherwise.
 -spec is_object_ref(any()) -> boolean().
-is_object_ref({object,_,_,_}) ->
+is_object_ref({object,_,_,_,_}) ->
   true;
 is_object_ref({executable,_,_}) ->
   true;
