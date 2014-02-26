@@ -55,6 +55,7 @@
 	 max_java_start_tries=3,call_timeout,num_start_tries=0}).
 
 -include("class.hrl").
+-include("tags.hrl").
 
 -export([init/1]).
 -export([connect/2,start_node/0,start_node/1,nodes/0,symbolic_name/1]).
@@ -140,8 +141,7 @@
 %%-opaque object_type() :: object | executable | thread.
 -opaque object_type() :: object.
 
--opaque object_ref() :: {object_type(), integer(), integer(), node_id()}.
-%%-type object_ref() :: {atom(), integer(), node_id()}.
+-opaque object_ref() :: {object_type(), integer(), integer(), integer(), node_id()}.
 %% A Java object reference.
 
 -type class_name() :: atom() | string().
@@ -444,7 +444,7 @@ connectToNode(PreNode,KeepOnTryingUntil) ->
       java:format
 	(debug,"~p: connected to Java node ~p~n",
 	 [SymbolicName,NodeName]),
-      {javaNode,NodeName}!{connect,PreNode#node.node_id,self()},
+      {javaNode,NodeName}!{?connect,PreNode#node.node_id,self()},
       connect_receive(NodeName,SymbolicName,PreNode,KeepOnTryingUntil);
     pang ->
       case compareTimes_ge(erlang:now(),KeepOnTryingUntil) of
@@ -489,7 +489,7 @@ handle_gc() ->
   receive
     Msg ->
       format(debug,"gc_process got message ~p~n",[Msg]),
-      Result = javaCall(node_id(Msg),freeInstance,Msg),
+      Result = javaCall(node_id(Msg),?freeInstance,Msg),
       format(debug,"result is ~p~n",[Result]),
       handle_gc()
   end.
@@ -527,8 +527,8 @@ javaNodeName(Identity,Node) ->
   list_to_atom("javaNode_"++IdentityStr++HostPart).
 
 %% @private
--spec javaCall(node_id(),atom(),any()) -> any().
-javaCall(NodeId,Type,Msg) ->
+-spec javaCall(node_id(),integer(),any()) -> any().
+javaCall(NodeId,Type,Msg) when is_integer(Type), Type>0, Type=<?last_tag ->
   case node_lookup(NodeId) of
     {ok, Node} ->
       JavaMsg = create_msg(Type,Msg,Node),
@@ -561,29 +561,10 @@ create_msg(Type,Msg,Node) ->
       {Type,Msg,self()}
   end.
     
-msg_type(identity) -> non_thread_msg;
-msg_type(reset) -> non_thread_msg;
-msg_type(terminate) -> non_thread_msg;
-msg_type(connect) -> non_thread_msg;
-msg_type(getConstructors) -> non_thread_msg;
-msg_type(lookupClass) -> non_thread_msg;
-msg_type(getClassLocation) -> non_thread_msg;
-msg_type(getMethods) -> non_thread_msg;
-msg_type(getClasses) -> non_thread_msg;
-msg_type(getFields) -> non_thread_msg;
-msg_type(getConstructor) -> non_thread_msg;
-msg_type(getMethod) -> non_thread_msg;
-msg_type(getField) -> non_thread_msg;
-msg_type(objTypeCompat) -> non_thread_msg;
-msg_type(createThread) -> non_thread_msg;
-msg_type(stopThread) -> non_thread_msg;
-msg_type(free) -> non_thread_msg;
-msg_type(freeInstance) -> non_thread_msg;
-msg_type(memoryUsage) -> non_thread_msg;
-msg_type(new_proxy_class) -> non_thread_msg;
-msg_type(new_proxy_object) -> non_thread_msg;
-msg_type(proxy_reply) -> non_thread_msg;
-msg_type(_) -> thread_msg.
+msg_type(Tag) when Tag=<?last_nonthreaded_tag ->
+  non_thread_msg;
+msg_type(_) ->
+  thread_msg.
 
 wait_for_reply(Node) ->
   Timeout = get_timeout(Node),
@@ -622,7 +603,7 @@ report_java_exception(Other) ->
   Other.
 
 create_thread(NodeId) ->
-  javaCall(NodeId,createThread,0).
+  javaCall(NodeId,?createThread,0).
 
 get_thread(Node) ->
   case ets:lookup(java_threads,{Node#node.node_id,self()}) of
@@ -638,7 +619,7 @@ get_thread(Node) ->
 %% @doc
 %% An identity function for Java objects.
 identity(Value) ->
-  javaCall(node_id(Value),identity,Value).
+  javaCall(node_id(Value),?identity,Value).
 
 %% @doc
 %% Calls the constructor of a Java class.
@@ -658,7 +639,7 @@ identity(Value) ->
 new(NodeId,ClassName,Args) when is_list(Args) ->
   ?LOG("NodeId=~p ClassName=~p~n",[NodeId,ClassName]),
   Constructor = java_to_erlang:find_constructor(NodeId,ClassName,Args),
-  javaCall(NodeId,call_constructor,{Constructor,list_to_tuple(Args)}).
+  javaCall(NodeId,?call_constructor,{Constructor,list_to_tuple(Args)}).
 
 %% @doc
 %% Calls the constructor of a Java class, explicitely selecting
@@ -675,7 +656,7 @@ new(NodeId,ClassName,ArgTypes,Args) when is_list(Args) ->
   ?LOG("NodeId=~p ClassName=~p~n",[NodeId,ClassName]),
   Constructor =
     java_to_erlang:find_constructor_with_type(NodeId,ClassName,ArgTypes),
-  javaCall(NodeId,call_constructor,{Constructor,list_to_tuple(Args)}).
+  javaCall(NodeId,?call_constructor,{Constructor,list_to_tuple(Args)}).
 
 %% @doc
 %% Calls a Java instance method.
@@ -686,7 +667,7 @@ new(NodeId,ClassName,ArgTypes,Args) when is_list(Args) ->
 call(Object,Method,Args) when is_list(Args) ->
   ensure_non_null(Object),
   JavaMethod = java_to_erlang:find_method(Object,Method,Args),
-  javaCall(node_id(Object),call_method,{Object,JavaMethod,list_to_tuple(Args)}).
+  javaCall(node_id(Object),?call_method,{Object,JavaMethod,list_to_tuple(Args)}).
 
 %% @doc
 %% Calls a Java instance method, explicitely
@@ -697,7 +678,7 @@ call(Object,Method,ArgTypes,Args) when is_list(Args) ->
   ensure_non_null(Object),
   JavaMethod =
     java_to_erlang:find_method_with_type(Object,Method,ArgTypes),
-  javaCall(node_id(Object),call_method,{Object,JavaMethod,list_to_tuple(Args)}).
+  javaCall(node_id(Object),?call_method,{Object,JavaMethod,list_to_tuple(Args)}).
 
 %% @doc
 %% Calls a Java static method (a class method).
@@ -708,7 +689,7 @@ call(Object,Method,ArgTypes,Args) when is_list(Args) ->
 call_static(NodeId,ClassName,Method,Args) when is_list(Args) ->
   JavaMethod =
     java_to_erlang:find_static_method(NodeId,ClassName,Method,Args),
-  javaCall(NodeId,call_method,{null,JavaMethod,list_to_tuple(Args)}).
+  javaCall(NodeId,?call_method,{null,JavaMethod,list_to_tuple(Args)}).
 
 %% @doc
 %% Calls a Java static method (a class method). Explicitely
@@ -718,7 +699,7 @@ call_static(NodeId,ClassName,Method,ArgTypes,Args) when is_list(Args) ->
   JavaMethod =
     java_to_erlang:find_static_method_with_type
       (NodeId,ClassName,Method,ArgTypes),
-  javaCall(NodeId,call_method,{null,JavaMethod,list_to_tuple(Args)}).
+  javaCall(NodeId,?call_method,{null,JavaMethod,list_to_tuple(Args)}).
 
 %% @doc
 %% Retrieves the value of an instance attribute.
@@ -728,7 +709,7 @@ call_static(NodeId,ClassName,Method,ArgTypes,Args) when is_list(Args) ->
 get(Object,Field) ->
   ensure_non_null(Object),
   JavaField = java_to_erlang:find_field(Object,Field),
-  javaCall(node_id(Object),getFieldValue,{Object,JavaField,null}).
+  javaCall(node_id(Object),?getFieldValue,{Object,JavaField,null}).
 
 %% @doc
 %% Retrieves the value of a class attribute.
@@ -738,7 +719,7 @@ get(Object,Field) ->
 -spec get_static(node_id(), class_name(), attribute_name()) -> value().
 get_static(NodeId,ClassName,Field) ->
   JavaField = java_to_erlang:find_static_field(NodeId,ClassName,Field),
-  javaCall(NodeId,getFieldValue,{null,JavaField,null}).
+  javaCall(NodeId,?getFieldValue,{null,JavaField,null}).
 
 %% @doc
 %% Modifies the value of an instance attribute.
@@ -746,14 +727,14 @@ get_static(NodeId,ClassName,Field) ->
 set(Object,Field,Value) ->
   ensure_non_null(Object),
   JavaField = java_to_erlang:find_field(Object,Field),
-  javaCall(node_id(Object),setFieldValue,{Object,JavaField,Value}).
+  javaCall(node_id(Object),?setFieldValue,{Object,JavaField,Value}).
 
 %% @doc
 %% Modifies the value of a static, i.e., class attribute.
 -spec set_static(node_id(), class_name(), attribute_name(), value()) -> value().
 set_static(NodeId,ClassName,Field,Value) ->
   JavaField = java_to_erlang:find_static_field(NodeId,ClassName,Field),
-  javaCall(NodeId,setFieldValue,{null,JavaField,Value}).
+  javaCall(NodeId,?setFieldValue,{null,JavaField,Value}).
 
 %% @doc
 %% Checks if two Java objects references refer to the same object.
@@ -918,13 +899,13 @@ nodes() ->
 reset(NodeId) ->
   %% Threads are removed, so we have to clean up the Erlang thread table
   remove_thread_mappings(NodeId),
-  javaCall(NodeId,reset,void).
+  javaCall(NodeId,?reset,void).
 
 %% @doc
 %% Shuts down and terminates the connection to a Java node.
 -spec terminate(node_id()) -> any().
 terminate(NodeId) ->
-  javaCall(NodeId,terminate,void),
+  javaCall(NodeId,?terminate,void),
   remove_thread_mappings(NodeId),
   remove_class_mappings(NodeId),
   {ok,Node} = node_lookup(NodeId),
@@ -940,7 +921,7 @@ terminate_all() ->
     _ ->
       lists:foreach
 	(fun ({NodeId,_Node}) when is_integer(NodeId) ->
-	     javaCall(NodeId,terminate,void),
+	     javaCall(NodeId,?terminate,void),
 	     {ok,Node} = node_lookup(NodeId),
 	     Node#node.port_pid!{control,terminate_reader};
 	     (_) -> ok
@@ -1013,7 +994,7 @@ remove_class_mappings(NodeId) ->
 %% Lets Java know that an object can be freed.
 -spec free(object_ref()) -> any().
 free(Object) ->
-  javaCall(node_id(Object),free,Object).	      
+  javaCall(node_id(Object),?free,Object).	      
 
 %% @doc Sets the timeout value for Java calls.
 %% Calls to Java from the current Erlang process will henceforth
@@ -1075,7 +1056,7 @@ is_object_ref(_) ->
 %% as an Erlang list of objects.
 -spec array_to_list(object_ref()) -> [value()].
 array_to_list(ArrayObj) ->
-  javaCall(node_id(ArrayObj),array_to_list,ArrayObj).
+  javaCall(node_id(ArrayObj),?array_to_list,ArrayObj).
 
 %% @doc
 %% Creates a one-dimensional Java array populated with the elements
@@ -1084,7 +1065,7 @@ array_to_list(ArrayObj) ->
 %% ``java:list_to_array(NodeId,"Hello World!",char).''
 -spec list_to_array(node_id(),[value()],type()) -> object_ref().
 list_to_array(NodeId,List,Type) when is_list(List) ->
-  javaCall(NodeId,list_to_array,{Type,list_to_tuple(List)}).
+  javaCall(NodeId,?list_to_array,{Type,list_to_tuple(List)}).
 
 %% @doc
 %% Returns the elements of the Java String as an Erlang list.
@@ -1104,7 +1085,7 @@ list_to_string(NodeId,List) when is_list(List) ->
 %% @doc Widens or narrows a number.
 -spec convert(node_id(),number_type(),java_number()) -> java_number().
 convert(NodeId,Class,Number) when is_number(Number), is_atom(Class) ->
-  javaCall(NodeId,convert,{Class,Number}).
+  javaCall(NodeId,?convert,{Class,Number}).
 
 %% @doc
 %% Returns true if the first parameter (a Java object) is an instant
@@ -1115,13 +1096,13 @@ convert(NodeId,Class,Number) when is_number(Number), is_atom(Class) ->
 instanceof(Obj,ClassName) when is_list(ClassName) ->
   instanceof(Obj,list_to_atom(ClassName));
 instanceof(Object,ClassName) when is_atom(ClassName) ->
-  javaCall(node_id(Object),instof,{Object,ClassName}).
+  javaCall(node_id(Object),?instof,{Object,ClassName}).
 
 %% @doc Convenience method for determining subype relationship.
 %% Returns true if the first argument is a subtype of the second.
 -spec is_subtype(node_id(),class_name(),class_name()) -> boolean().
 is_subtype(NodeId,Class1,Class2) when is_atom(Class1), is_atom(Class2) ->
-  javaCall(NodeId,is_subtype,{Class1,Class2}).
+  javaCall(NodeId,?is_subtype,{Class1,Class2}).
 
 %% @doc
 %% Returns the classname (as returned by the method getName() in
@@ -1134,7 +1115,7 @@ getClassName(Object) ->
   getClassName(node_id(Object),Object).
 -spec getClassName(node_id(),object_ref()) -> class_name().
 getClassName(NodeId,Obj) ->
-  javaCall(NodeId,getClassName,Obj).
+  javaCall(NodeId,?getClassName,Obj).
 
 %% @doc
 %% Returns the simple classname (as returned by the method getSimplename() in
@@ -1147,7 +1128,7 @@ getSimpleClassName(Object) ->
   getSimpleClassName(node_id(Object),Object).
 -spec getSimpleClassName(node_id(),object_ref()) -> class_name().
 getSimpleClassName(NodeId,Obj) ->
-  javaCall(NodeId,getSimpleClassName,Obj).
+  javaCall(NodeId,?getSimpleClassName,Obj).
 
 %% @doc
 %% Prints the Java stacktrace on the standard error file error descriptor
@@ -1183,7 +1164,7 @@ memory_usage() ->
 %% currently known to the Java part of the java library, at the node argument.
 -spec memory_usage(node_id()) -> integer().
 memory_usage(NodeId) ->
-  javaCall(NodeId,memoryUsage,void).
+  javaCall(NodeId,?memoryUsage,void).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 

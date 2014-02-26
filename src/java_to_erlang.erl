@@ -41,6 +41,7 @@
 
 -include("class.hrl").
 -include("debug.hrl").
+-include("tags.hrl").
 
 
 compute_class(NodeId,ClassName) when is_atom(ClassName) ->
@@ -51,37 +52,37 @@ compute_class(NodeId,ClassName) when is_atom(ClassName) ->
     java:report_java_exception
       (get_constructors(NodeId,ClassName,true)),
   ConstructorsWithType = 
-    elements_with_type(NodeId,ClassName,getConstructor,RawConstructors),
+    elements_with_type(NodeId,ClassName,?getConstructor,RawConstructors),
   ConstructorsWithArity = 
-    elements_with_arity(NodeId,ClassName,getConstructor,RawConstructors),
+    elements_with_arity(NodeId,ClassName,?getConstructor,RawConstructors),
 
   RawMethods =
     java:report_java_exception
       (get_methods(NodeId,ClassName,false,true)),
   MethodsWithType = 
-    elements_with_type(NodeId,ClassName,getMethod,RawMethods),
+    elements_with_type(NodeId,ClassName,?getMethod,RawMethods),
   MethodsWithArity = 
-    elements_with_arity(NodeId,ClassName,getMethod,RawMethods),
+    elements_with_arity(NodeId,ClassName,?getMethod,RawMethods),
 
   RawStaticMethods =
     java:report_java_exception
       (get_methods(NodeId,ClassName,true,true)),
   StaticMethodsWithType = 
-    elements_with_type(NodeId,ClassName,getMethod,RawStaticMethods),
+    elements_with_type(NodeId,ClassName,?getMethod,RawStaticMethods),
   StaticMethodsWithArity = 
-    elements_with_arity(NodeId,ClassName,getMethod,RawStaticMethods),
+    elements_with_arity(NodeId,ClassName,?getMethod,RawStaticMethods),
 
   RawFields =
     java:report_java_exception
       (get_fields(NodeId,ClassName,false,true)),
   FieldsWithArity = 
-    elements_with_arity(NodeId,ClassName,getField,RawFields),
+    elements_with_arity(NodeId,ClassName,?getField,RawFields),
 
   RawStaticFields =
     java:report_java_exception
       (get_fields(NodeId,ClassName,true,true)),
   StaticFieldsWithArity = 
-    elements_with_arity(NodeId,ClassName,getField,RawStaticFields),
+    elements_with_arity(NodeId,ClassName,?getField,RawStaticFields),
 
   #class{
 	  name=ClassName,
@@ -148,7 +149,7 @@ type_compatible_alternatives(Node,Objs,Alternatives) ->
 tca(_Node,_Params,[]) -> false;
 tca(Node,Params,[Alternative={Types,_}|Rest]) ->
   ?LOG("Types=~p Params=~p~n",[Types,Params]),
-  Result = java:javaCall(Node,objTypeCompat,{list_to_tuple(Types),Params}),
+  Result = java:javaCall(Node,?objTypeCompat,{list_to_tuple(Types),Params}),
   if
     Result -> 
       java:format(debug,"Params ~p matches ~p~n",[Params,Types]),
@@ -162,15 +163,15 @@ tca(Node,Params,[Alternative={Types,_}|Rest]) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 lookup_class(NodeId,ClassName) ->
-  java:javaCall(NodeId,lookupClass,ClassName).
+  java:javaCall(NodeId,?lookupClass,ClassName).
 get_constructors(NodeId,ClassName,ObserverInPackage) ->
-  java:javaCall(NodeId,getConstructors,{ClassName,ObserverInPackage}).
+  java:javaCall(NodeId,?getConstructors,{ClassName,ObserverInPackage}).
 get_methods(NodeId,ClassName,Static,ObserverInPackage) ->
-  java:javaCall(NodeId,getMethods,{ClassName,Static,ObserverInPackage}).
+  java:javaCall(NodeId,?getMethods,{ClassName,Static,ObserverInPackage}).
 get_classes(NodeId,ClassName,ObserverInPackage) ->
-  java:javaCall(NodeId,getClasses,{ClassName,ObserverInPackage}).
+  java:javaCall(NodeId,?getClasses,{ClassName,ObserverInPackage}).
 get_fields(NodeId,ClassName,Static,ObserverInPackage) ->
-  java:javaCall(NodeId,getFields,{ClassName,Static,ObserverInPackage}).
+  java:javaCall(NodeId,?getFields,{ClassName,Static,ObserverInPackage}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

@@ -148,11 +148,11 @@ public class JavaErlang {
             }
             if (msg instanceof OtpErlangTuple) {
                 final OtpErlangTuple t = (OtpErlangTuple) msg;
-                if (t.arity() == 3 && t.elementAt(0) instanceof OtpErlangAtom
-                        && t.elementAt(2) instanceof OtpErlangPid) {
+                if (t.arity() == 3 && t.elementAt(0) instanceof OtpErlangLong
+		    && t.elementAt(2) instanceof OtpErlangPid) {
                     handle_nonthread_msg(t);
                 } else if (t.arity() == 4
-                        && t.elementAt(0) instanceof OtpErlangAtom
+                        && t.elementAt(0) instanceof OtpErlangLong
                         && t.elementAt(3) instanceof OtpErlangPid) {
                     handle_thread_msg(t);
                 } else {
@@ -172,12 +172,12 @@ public class JavaErlang {
     }
 
     void handle_nonthread_msg(final OtpErlangTuple t) throws Exception {
-        final String tag = ((OtpErlangAtom) t.elementAt(0)).atomValue();
+        final short tag = ((OtpErlangLong) t.elementAt(0)).uShortValue();
         final OtpErlangObject argument = t.elementAt(1);
         final OtpErlangPid replyPid = (OtpErlangPid) t.elementAt(2);
         final OtpErlangObject nodeId = t.elementAt(3);
         if (!isConnected) {
-            if (tag.equals("connect")) {
+            if (tag == Tags.connectTag) {
                 final String nameOfRunningVM = ManagementFactory
                         .getRuntimeMXBean().getName();
                 final int p = nameOfRunningVM.indexOf('@');
@@ -218,10 +218,11 @@ public class JavaErlang {
         }
     }
 
-    OtpErlangObject handleNonThreadMsg(final String tag,
+    OtpErlangObject handleNonThreadMsg(final short tag,
             final OtpErlangObject argument, final OtpErlangPid replyPid)
             throws Exception {
-        if (tag.equals("reset")) {
+        switch (tag) {
+	case Tags.resetTag:
             objCounter = 0;
             toErlangMap = new ConcurrentHashMap<RefEqualsObject, JavaObjectEntry>();
             fromErlangMap = new ConcurrentHashMap<JavaObjectKey, JavaObjectEntry>();
@@ -231,46 +232,46 @@ public class JavaErlang {
             threadMap = new ConcurrentHashMap<OtpErlangObject, ThreadMsgHandler>();
             System.gc();
             return new OtpErlangAtom("ok");
-        } else if (tag.equals("terminate")) {
+        case Tags.terminateTag:
             if (logger.isLoggable(Level.FINER)) {
                 logger.log(Level.FINER,"\r\nterminating java...");
             }
             reply(new OtpErlangAtom("ok"), replyPid);
             System.exit(0);
             return map_to_erlang_void();
-        } else if (tag.equals("connect")) {
+        case Tags.connectTag:
             return new OtpErlangAtom("already_connected");
-        } else if (tag.equals("lookupClass")) {
+        case Tags.lookupClassTag:
             return lookupClass(argument);
-        } else if (tag.equals("getConstructors")) {
+        case Tags.getConstructorsTag:
             return getConstructors(argument);
-        } else if (tag.equals("getMethods")) {
+        case Tags.getMethodsTag:
             return getMethods(argument);
-        } else if (tag.equals("getClasses")) {
+        case Tags.getClassesTag:
             return getClasses(argument);
-        } else if (tag.equals("getFields")) {
+        case Tags.getFieldsTag:
             return getFields(argument);
-        } else if (tag.equals("getClassLocation")) {
+        case Tags.getClassLocationTag:
             return getClassLocation(argument);
-        } else if (tag.equals("getConstructor")) {
+        case Tags.getConstructorTag:
             return getConstructor(argument);
-        } else if (tag.equals("getMethod")) {
+        case Tags.getMethodTag:
             return getMethod(argument);
-        } else if (tag.equals("getField")) {
+        case Tags.getFieldTag:
             return getField(argument);
-        } else if (tag.equals("objTypeCompat")) {
+        case Tags.objTypeCompatTag:
             return objTypeCompat(argument);
-        } else if (tag.equals("free")) {
+        case Tags.freeTag:
             return free(argument);
-        } else if (tag.equals("freeInstance")) {
+        case Tags.freeInstanceTag:
             return freeInstance(argument);
-        } else if (tag.equals("memoryUsage")) {
+        case Tags.memoryUsageTag:
             return memoryUsage(argument);
-        } else if (tag.equals("identity")) {
+        case Tags.identityTag:
             return identity(argument);
-        } else if (tag.equals("createThread")) {
+        case Tags.createThreadTag:
             return create_thread();
-        } else if (tag.equals("stopThread")) {
+        case Tags.stopThreadTag:
             final Object map_result = threadMap.get(argument);
             if (map_result instanceof ThreadMsgHandler) {
                 final ThreadMsgHandler th = (ThreadMsgHandler) map_result;
@@ -280,15 +281,13 @@ public class JavaErlang {
                 throw new Exception();
             }
             return map_to_erlang_void();
-        } else if (tag.equals("proxy_reply")) {
-            return proxy_reply(argument);
-        } else if (tag.equals("new_proxy_class")) {
+        case Tags.new_proxy_classTag:
             return new_proxy_class(argument);
-        } else if (tag.equals("new_proxy_object")) {
+        case Tags.new_proxy_objectTag:
             return new_proxy_object(argument);
-        } else if (tag.equals("proxy_reply")) {
+        case Tags.proxy_replyTag:
             return proxy_reply(argument);
-        } else {
+        default:
             logger.log
 		(Level.SEVERE,
 		 "*** Error: JavaErlang: \nTag " + tag

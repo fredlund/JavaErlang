@@ -35,6 +35,8 @@
 -export([start/0]).
 -export([class/4,new/3]).
 
+-include("tags.hrl").
+
 -define(debug,true).
 
 -ifdef(debug).
@@ -120,7 +122,7 @@ class(NodeId,Name,SuperClassName,MethodFuns) ->
   Proxy = 
     java:javaCall
       (NodeId,
-       new_proxy_class,
+       ?new_proxy_class,
        {SuperClassName,Methods}),
   ets:insert(proxy_classes,{{NodeId,Name},NodeId,Proxy,list_to_tuple(Functions)}),
   Proxy.
@@ -140,7 +142,7 @@ new(NodeId,Name,Init) ->
       {Object,Handler} = 
 	java:javaCall
 	  (NodeId,
-	   new_proxy_object,
+	   ?new_proxy_object,
 	   {ProxyClass,Counter,ProxyPid}),
       Proxy = #proxy{id=Counter,state=Init,status=idle,queue=[],funs=Funs,handler=Handler},
       ets:insert(proxy_objects,Proxy),
@@ -159,7 +161,7 @@ handle_call(FunIndex,Proxy,Args,Context,ProxyServer) ->
 	  PreResult==void -> null;
 	  true -> PreResult
 	end,
-      java:javaCall(NodeId,proxy_reply,{Handler,Result}),
+      java:javaCall(NodeId,?proxy_reply,{Handler,Result}),
       ProxyServer!{done,Proxy#proxy.id,NewState}
   end.
 

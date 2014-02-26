@@ -74,7 +74,7 @@ class ThreadMsgHandler implements Runnable {
     }
 
     void do_receive() throws Exception {
-        String tag;
+        Short tag;
         OtpErlangPid replyPid;
         OtpErlangObject argument;
 
@@ -84,7 +84,7 @@ class ThreadMsgHandler implements Runnable {
                 JavaErlang.logger.log(Level.FINER,this + " got " + t);
             }
             try {
-                tag = ((OtpErlangAtom) t.elementAt(0)).atomValue();
+                tag = ((OtpErlangLong) t.elementAt(0)).uShortValue();
                 argument = t.elementAt(2);
                 replyPid = (OtpErlangPid) t.elementAt(3);
                 Object result;
@@ -121,35 +121,34 @@ class ThreadMsgHandler implements Runnable {
         } while (true);
     }
 
-    Object handleCall(final String tag, final OtpErlangObject argument)
+    Object handleCall(final short tag, final OtpErlangObject argument)
             throws Exception {
-        if (tag.equals("call_constructor")) {
+	switch (tag) {
+	case Tags.call_constructorTag:
             return call_constructor(argument);
-        } else if (tag.equals("call_method")) {
+	case Tags.call_methodTag:
             return call_method(argument);
-        } else if (tag.equals("getFieldValue")) {
+	case Tags.getFieldValueTag:
             return getFieldValue(argument);
-        } else if (tag.equals("setFieldValue")) {
+	case Tags.setFieldValueTag:
             return setFieldValue(argument);
-        } else if (tag.equals("getClassName")) {
+	case Tags.getClassNameTag:
             return getClassName(argument);
-        } else if (tag.equals("array_to_list")) {
+	case Tags.array_to_listTag:
             return array_to_list(argument);
-        } else if (tag.equals("list_to_array")) {
+	case Tags.list_to_arrayTag:
             return list_to_array(argument);
-        } else if (tag.equals("instof")) {
+	case Tags.instofTag:
             return instof(argument);
-        } else if (tag.equals("convert")) {
+	case Tags.convertTag:
             return convert(argument);
-        } else if (tag.equals("is_subtype")) {
+	case Tags.is_subtypeTag:
             return is_subtype(argument);
-        } else if (tag.equals("getClassName")) {
-            return getClassName(argument);
-        } else if (tag.equals("getSimpleClassName")) {
+	case Tags.getSimpleClassNameTag:
             return getSimpleClassName(argument);
-        } else if (tag.equals("stopThread")) {
+	case Tags.stopThreadTag:
             return null;
-        } else {
+        default:
             System.err.println("\rBad tag " + tag + " in received message");
             throw new Exception();
         }
