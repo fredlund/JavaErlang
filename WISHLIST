@@ -1,0 +1,13 @@
+1. Handling of gc() could work a bit better.
+   We should do an asynchronous call (send) to Java with deallocated
+   references, and make sure that the call is only made when the Java
+   side is still alive.
+
+2. Symbolic names should probably really provide a symbolic name for Java.
+
+3. Permit compilation of a dynamic library on Macintosh.
+   Also: notice if compilation of a dynamic library is possible,
+   and if not, remark on this, but still permit compilation of the library.
+
+
+
