@@ -155,6 +155,9 @@ public class JavaErlang {
                         && t.elementAt(0) instanceof OtpErlangLong
                         && t.elementAt(3) instanceof OtpErlangPid) {
                     handle_thread_msg(t);
+                } else if (t.arity() == 2
+			   && t.elementAt(0) instanceof OtpErlangLong) {
+                    handle_noncall_msg(t);
                 } else {
                     logger.log(Level.FINER,"\nMalformed message " + msg
                             + " received");
@@ -175,7 +178,6 @@ public class JavaErlang {
         final short tag = ((OtpErlangLong) t.elementAt(0)).uShortValue();
         final OtpErlangObject argument = t.elementAt(1);
         final OtpErlangPid replyPid = (OtpErlangPid) t.elementAt(2);
-        final OtpErlangObject nodeId = t.elementAt(3);
         if (!isConnected) {
             if (tag == Tags.connectTag) {
                 final String nameOfRunningVM = ManagementFactory
@@ -206,6 +208,20 @@ public class JavaErlang {
             }
             reply(result, replyPid);
         }
+    }
+
+    void handle_noncall_msg(final OtpErlangTuple t) throws Exception {
+        final short tag = ((OtpErlangLong) t.elementAt(0)).uShortValue();
+        final OtpErlangObject argument = t.elementAt(1);
+	try {
+	    handleNonCallMsg(tag, argument);
+	} catch (final Throwable e) {
+	    if (logger.isLoggable(Level.WARNING)) {
+		logger.log(Level.WARNING,"\r\n*** Exception " + e + " thrown");
+		logger.log(Level.WARNING,"\r");
+		e.printStackTrace();
+	    }
+	}
     }
 
     void handle_thread_msg(final OtpErlangTuple t) throws Exception {
@@ -287,6 +303,21 @@ public class JavaErlang {
             return new_proxy_object(argument);
         case Tags.proxy_replyTag:
             return proxy_reply(argument);
+        default:
+            logger.log
+		(Level.SEVERE,
+		 "*** Error: JavaErlang: \nTag " + tag
+		 + " not recognized");
+            throw new Exception();
+        }
+    }
+
+    OtpErlangObject handleNonCallMsg(final short tag,
+            final OtpErlangObject argument)
+            throws Exception {
+        switch (tag) {
+        case Tags.freeInstanceTag:
+            return freeInstance(argument);
         default:
             logger.log
 		(Level.SEVERE,

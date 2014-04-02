@@ -488,9 +488,11 @@ connect_receive(NodeName,SymbolicName,PreNode,KeepOnTryingUntil) ->
 handle_gc() ->
   receive
     Msg ->
-      format(debug,"gc_process got message ~p~n",[Msg]),
-      Result = javaCall(node_id(Msg),?freeInstance,Msg),
-      format(debug,"result is ~p~n",[Result]),
+      try
+	format(debug,"gc_process got message ~p~n",[Msg]),
+	Result = javaCall(node_id(Msg),?freeInstance,Msg),
+	format(debug,"result is ~p~n",[Result])
+      catch _:_ -> ok end,
       handle_gc()
   end.
 
@@ -557,10 +559,14 @@ create_msg(Type,Msg,Node) ->
   case msg_type(Type) of
     thread_msg -> 
       {Type,get_thread(Node),Msg,self()};
+    non_thread_msg ->
+      {Type,Msg,self()};
     _ ->
-      {Type,Msg,self()}
+      {Type,Msg}
   end.
     
+msg_type(?freeInstance) ->
+  non_call_msg;
 msg_type(Tag) when Tag=<?last_nonthreaded_tag ->
   non_thread_msg;
 msg_type(_) ->
