@@ -52,7 +52,8 @@
 	 monitor_pids=void,
 	 gc_pid=void,
 	 node_node,
-	 options,symbolic_name,
+	 options,
+	 symbolic_name=void,
 	 unix_pid=void,ping_retry=5000,connect_timeout=1000,
 	 max_java_start_tries=3,call_timeout,num_start_tries=0}).
 
@@ -60,7 +61,7 @@
 -include("tags.hrl").
 
 -export([init/1]).
--export([connect/2,start_node/0,start_node/1,nodes/0,symbolic_name/1]).
+-export([connect/2,start_node/0,start_node/1,nodes/0]).
 -export([default_options/0,version/0]). 
 -export([free/1,reset/1,terminate/1,terminate_all/0]).
 -export([brutally_terminate/1,recreate_node/1]).
@@ -252,7 +253,8 @@ spawn_java(PreNode,PreNodeId) ->
       Options = PreNode#node.options,
       JavaVerbose = proplists:get_value(java_verbose,Options),
       ClassPath = compute_classpath(Options),
-      NodeName = javaNodeName(NodeId,PreNode),
+      NodeName =
+	list_to_atom(node_part(NodeId,SymbolicName)++host_part(PreNode)),
       PortPid = 
 	spawn
 	  (PreNode#node.node_node,
@@ -269,24 +271,23 @@ spawn_java(PreNode,PreNodeId) ->
       PreNode1 =
 	PreNode#node{node_id=NodeId,
 		     node_name=NodeName,
-		     port_pid=PortPid,
-		     symbolic_name=SymbolicName},
+		     port_pid=PortPid},
       case connectToNode(PreNode1) of
 	{ok,Node} ->
 	  java:format
 	    (debug,"~p: connect succeeded with pid ~p~n",
-	     [Node#node.symbolic_name,Node#node.node_pid]),
+	     [Node#node.node_name,Node#node.node_pid]),
 	  node_store(Node),
 	  java:format
 	    (debug,
 	     "~p: fresh connection to ~p established~n",
-	     [Node#node.symbolic_name,NodeId]),
+	     [Node#node.node_name,NodeId]),
 	  {ok,NodeId};
 	{error,Reason} ->
 	  java:format
 	    (debug,
 	     "~p: failed to connect at try ~p with reason ~p~n",
-	     [PreNode1#node.symbolic_name,
+	     [PreNode1#node.node_name,
 	      PreNode1#node.num_start_tries,Reason]),
 	  spawn_java
 	    (PreNode1#node{num_start_tries=PreNode1#node.num_start_tries+1},
@@ -405,31 +406,29 @@ connect(NodeName,UserOptions) ->
   check_options(Options),
   LogLevel = proplists:get_value(log_level,Options),
   init([{log_level,LogLevel}]),
-  SymbolicName = proplists:get_value(symbolic_name,Options,void),
   CallTimeout = proplists:get_value(call_timeout,Options),
   NodeId = get_java_node_id(),
   PreNode =
     #node
     {node_id=NodeId,
      call_timeout=CallTimeout,
-     node_name=NodeName,
-     symbolic_name=SymbolicName},
+     node_name=NodeName},
   case connectToNode(PreNode) of
     {ok,Node} ->
       java:format
 	(debug,"~p: connect succeeded with pid ~p~n",
-	 [Node#node.symbolic_name,Node#node.node_pid]),
+	 [Node#node.node_name,Node#node.node_pid]),
       node_store(Node),
       java:format
 	(debug,
 	 "~p: fresh connection to ~p established~n",
-	 [Node#node.symbolic_name,NodeId]),
+	 [Node#node.node_name,NodeId]),
       {ok,NodeId};
     Error = {error,Reason} ->
       java:format
 	(debug,
 	 "~p: failed to connect with reason ~p~n",
-	 [PreNode#node.symbolic_name,Reason]),
+	 [PreNode#node.node_name,Reason]),
       Error
   end.
 
@@ -440,21 +439,20 @@ connectToNode(Node) ->
 
 connectToNode(PreNode,KeepOnTryingUntil) ->
   NodeName = PreNode#node.node_name,
-  SymbolicName = PreNode#node.symbolic_name,
   case net_adm:ping(NodeName) of
     pong ->
       java:format
-	(debug,"~p: connected to Java node ~p~n",
-	 [SymbolicName,NodeName]),
+	(debug,"connected to Java node ~p~n",
+	 [NodeName]),
       {javaNode,NodeName}!{?connect,PreNode#node.node_id,self()},
-      connect_receive(NodeName,SymbolicName,PreNode,KeepOnTryingUntil);
+      connect_receive(NodeName,PreNode,KeepOnTryingUntil);
     pang ->
       case compareTimes_ge(erlang:now(),KeepOnTryingUntil) of
 	true -> 
 	  format
 	    (error,
-	     "*** Error: ~p: failed trying to connect to Java node ~p~n",
-	     [SymbolicName,NodeName]),
+	     "*** Error: failed trying to connect to Java node ~p~n",
+	     [NodeName]),
 	  {error,timeout};
 	false ->
 	  timer:sleep(100),
@@ -462,12 +460,12 @@ connectToNode(PreNode,KeepOnTryingUntil) ->
       end
   end.
 
-connect_receive(NodeName,SymbolicName,PreNode,KeepOnTryingUntil) ->
+connect_receive(NodeName,PreNode,KeepOnTryingUntil) ->
   receive
     {value,{connected,Pid,UnixPid}} when is_pid(Pid) ->
       java:format
-	(debug,"~p (~p): got Java pid ~p~n",
-	 [NodeName,SymbolicName,Pid]),
+	(debug,"~p: got Java pid ~p~n",
+	 [NodeName,Pid]),
       GC_pid = spawn_link(fun () -> handle_gc() end),
       Monitor_pids = spawn_link(fun () -> monitor_pids() end),
       Node = PreNode#node{node_pid=Pid,unix_pid=UnixPid,monitor_pids=Monitor_pids,gc_pid=GC_pid},
@@ -481,8 +479,8 @@ connect_receive(NodeName,SymbolicName,PreNode,KeepOnTryingUntil) ->
 	(warning,
 	 "*** ~p: Warning: got reply ~p instead of a pid "++
 	   "when trying to connect to node ~p~n",
-	 [SymbolicName,Other,{javaNode,NodeName}]),
-      connect_receive(NodeName,SymbolicName,PreNode,KeepOnTryingUntil)
+	 [NodeName,Other,{javaNode,NodeName}]),
+      connect_receive(NodeName,PreNode,KeepOnTryingUntil)
   after PreNode#node.connect_timeout -> 
       %% Failed to connect. We should try to start another node.
       {error,connect_timeout}
@@ -543,8 +541,13 @@ addTimeStamps({M1,S1,Mic1},{M2,S2,Mic2}) ->
   M = M1+M2+SDiv,
   {M,SRem,MicRem}.
 
-javaNodeName(Identity,Node) ->
+node_part(Identity,void) ->
   IdentityStr = integer_to_list(Identity),
+  "javaNode_"++IdentityStr;
+node_part(_,SymbolicName) ->
+  SymbolicName.
+
+host_part(Node) ->
   NodeStr = 
     case Node#node.node_node of
       void ->
@@ -552,8 +555,7 @@ javaNodeName(Identity,Node) ->
       _ -> 
 	atom_to_list(Node#node.node_node)
     end,
-  HostPart = string:substr(NodeStr,string:str(NodeStr,"@")),
-  list_to_atom("javaNode_"++IdentityStr++HostPart).
+  string:substr(NodeStr,string:str(NodeStr,"@")).
 
 %% @private
 -spec javaCall(node_id(),integer(),any()) -> any().
