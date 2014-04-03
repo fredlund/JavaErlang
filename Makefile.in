@@ -40,10 +40,10 @@ ebin/hashset_test.beam: tests/hashset_test.erl
 $(JAR): $(CLASSES)
 	jar cf JavaErlang.jar -C classes javaErlang
 
-ebin/%.beam: src/%.erl
+ebin/%.beam: src/%.erl src/*hrl
 	erlc $(EFLAGS) -o ebin $<
 
-classes/javaErlang/JavaErlang.class: $(JAVASOURCES) $(JAVATESTSOURCES)
+classes/javaErlang/JavaErlang.class: $(JAVASOURCES) $(JAVATESTSOURCES) src/tags.hrl
 	$(JAVA_HOME)/bin/javac -d classes -cp $(OTPERLANG):$(JAVASSIST) $(JAVASOURCES) $(JAVATESTSOURCES)
 
 classes/javaErlang/testing/Test.class: java/javaErlang/testing/Test.java

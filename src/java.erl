@@ -490,8 +490,7 @@ handle_gc() ->
     Msg ->
       try
 	format(debug,"gc_process got message ~p~n",[Msg]),
-	Result = javaCall(node_id(Msg),?freeInstance,Msg),
-	format(debug,"result is ~p~n",[Result])
+	javaSend(node_id(Msg),?freeInstance,Msg)
       catch _:_ -> ok end,
       handle_gc()
   end.
@@ -545,6 +544,19 @@ javaCall(NodeId,Type,Msg) when is_integer(Type), Type>=0, Type=<?last_tag ->
       throw(javaCall)
   end.
 
+%% @private
+-spec javaSend(node_id(),integer(),any()) -> any().
+javaSend(NodeId,Type,Msg) when is_integer(Type), Type>=0, Type=<?last_tag ->
+  case node_lookup(NodeId) of
+    {ok, Node} ->
+      JavaMsg = {Type,Msg},
+      Node#node.node_pid!JavaMsg;
+    _ ->
+      format(debug,"javaCall: nodeId ~p not found~n",[NodeId]),
+      format(debug,"type: ~p message: ~p~n",[Type,Msg]),
+      throw(javaSend)
+  end.
+
 enable_gc(D={object,Key,_Counter,ClassId,NodeId},GC) ->
   Resource = java_resource:create(D,GC),
   {object,Key,Resource,ClassId,NodeId};
@@ -560,13 +572,9 @@ create_msg(Type,Msg,Node) ->
     thread_msg -> 
       {Type,get_thread(Node),Msg,self()};
     non_thread_msg ->
-      {Type,Msg,self()};
-    _ ->
-      {Type,Msg}
+      {Type,Msg,self()}
   end.
     
-msg_type(?freeInstance) ->
-  non_call_msg;
 msg_type(Tag) when Tag=<?last_nonthreaded_tag ->
   non_thread_msg;
 msg_type(_) ->
