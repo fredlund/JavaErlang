@@ -200,8 +200,7 @@ public class JavaErlang {
                 result = handleNonThreadMsg(tag, argument, replyPid);
             } catch (final Throwable e) {
                 if (logger.isLoggable(Level.WARNING)) {
-                    logger.log(Level.WARNING,"\r\n*** Exception " + e + " thrown");
-                    logger.log(Level.WARNING,"\r");
+                    logger.log(Level.WARNING,"\r\n*** Exception " + e + " thrown\r");
                     e.printStackTrace();
                 }
                 result = e;
@@ -217,8 +216,7 @@ public class JavaErlang {
 	    handleNonCallMsg(tag, argument);
 	} catch (final Throwable e) {
 	    if (logger.isLoggable(Level.WARNING)) {
-		logger.log(Level.WARNING,"\r\n*** Exception " + e + " thrown");
-		logger.log(Level.WARNING,"\r");
+		logger.log(Level.WARNING,"\r\n*** Exception " + e + " thrown\r");
 		e.printStackTrace();
 	    }
 	}
@@ -243,7 +241,7 @@ public class JavaErlang {
             toErlangMap = new ConcurrentHashMap<RefEqualsObject, JavaObjectEntry>();
             fromErlangMap = new ConcurrentHashMap<JavaObjectKey, JavaObjectEntry>();
             for (final ThreadMsgHandler th : threadMap.values()) {
-                stop_thread(th, replyPid);
+                stop_thread(th);
             }
             threadMap = new ConcurrentHashMap<OtpErlangObject, ThreadMsgHandler>();
             System.gc();
@@ -287,16 +285,6 @@ public class JavaErlang {
             return identity(argument);
         case Tags.createThreadTag:
             return create_thread();
-        case Tags.stopThreadTag:
-            final Object map_result = threadMap.get(argument);
-            if (map_result instanceof ThreadMsgHandler) {
-                final ThreadMsgHandler th = (ThreadMsgHandler) map_result;
-                threadMap.remove(argument);
-                stop_thread(th, replyPid);
-            } else {
-                throw new Exception();
-            }
-            return map_to_erlang_void();
         case Tags.new_proxy_classTag:
             return new_proxy_class(argument);
         case Tags.new_proxy_objectTag:
@@ -318,6 +306,17 @@ public class JavaErlang {
         switch (tag) {
         case Tags.freeInstanceTag:
             return freeInstance(argument);
+        case Tags.stopThreadTag:
+            final Object map_result = threadMap.get(argument);
+            if (map_result instanceof ThreadMsgHandler) {
+                final ThreadMsgHandler th = (ThreadMsgHandler) map_result;
+                threadMap.remove(argument);
+                stop_thread(th);
+            } else {
+		logger.log(Level.WARNING,"*** Warning: thread missing");
+                throw new Exception();
+            }
+            return map_to_erlang_void();
         default:
             logger.log
 		(Level.SEVERE,
@@ -333,14 +332,14 @@ public class JavaErlang {
         return map_new_thread_to_erlang(th);
     }
 
-    static void stop_thread(final ThreadMsgHandler th,
-            final OtpErlangPid replyPid) throws Exception {
-        th.queue.put(mkStopThreadMsg(replyPid));
+    static void stop_thread(final ThreadMsgHandler th) throws Exception {
+        th.queue.put(mkStopThreadMsg());
     }
 
-    static OtpErlangObject mkStopThreadMsg(final OtpErlangPid replyPid) {
-        return makeErlangTuple(new OtpErlangAtom("stopThread"),
-                map_to_erlang_null(), map_to_erlang_null(), replyPid);
+    static OtpErlangObject mkStopThreadMsg() {
+	OtpErlangObject nullObj = map_to_erlang_null();
+        return makeErlangTuple(new OtpErlangLong(Tags.stopThreadTag),
+			       nullObj, nullObj, nullObj);
     }
 
     public static OtpErlangTuple makeErlangTuple(

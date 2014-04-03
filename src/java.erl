@@ -48,7 +48,9 @@
 -include_lib("kernel/include/file.hrl").
 
 -record(node,
-	{node_name=void,node_pid=void,port_pid=void,node_id=void,gc_pid=void,
+	{node_name=void,node_pid=void,port_pid=void,node_id=void,
+	 monitor_pids=void,
+	 gc_pid=void,
 	 node_node,
 	 options,symbolic_name,
 	 unix_pid=void,ping_retry=5000,connect_timeout=1000,
@@ -467,7 +469,8 @@ connect_receive(NodeName,SymbolicName,PreNode,KeepOnTryingUntil) ->
 	(debug,"~p (~p): got Java pid ~p~n",
 	 [NodeName,SymbolicName,Pid]),
       GC_pid = spawn_link(fun () -> handle_gc() end),
-      Node = PreNode#node{node_pid=Pid,unix_pid=UnixPid,gc_pid=GC_pid},
+      Monitor_pids = spawn_link(fun () -> monitor_pids() end),
+      Node = PreNode#node{node_pid=Pid,unix_pid=UnixPid,monitor_pids=Monitor_pids,gc_pid=GC_pid},
       {ok,Node};
     {value,already_connected} ->
       %% Oops. We are talking to an old Java node...
@@ -483,6 +486,31 @@ connect_receive(NodeName,SymbolicName,PreNode,KeepOnTryingUntil) ->
   after PreNode#node.connect_timeout -> 
       %% Failed to connect. We should try to start another node.
       {error,connect_timeout}
+  end.
+
+monitor_pids() ->
+  receive
+    {do_monitor,Pid} ->
+      format(debug,"monitor_pids will monitor ~p~n",[Pid]),
+      monitor(process,Pid),
+      monitor_pids();
+    {'DOWN',_,_,Pid,_} ->
+      [{_,Threads}] = ets:lookup(java_threads,Pid),
+      lists:foreach
+	(fun ({Thread,NodeId}) ->
+	     format
+	       (debug,
+		"monitor_pids taking down thread ~p at ~p due to termination of ~p~n",
+		[Thread,NodeId,Pid]),
+	     javaSend(NodeId,?stopThread,Thread)
+	 end, Threads),
+      monitor_pids();
+    Other ->
+      format
+	(warning,
+	 "*** Warning: monitor_pids() got message ~p~n",
+	 [Other]),
+      monitor_pids()
   end.
 
 handle_gc() ->
@@ -547,7 +575,7 @@ javaCall(NodeId,Type,Msg) when is_integer(Type), Type>=0, Type=<?last_tag ->
 %% @private
 -spec javaSend(node_id(),integer(),any()) -> any().
 javaSend(NodeId,Type,Msg) when is_integer(Type), Type>=0, Type=<?last_tag ->
-  case node_lookup(NodeId) of
+  case node_lookup(NodeId,false) of
     {ok, Node} ->
       JavaMsg = {Type,Msg},
       Node#node.node_pid!JavaMsg;
@@ -620,12 +648,22 @@ create_thread(NodeId) ->
   javaCall(NodeId,?createThread,0).
 
 get_thread(Node) ->
-  case ets:lookup(java_threads,{Node#node.node_id,self()}) of
+  NodeId = Node#node.node_id,
+  Self = self(),
+  case ets:lookup(java_threads,{NodeId,Self}) of
     [{_,Thread}] -> 
       Thread;
     _ ->
-      Thread = create_thread(Node#node.node_id),
-      ets:insert(java_threads,{{Node#node.node_id,self()},Thread}),
+      Thread = create_thread(NodeId),
+      ThreadsPerPid = 
+	case ets:lookup(java_threads,Self) of
+	  [] -> [];
+	  [{_,ThreadsPP}] -> ThreadsPP
+	end,
+      NewThreadsPerPid = [{Thread,NodeId}|ThreadsPerPid],
+      ets:insert(java_threads,{Self,NewThreadsPerPid}),
+      ets:insert(java_threads,{{Node#node.node_id,Self},Thread}),
+      Node#node.monitor_pids!{do_monitor,Self},
       Thread
   end.
 
@@ -991,7 +1029,13 @@ remove_thread_mappings(NodeId) ->
     (fun ({Key={NodeIdKey,_},_}) ->
 	 if NodeId==NodeIdKey -> ets:delete(java_threads,Key);
 	    true -> ok
-	 end
+	 end;
+	 ({Pid,ThreadNodes}) ->
+	 NewThreadNodes =
+	   lists:filter
+	     (fun ({_,NodeId2}) -> NodeId=/=NodeId2 end,
+	      ThreadNodes),
+	 ets:insert(java_threads,{Pid,NewThreadNodes})
      end, ets:tab2list(java_threads)).
 
 remove_class_mappings(NodeId) ->
@@ -1234,13 +1278,26 @@ class_store(NodeId,ClassName,Class) when is_atom(ClassName) ->
 
 %% @private
 node_lookup(NodeId) ->
+  node_lookup(NodeId,true).
+
+node_lookup(NodeId,Warn) ->
   case ets:lookup(java_nodes,NodeId) of
     [{_,Node}] ->
       {ok,Node};
     _ ->
-      format(error,"node_lookup(~p) failed??~n",[NodeId]),
-      false
+      if
+	Warn ->
+	  format(error,"~p: node_lookup(~p) failed??~n",[self(),NodeId]),
+	  format(error,"Stacktrace:~n~p~n",[gen_stacktrace()]),
+	  false;
+	true ->
+	  false
+      end
   end.
+
+gen_stacktrace() ->
+  try throw(bad)
+  catch _:_ -> erlang:get_stacktrace() end.
 
 node_store(Node) ->
   ets:insert(java_nodes,{Node#node.node_id,Node}).

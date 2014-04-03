@@ -49,6 +49,10 @@ test19_test() ->
   ?assertEqual(true,print_exception(fun () -> tc19() end)).
 test20_test() ->
   ?assertEqual(1,print_exception(fun () -> tc20() end)).
+test21_test() ->
+  ?assertEqual(ok,print_exception(fun () -> tc21() end)).
+test22_test() ->
+  ?assertEqual(ok,print_exception(fun () -> tc22() end)).
 
 %% With gc 
 
@@ -96,6 +100,10 @@ test19gc_test() ->
   ?assertEqual(true,print_exception(fun () -> tc19_gc() end)).
 test20gc_test() ->
   ?assertEqual(1,print_exception(fun () -> tc20_gc() end)).
+test21gc_test() ->
+  ?assertEqual(ok,print_exception(fun () -> tc21_gc() end)).
+test22gc_test() ->
+  ?assertEqual(ok,print_exception(fun () -> tc22_gc() end)).
 
 tc() ->
   io:format("Starting tc~n",[]),
@@ -794,5 +802,129 @@ tc20l(0,H,I) ->
 tc20l(N,H,I) ->
   java:call(H,add,[I]),
   tc20l(N-1,H,I).
+
+tc21() ->
+  {ok,NodeId} = java:start_node(),
+  lists:foreach
+    (fun (_) ->
+	 spawn
+	   (fun () ->
+		timer:sleep(100+random:uniform(100)),
+		java:new(NodeId,'java.lang.Integer',[2]),
+		timer:sleep(100+random:uniform(100))
+	    end)
+     end,
+    lists:duplicate(100,10)),
+  ok.
+
+tc21_gc() ->
+  {ok,NodeId} = java:start_node([{enable_gc,true}]),
+  lists:foreach
+    (fun (_) ->
+	 spawn
+	   (fun () ->
+		timer:sleep(100+random:uniform(100)),
+		java:new(NodeId,'java.lang.Integer',[2]),
+		timer:sleep(100+random:uniform(100))
+	    end)
+     end,
+    lists:duplicate(100,10)),
+  ok.
+
+tc22() ->
+  {ok,NodeId} = java:start_node(),
+  Self = self(),
+  lists:foreach
+    (fun (_) ->
+	 spawn
+	   (fun () ->
+		timer:sleep(100+random:uniform(100)),
+		java:new(NodeId,'java.lang.Integer',[2]),
+		Self!ok,
+		timer:sleep(300+random:uniform(100))
+	    end)
+     end,
+    lists:duplicate(100,10)),
+  count(100),
+  java:terminate(NodeId),
+  ok.
+
+tc22_gc() ->
+  {ok,NodeId} = java:start_node([{enable_gc,true}]),
+  Self = self(),
+  lists:foreach
+    (fun (_) ->
+	 spawn
+	   (fun () ->
+		timer:sleep(100+random:uniform(100)),
+		java:new(NodeId,'java.lang.Integer',[2]),
+		Self!ok,
+		timer:sleep(300+random:uniform(100))
+	    end)
+     end,
+    lists:duplicate(100,10)),
+  count(100),
+  java:terminate(NodeId),
+  ok.
+  
+count(0) ->
+  ok;
+count(N) ->
+  receive
+    ok -> count(N-1)
+  end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+runtests() ->
+  tc(), 
+  tc1(), 
+  tc2(), 
+  tc3(), 
+  tc35(), 
+  tc4(), 
+  tc5(), 
+  tc6(), 
+  tc7(), 
+  tc8(), 
+  tc9(), 
+  tc10(), 
+  tc11(), 
+  tc12(), 
+  tc13(), 
+  tc14(), 
+  tc15(), 
+  tc16(), 
+  tc17(), 
+  tc18(), 
+  tc19(), 
+  tc20(), 
+  tc21(),
+  tc22(),
+
+  tc_gc(), 
+  tc1_gc(), 
+  tc2_gc(), 
+  tc3_gc(), 
+  tc35_gc(), 
+  tc4_gc(), 
+  tc5_gc(), 
+  tc6_gc(), 
+  tc7_gc(), 
+  tc8_gc(), 
+  tc9_gc(), 
+  tc10_gc(), 
+  tc11_gc(), 
+  tc12_gc(), 
+  tc13_gc(), 
+  tc14_gc(), 
+  tc15_gc(), 
+  tc16_gc(), 
+  tc17_gc(), 
+  tc18_gc(), 
+  tc19_gc(), 
+  tc20_gc(),
+  tc21_gc(),
+  tc22_gc().
 
 

@@ -66,17 +66,26 @@ class ThreadMsgHandler implements Runnable {
     }
 
     public void run() {
+	if (JavaErlang.logger.isLoggable(Level.FINE)) {
+	    JavaErlang.logger.log(Level.FINE,"\r\n*** starting thread");
+	}
+
         try {
             do_receive();
         } catch (final Exception exc) {
             exc.printStackTrace();
         }
+
+	if (JavaErlang.logger.isLoggable(Level.FINE)) {
+	    JavaErlang.logger.log(Level.FINE,"\r\n*** stopping thread");
+	}
     }
 
     void do_receive() throws Exception {
         Short tag;
         OtpErlangPid replyPid;
         OtpErlangObject argument;
+	boolean finishing = false;
 
         do {
             final OtpErlangTuple t = (OtpErlangTuple) queue.take();
@@ -86,7 +95,6 @@ class ThreadMsgHandler implements Runnable {
             try {
                 tag = ((OtpErlangLong) t.elementAt(0)).uShortValue();
                 argument = t.elementAt(2);
-                replyPid = (OtpErlangPid) t.elementAt(3);
                 Object result;
                 try {
                     result = handleCall(tag, argument);
@@ -111,14 +119,15 @@ class ThreadMsgHandler implements Runnable {
                     result = e;
                 }
                 if (result != null) {
+		    replyPid = (OtpErlangPid) t.elementAt(3);
                     root.reply(result, replyPid);
                 } else {
-                    break;
+                    finishing = true;
                 }
             } catch (final Exception e) {
                 System.err.println("Malformed message " + t);
             }
-        } while (true);
+        } while (!finishing);
     }
 
     Object handleCall(final short tag, final OtpErlangObject argument)
