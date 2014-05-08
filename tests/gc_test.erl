@@ -48,6 +48,9 @@ start(N,M,J) ->
   io:format
     ("\nAt start: #(Erlang objects)=~p #(Java objects)=~p~n~n",
      [java:memory_usage(),java:memory_usage(Nid)]),
+  do_test(Nid,N,M,J).
+
+do_test(Nid,N,M,J) ->
   Seq =
     lists:map
       (fun (I) -> java:new(Nid,'java.lang.Integer',[I]) end,
@@ -69,6 +72,7 @@ start(N,M,J) ->
   erlang:garbage_collect(),
   receive after 10000 -> ok end,
   erlang:garbage_collect(),
+  receive after 1000 -> ok end,
   io:format
     ("\nAt end, after gc: #(Erlang objects)=~p #(Java objects)=~p~n~n",
      [java:memory_usage(),java:memory_usage(Nid)]).
