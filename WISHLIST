@@ -2,5 +2,12 @@
    Also: notice if compilation of a dynamic library is possible,
    and if not, remark on this, but still permit compilation of the library.
 
+- string_to_list does not do the correct thing for non-ascii data.
+  A list of bytes are returned, which since they are signed, may be
+  negative and thus crash Erlang.
+
+- check support for varargs (...) in JavaErlang. 
+
+- check if ["hi"] converts to an array of strings, as expected.
 
 
