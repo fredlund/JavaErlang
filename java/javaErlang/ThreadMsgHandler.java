@@ -326,6 +326,7 @@ class ThreadMsgHandler implements Runnable {
         Object result;
 
         final Constructor cnstr = (Constructor) fun;
+	cnstr.setAccessible(true);
         result =
 	    cnstr.newInstance
 	    (root.java_values_from_erlang
@@ -341,6 +342,7 @@ class ThreadMsgHandler implements Runnable {
         Object result;
 
         final Method method = (Method) fun;
+	method.setAccessible(true);
         final OtpErlangObject otpObj = t.elementAt(0);
         final Object obj = root.java_value_from_erlang(otpObj);
         final Object[] translated_args = root.java_values_from_erlang(args,

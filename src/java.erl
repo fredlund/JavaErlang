@@ -560,7 +560,10 @@ host_part(Node) ->
 %% @private
 -spec javaCall(node_id(),integer(),any()) -> any().
 javaCall(NodeId,Type,Msg) when is_integer(Type), Type>=0, Type=<?last_tag ->
-  case node_lookup(NodeId) of
+  javaCall(NodeId,Type,Msg,true).
+
+javaCall(NodeId,Type,Msg,Warn) when is_integer(Type), Type>=0, Type=<?last_tag ->
+  case node_lookup(NodeId,Warn) of
     {ok, Node} ->
       JavaMsg = create_msg(Type,Msg,Node),
       Node#node.node_pid!JavaMsg,
@@ -569,9 +572,14 @@ javaCall(NodeId,Type,Msg) when is_integer(Type), Type>=0, Type=<?last_tag ->
 	Reply -> enable_gc(Reply,Node#node.gc_pid)
       end;
     _ ->
-      format(error,"javaCall: nodeId ~p not found~n",[NodeId]),
-      format(error,"type: ~p message: ~p~n",[Type,Msg]),
-      throw(javaCall)
+      if
+	Warn ->
+	  format(error,"javaCall: nodeId ~p not found~n",[NodeId]),
+	  format(error,"type: ~p message: ~p~n",[Type,Msg]),
+	  throw(javaCall);
+	true ->
+	  fail
+      end
   end.
 
 %% @private
@@ -959,10 +967,10 @@ reset(NodeId) ->
 %% Shuts down and terminates the connection to a Java node.
 -spec terminate(node_id()) -> any().
 terminate(NodeId) ->
-  javaCall(NodeId,?terminate,void),
+  javaCall(NodeId,?terminate,void,false),
   remove_thread_mappings(NodeId),
   remove_class_mappings(NodeId),
-  {ok,Node} = node_lookup(NodeId),
+  {ok,Node} = node_lookup(NodeId,false),
   Node#node.port_pid!{control,terminate_reader},
   ets:delete(java_nodes,NodeId).
 
@@ -975,8 +983,8 @@ terminate_all() ->
     _ ->
       lists:foreach
 	(fun ({NodeId,_Node}) when is_integer(NodeId) ->
-	     javaCall(NodeId,?terminate,void),
-	     {ok,Node} = node_lookup(NodeId),
+	     javaCall(NodeId,?terminate,void,false),
+	     {ok,Node} = node_lookup(NodeId,false),
 	     Node#node.port_pid!{control,terminate_reader};
 	     (_) -> ok
 	 end, ets:tab2list(java_nodes)),
