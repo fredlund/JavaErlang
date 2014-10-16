@@ -492,6 +492,9 @@ public class JavaErlang {
         } else if ((value instanceof OtpErlangString) &&
 		   (type == java.lang.String.class)) {
 	    return ((OtpErlangString) value).stringValue();
+        } else if ((value instanceof OtpErlangList) &&
+		   (type == java.lang.String.class)) {
+	    return ((OtpErlangList) value).stringValue();
 	}
 	else {
             if (type instanceof Class) {
