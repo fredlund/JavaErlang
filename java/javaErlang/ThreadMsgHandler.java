@@ -347,7 +347,19 @@ class ThreadMsgHandler implements Runnable {
         final Object obj = root.java_value_from_erlang(otpObj);
         final Object[] translated_args = root.java_values_from_erlang(args,
                 method.getParameterTypes());
+	if (JavaErlang.logger.isLoggable(Level.FINER)) {
+	    JavaErlang.logger.log
+		(Level.FINER,
+		 "calling "+method+" with "+
+		 translated_args);
+	}
         result = method.invoke(obj, translated_args);
+	if (JavaErlang.logger.isLoggable(Level.FINER)) {
+	    JavaErlang.logger.log
+		(Level.FINER,
+		 "returning from "+method+" with "+
+		 translated_args + " result is "+result);
+	}
         return root.map_to_erlang(result, method.getReturnType());
     }
 }

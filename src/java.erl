@@ -210,7 +210,7 @@ start_node(UserOptions) ->
   check_options(Options),
   LogLevel = proplists:get_value(log_level,Options),
   EnableGC = proplists:get_value(enable_gc,Options,false),
-  EnableProxies = proplists:get_value(enable_proxies,Options,true),
+  EnableProxies = proplists:get_value(enable_proxies,Options,false),
   init([{log_level,LogLevel}]),
   CallTimeout = proplists:get_value(call_timeout,Options),
   SymbolicName = proplists:get_value(symbolic_name,Options,void),
@@ -285,7 +285,7 @@ spawn_java(PreNode,PreNodeId) ->
 	  {ok,NodeId};
 	{error,Reason} ->
 	  java:format
-	    (debug,
+	    (warning,
 	     "~p: failed to connect at try ~p with reason ~p~n",
 	     [PreNode1#node.node_name,
 	      PreNode1#node.num_start_tries,Reason]),
@@ -426,7 +426,7 @@ connect(NodeName,UserOptions) ->
       {ok,NodeId};
     Error = {error,Reason} ->
       java:format
-	(debug,
+	(warning,
 	 "~p: failed to connect with reason ~p~n",
 	 [PreNode#node.node_name,Reason]),
       Error
@@ -439,6 +439,9 @@ connectToNode(Node) ->
 
 connectToNode(PreNode,KeepOnTryingUntil) ->
   NodeName = PreNode#node.node_name,
+  java:format
+    (debug,"trying to connect to Java node ~p~n",
+     [NodeName]),
   case net_adm:ping(NodeName) of
     pong ->
       java:format
@@ -450,8 +453,8 @@ connectToNode(PreNode,KeepOnTryingUntil) ->
       case compareTimes_ge(erlang:now(),KeepOnTryingUntil) of
 	true -> 
 	  format
-	    (error,
-	     "*** Error: failed trying to connect to Java node ~p~n",
+	    (warning,
+	     "*** Warning: failed trying to connect to Java node ~p~n",
 	     [NodeName]),
 	  {error,timeout};
 	false ->
@@ -500,7 +503,8 @@ monitor_pids() ->
 	       (debug,
 		"monitor_pids taking down thread ~p at ~p due to termination of ~p~n",
 		[Thread,NodeId,Pid]),
-	     javaSend(NodeId,?stopThread,Thread)
+	     try javaSend(NodeId,?stopThread,Thread)
+	     catch _:_ -> ok end
 	 end, Threads),
       monitor_pids();
     Other ->
@@ -566,10 +570,20 @@ javaCall(NodeId,Type,Msg,Warn) when is_integer(Type), Type>=0, Type=<?last_tag -
   case node_lookup(NodeId,Warn) of
     {ok, Node} ->
       JavaMsg = create_msg(Type,Msg,Node),
+      case permit_output(get_loglevel(),debug) of
+	true -> java:format(debug,"to_java: ~p~n",[JavaMsg]);
+	false -> ok
+      end,
       Node#node.node_pid!JavaMsg,
       case wait_for_reply(Node) of
-	{zzzzz,Msg} -> throw(impossible);
-	Reply -> enable_gc(Reply,Node#node.gc_pid)
+	{zzzzz,Msg} ->
+	  throw(impossible);
+	Reply ->
+	  case permit_output(get_loglevel(),debug) of
+	    true -> java:format(debug,"from_java: ~p -> ~p~n",[JavaMsg,Reply]);
+	    false -> ok
+	  end,
+	  enable_gc(Reply,Node#node.gc_pid)
       end;
     _ ->
       if
