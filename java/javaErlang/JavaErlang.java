@@ -313,8 +313,10 @@ public class JavaErlang {
                 threadMap.remove(argument);
                 stop_thread(th);
             } else {
-		logger.log(Level.WARNING,"*** Warning: thread missing");
-                throw new Exception();
+		logger.log
+		    (Level.FINER,
+		     "*** Warning: thread missing in stopThread");
+                //throw new Exception();
             }
             return map_to_erlang_void();
         default:
