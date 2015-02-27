@@ -87,7 +87,7 @@
 -export([finalComponent/1]).
 -export([find_class/1]).
 -export([node_lookup/1]).
--export([run_java/7]).
+-export([run_java/8]).
 -export([terminate_brutally/1]).
 
 -include("debug.hrl").
@@ -107,6 +107,7 @@
     | {erlang_remote,string()}
     | {log_level,loglevel()}
     | {enable_gc,boolean()}
+    | {java_options,[string()]}
     | {enable_proxies,boolean()}
     | {call_timeout,integer() | infinity}.
 %% <ul>
@@ -124,6 +125,8 @@
 %% to start the Java interpreter (by default "java").</li>
 %% <li>`java_verbose' provides diagnostic output from the 
 %% Java interface class using the Java standard logger.</li>
+%% <li>`java_options' permits specifying command line options
+%% to the Java executable.</li>
 %% <li>`erlang_remote' specifies a (possibly remote)
 %% Erlang node which is responsible
 %% for starting the new Java node.</li>
@@ -252,6 +255,7 @@ spawn_java(PreNode,PreNodeId) ->
       NodeId = PreNodeId+99,
       Options = PreNode#node.options,
       JavaVerbose = proplists:get_value(java_verbose,Options),
+      JavaOptions = proplists:get_value(java_options,Options),
       ClassPath = compute_classpath(Options),
       NodeName =
 	list_to_atom(node_part(NodeId,SymbolicName)++host_part(PreNode)),
@@ -265,7 +269,9 @@ spawn_java(PreNode,PreNodeId) ->
 	    NodeName,
 	    SymbolicName,
 	    proplists:get_value(java_executable,Options),
-	    JavaVerbose,ClassPath,
+	    JavaVerbose,
+	    JavaOptions,
+	    ClassPath,
 	    proplists:get_value(java_class,Options)
 	   ]),
       PreNode1 =
@@ -315,7 +321,7 @@ check_options(Options) ->
 	    [symbolic_name,log_level,enable_gc,enable_proxies,
 	     erlang_remote,
 	     java_class,java_classpath,add_to_java_classpath,
-	     java_exception_as_value,java_verbose,
+	     java_exception_as_value,java_verbose,java_options,
 	     java_executable,call_timeout]) of
 	   true -> ok;
 	   false ->
@@ -340,14 +346,18 @@ get_java_node_id() ->
   ets:update_counter(java_nodes,java_node_counter,1).
 
 %% @private
-run_java(Identity,NodeName,Name,Executable,Verbose,Paths,Class) ->
+run_java(Identity,NodeName,Name,Executable,Verbose,JavaOptions,Paths,Class) ->
   ClassPath = 
     case combine_paths(Paths) of
       "" -> [];
       PathSpec -> ["-cp",PathSpec]
     end,
-  VerboseArg = if Verbose=/=undefined -> ["-loglevel",Verbose]; true -> [] end,
+  VerboseArg =
+    if Verbose=/=undefined -> ["-loglevel",Verbose]; true -> [] end,
+  JavaOptionsArgs =
+    if JavaOptions=/=undefined -> JavaOptions; true -> [] end,
   Args =
+    JavaOptionsArgs++
     ClassPath++
     [Class,NodeName]++
     VerboseArg,
@@ -356,7 +366,8 @@ run_java(Identity,NodeName,Name,Executable,Verbose,Paths,Class) ->
      "~p: starting Java node at ~p with command~n~s and args ~p~n",
      [Name,
       net_adm:localhost(),
-      Executable,Args]),
+      Executable,
+      Args]),
   Port =
     open_port
       ({spawn_executable,Executable},
