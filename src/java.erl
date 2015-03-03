@@ -153,6 +153,8 @@
 -type class_name() :: atom() | string().
 %% A Java classname, e.g., the quoted atom 'java.lang.Integer'.
 
+-type class_ref() :: class_name() | object_type().
+
 -type method_name() :: atom().
 %% A name of a Java method, e.g., the atom 'toString'.
 
@@ -1262,12 +1264,12 @@ memory_usage(NodeId) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 
 %% @private
--spec acquire_class(node_id(),class_name()) -> #class{}.
-acquire_class(NodeId,ClassName) when is_atom(ClassName) ->
+-spec acquire_class(node_id(),class_ref()) -> #class{}.
+acquire_class(NodeId,ClassName) ->
   ?LOG("acquire_class(~p,~p)~n",[NodeId,ClassName]),
   acquire_class_int(NodeId,ClassName).
 
-acquire_class_int(NodeId,ClassName) ->
+acquire_class_int(NodeId,ClassName) when is_atom(ClassName) ->
   case class_lookup(NodeId,ClassName) of
     {ok,Class} ->
       Class;
@@ -1282,6 +1284,18 @@ acquire_class_int(NodeId,ClassName) ->
 	      ets:delete(java_classes,{loading,NodeId,ClassName}),
 	      erlang:raise(ExceptionClass,Reason,erlang:get_stacktrace())
 	  end
+      end
+  end;
+acquire_class_int(NodeId,ClassRef) when is_tuple(ClassRef) ->
+  case get_load_permission(NodeId,ClassRef) of
+    ok ->
+      try java_to_erlang:compute_class(NodeId,ClassRef) of
+	  Class ->
+	  ets:delete(java_classes,{loading,NodeId,ClassRef}),
+	  class_store(NodeId,ClassRef,Class)
+      catch ExceptionClass:Reason ->
+	  ets:delete(java_classes,{loading,NodeId,ClassRef}),
+	  erlang:raise(ExceptionClass,Reason,erlang:get_stacktrace())
       end
   end.
 

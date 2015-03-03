@@ -44,7 +44,7 @@
 -include("tags.hrl").
 
 
-compute_class(NodeId,ClassName) when is_atom(ClassName) ->
+compute_class(NodeId,ClassName) ->
   ClassId =
     java:report_java_exception
       (lookup_class(NodeId,ClassName)),
