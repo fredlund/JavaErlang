@@ -1001,9 +1001,8 @@ public class JavaErlang {
 
     OtpErlangObject getConstructor(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
         final OtpErlangTuple typeList = (OtpErlangTuple) t.elementAt(2);
-        final Constructor cnstr = getConstructor(className, typeList.elements());
+        final Constructor cnstr = getConstructor(t.elementAt(0), typeList.elements());
         if (logger.isLoggable(Level.FINER)) {
             logger.log(Level.FINER,"\rcmd " + cmd + " has typelist "
                     + typeList.elements());
@@ -1084,7 +1083,7 @@ public class JavaErlang {
         return new OtpErlangList(tmp_arr);
     }
 
-    static OtpErlangObject getMethods(final OtpErlangObject cmd)
+    OtpErlangObject getMethods(final OtpErlangObject cmd)
             throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
 	final boolean selectStatics = ((OtpErlangAtom) t.elementAt(1))
@@ -1124,7 +1123,7 @@ public class JavaErlang {
         return new OtpErlangList(tmp_arr);
     }
 
-    static OtpErlangObject getClasses(final OtpErlangObject cmd)
+    OtpErlangObject getClasses(final OtpErlangObject cmd)
             throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final Class cl = findClass(t.elementAt(0));
@@ -1145,7 +1144,7 @@ public class JavaErlang {
         return new OtpErlangList(tmp_arr);
     }
 
-    static OtpErlangObject getFields(final OtpErlangObject cmd)
+    OtpErlangObject getFields(final OtpErlangObject cmd)
             throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
 	final boolean selectStatics = ((OtpErlangAtom) t.elementAt(1))
@@ -1213,7 +1212,7 @@ public class JavaErlang {
 	return acc_map_to_erlang(method);
     }
 
-    static Constructor getConstructor(final OtpErlangObject classRef,
+    Constructor getConstructor(final OtpErlangObject classRef,
             final OtpErlangObject[] erlTypes) throws Exception {
         final Class cl = findClass(classRef);
         final Type[] types = fromErlTypes(erlTypes);

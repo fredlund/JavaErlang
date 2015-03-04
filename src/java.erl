@@ -1292,7 +1292,9 @@ acquire_class_int(NodeId,ClassRef) when is_tuple(ClassRef) ->
       try java_to_erlang:compute_class(NodeId,ClassRef) of
 	  Class ->
 	  ets:delete(java_classes,{loading,NodeId,ClassRef}),
-	  class_store(NodeId,ClassRef,Class)
+	  ClassName =
+	    list_to_atom(string_to_list(call(ClassRef,getCanonicalName,[]))),
+	  class_store(NodeId,ClassName,Class)
       catch ExceptionClass:Reason ->
 	  ets:delete(java_classes,{loading,NodeId,ClassRef}),
 	  erlang:raise(ExceptionClass,Reason,erlang:get_stacktrace())
