@@ -323,7 +323,8 @@ check_options(Options) ->
 	    [symbolic_name,log_level,enable_gc,enable_proxies,
 	     erlang_remote,
 	     java_class,java_classpath,add_to_java_classpath,
-	     java_exception_as_value,java_verbose,java_options,
+	     java_exception_as_value,java_timeout_as_value,
+	     java_verbose,java_options,
 	     java_executable,call_timeout]) of
 	   true -> ok;
 	   false ->
@@ -664,7 +665,13 @@ wait_for_reply(Node) ->
 %%	("~p(~p) at pid ~p~nstrange message ~p received~n",
 %%	 [Node#node.symbolic_name,Node#node.node_id,self(),Other]),
 %%      wait_for_reply(Node)
-  after Timeout -> throw(java_timeout) 
+  after Timeout -> 
+      case proplists:get_value(java_timeout_as_value,Node#node.options,false) of
+	true ->
+	  java_timeout;
+	false ->
+	  throw(java_timeout) 
+      end
   end.
 
 throw_java_exception(ExceptionValue) ->
