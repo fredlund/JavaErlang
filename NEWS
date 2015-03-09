@@ -1,3 +1,17 @@
+4/3 -- 2015:
+
+If you are using Javassist to create new classes which should be callable
+from Erlang, the library now supports "importing" such classes
+using java:acquire_class(Node,ClassRef) where ClassRef is the
+Class object corresponding to the newly created class. Using this mechanism
+the new class becomes callable using its name, e.g., 
+java:new(Node,'MyNewJavaAssistClass',[]).
+
+The library now also supports adding additional parameters to the Java
+interpreter in the java_options option, e.g., if for some reason 
+the Hotspot compiler should not be run, the option
+{java_options,["-Xint"]} disables it.
+
 13/2 -- 2014:
 
 JavaErlang now has support for implementing Java objects in Erlang
