@@ -11,41 +11,41 @@ public class JavaObjectEntry {
     OtpErlangObject nodeId;
 
     public JavaObjectEntry(Object object, long key, long classNumber, OtpErlangObject nodeId) {
-	this.object = object;
-	this.counter = 0;
-	this.freeKeys = 0;
-	this.classNumber = classNumber;
-	this.key = key;
-	this.nodeId = nodeId;
+        this.object = object;
+        this.counter = 0;
+        this.freeKeys = 0;
+        this.classNumber = classNumber;
+        this.key = key;
+        this.nodeId = nodeId;
     }
 
     long alias() {
-	long oldCounter = counter++;
-	freeKeys++;
-	return oldCounter;
+        long oldCounter = counter++;
+        freeKeys++;
+        return oldCounter;
     }
 
     long key() {
-	return key;
+        return key;
     }
 
     long classNumber() {
-	return classNumber;
+        return classNumber;
     }
 
     long references() {
-	return freeKeys;
+        return freeKeys;
     }
 
     OtpErlangObject nodeId() {
-	return nodeId;
+        return nodeId;
     }
 
     Object object() {
-	return object;
+        return object;
     }
 
     long free() {
-	return --freeKeys;
+        return --freeKeys;
     }
 }

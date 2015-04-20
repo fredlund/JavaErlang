@@ -43,127 +43,127 @@
 %% @doc
 %% Tests the Java HashSet data structure.
 test() ->
-  eqc:quickcheck
-    (?FORALL(Cmds,eqc_statem:commands(?MODULE),
-	     begin
-	       start_node(),
-	       {H,DS,Res} = eqc_statem:run_commands(?MODULE,Cmds),
-	       java:terminate(node_id()),
-	       case Res of
-		 ok -> true;
-		 _ ->
-		   io:format("~nFailing...~nH=~p~nDS=~p~nRes=~p~n",[H,DS,Res]),
-		   false
-	       end
-	     end)).
+    eqc:quickcheck
+      (?FORALL(Cmds,eqc_statem:commands(?MODULE),
+               begin
+                   start_node(),
+                   {H,DS,Res} = eqc_statem:run_commands(?MODULE,Cmds),
+                   java:terminate(node_id()),
+                   case Res of
+                       ok -> true;
+                       _ ->
+                           io:format("~nFailing...~nH=~p~nDS=~p~nRes=~p~n",[H,DS,Res]),
+                           false
+                   end
+               end)).
 
 start_node() ->
-  {ok,Node} =
-    java:start_node
-      ([{java_exception_as_value,true},{add_to_java_classpath,["classes"]}]),
-  put(node,Node).
+    {ok,Node} =
+        java:start_node
+          ([{java_exception_as_value,true},{add_to_java_classpath,["classes"]}]),
+    put(node,Node).
 
 node_id() ->
-  get(node).
+    get(node).
 
 %% @private
 sample_commands() ->
-  eqc_gen:sample(eqc_statem:commands(hashset_test)).
+    eqc_gen:sample(eqc_statem:commands(hashset_test)).
 
 %% @private
 initial_state() ->
-  #state{}.
+    #state{}.
 
 %% @private
 command(State) ->
-  eqc_gen:oneof
-    (
-    [{call,java,new,[{call,?MODULE,node_id,[]},'java.util.HashSet',[]]}] ++
-    [{call,java,call,[Set,add,[nat()]]} ||
-      {Set,_} <- State#state.sets] ++
-    [{call,java,call,[Set,contains,[nat()]]} ||
-      {Set,_} <- State#state.sets] ++
-    [{call,java,call,[Set,remove,[nat()]]} ||
-      {Set,_} <- State#state.sets] ++
-    [{call,java,call,[Set,size,[]]} ||
-      {Set,_} <- State#state.sets]
-    ).
+    eqc_gen:oneof
+      (
+      [{call,java,new,[{call,?MODULE,node_id,[]},'java.util.HashSet',[]]}] ++
+          [{call,java,call,[Set,add,[nat()]]} ||
+              {Set,_} <- State#state.sets] ++
+          [{call,java,call,[Set,contains,[nat()]]} ||
+              {Set,_} <- State#state.sets] ++
+          [{call,java,call,[Set,remove,[nat()]]} ||
+              {Set,_} <- State#state.sets] ++
+          [{call,java,call,[Set,size,[]]} ||
+              {Set,_} <- State#state.sets]
+     ).
 
 %% @private
 precondition(State,Call) ->
-  case Call of
-    {_,_,_,[Set,add,_]} ->
-      lists:keymember(Set, 1, State#state.sets);
-    {_,_,_,[Set,contains,_]} ->
-      lists:keymember(Set, 1, State#state.sets);
-    {_,_,_,[Set,remove,_]} ->
-      lists:keymember(Set, 1, State#state.sets);
-    {_,_,_,[Set,size,_]} ->
-      lists:keymember(Set, 1, State#state.sets);
-    _ ->
-      true
-  end.
+    case Call of
+        {_,_,_,[Set,add,_]} ->
+            lists:keymember(Set, 1, State#state.sets);
+        {_,_,_,[Set,contains,_]} ->
+            lists:keymember(Set, 1, State#state.sets);
+        {_,_,_,[Set,remove,_]} ->
+            lists:keymember(Set, 1, State#state.sets);
+        {_,_,_,[Set,size,_]} ->
+            lists:keymember(Set, 1, State#state.sets);
+        _ ->
+            true
+    end.
 
 %% @private
 next_state(State,Var,Call) ->
-  case Call of
-    {_,_,new,_} ->
-      State#state{sets=[{Var,sets:new()}|State#state.sets]};
-    {_,_,call,[Set,add,Elem]} ->
-      {_,ESet} =
-	lists:keyfind(Set, 1, State#state.sets),
-      NewESet =
-	sets:add_element(Elem,ESet),
-      State#state
-	{sets = lists:keyreplace(Set, 1, State#state.sets, {Set,NewESet})};
-    {_,_,call,[Set,remove,Elem]} ->
-      {_,ESet} =
-	lists:keyfind(Set, 1, State#state.sets),
-      NewESet =
-	sets:del_element(Elem,ESet),
-      State#state
-	{sets = lists:keyreplace(Set, 1, State#state.sets, {Set,NewESet})};
-    _ ->
-      State
-  end.
+    case Call of
+        {_,_,new,_} ->
+            State#state{sets=[{Var,sets:new()}|State#state.sets]};
+        {_,_,call,[Set,add,Elem]} ->
+            {_,ESet} =
+                lists:keyfind(Set, 1, State#state.sets),
+            NewESet =
+                sets:add_element(Elem,ESet),
+            State#state
+                {sets = lists:keyreplace(Set, 1, State#state.sets, {Set,NewESet})};
+        {_,_,call,[Set,remove,Elem]} ->
+            {_,ESet} =
+                lists:keyfind(Set, 1, State#state.sets),
+            NewESet =
+                sets:del_element(Elem,ESet),
+            State#state
+                {sets = lists:keyreplace(Set, 1, State#state.sets, {Set,NewESet})};
+        _ ->
+            State
+    end.
 
 %% @private
 postcondition(State,Call,Result) ->
-  case Call of
-    {_,_,_,[Set,contains,Elem]} ->
-      {_,ESet} = lists:keyfind(Set,1,State#state.sets),
-      expect_eq(Call,sets:is_element(Elem,ESet),Result);
-    {_,_,_,[Set,size,_]} ->
-      {_,ESet} = lists:keyfind(Set,1,State#state.sets),
-      expect_eq(Call,sets:size(ESet),Result);
-    _ ->
-      not_exception(Call,Result)
-  end.
+    case Call of
+        {_,_,_,[Set,contains,Elem]} ->
+            {_,ESet} = lists:keyfind(Set,1,State#state.sets),
+            expect_eq(Call,sets:is_element(Elem,ESet),Result);
+        {_,_,_,[Set,size,_]} ->
+            {_,ESet} = lists:keyfind(Set,1,State#state.sets),
+            expect_eq(Call,sets:size(ESet),Result);
+        _ ->
+            not_exception(Call,Result)
+    end.
 
 expect_eq(Call,Value,Result) ->
-  if Value==Result -> true;
-     true ->
-      io:format
-	("~n***~p: expected postcondition value ~s=/=~s~n",
-	 [Call,print_value(Value),print_value(Result)]),
-      false
-  end.
+    if Value==Result -> true;
+       true ->
+            io:format
+              ("~n***~p: expected postcondition value ~s=/=~s~n",
+               [Call,print_value(Value),print_value(Result)]),
+            false
+    end.
 
 not_exception(Call,{java_exception,Exc}) ->
-  io:format("*** Error: call ~p returns a java exception~n",[Call]),
-  java:print_stacktrace(Exc),
-  io:format("~n"),
-  false;
+    io:format("*** Error: call ~p returns a java exception~n",[Call]),
+    java:print_stacktrace(Exc),
+    io:format("~n"),
+    false;
 not_exception(_,_) ->
-  true.
+    true.
 
 print_value({java_exception,Obj}) ->
-  io_lib:format("exception ~p",[java:getSimpleClassName(Obj)]);
+    io_lib:format("exception ~p",[java:getSimpleClassName(Obj)]);
 print_value(Object) ->
-  case java:is_object_ref(Object) of
-    true -> io_lib:format("~p : ~p",[Object,java:getSimpleClassName(Object)]);
-    false -> io_lib:format("~p",[Object])
-  end.
+    case java:is_object_ref(Object) of
+        true -> io_lib:format("~p : ~p",[Object,java:getSimpleClassName(Object)]);
+        false -> io_lib:format("~p",[Object])
+    end.
 
 
 

@@ -13,20 +13,20 @@
 //       derived from this software without specific prior written permission.
 //
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ''AS IS''
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
-// BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
-// WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR 
-// OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+// WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+// OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 // ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // @author Lars-Ake Fredlund (lfredlund@fi.upm.es)
 // @copyright 2011 Lars-Ake Fredlund
-// 
+//
 
 package javaErlang;
 
@@ -66,9 +66,9 @@ class ThreadMsgHandler implements Runnable {
     }
 
     public void run() {
-	if (JavaErlang.logger.isLoggable(Level.FINE)) {
-	    JavaErlang.logger.log(Level.FINE,"\r\n*** starting thread");
-	}
+        if (JavaErlang.logger.isLoggable(Level.FINE)) {
+            JavaErlang.logger.log(Level.FINE,"\r\n*** starting thread");
+        }
 
         try {
             do_receive();
@@ -76,16 +76,16 @@ class ThreadMsgHandler implements Runnable {
             exc.printStackTrace();
         }
 
-	if (JavaErlang.logger.isLoggable(Level.FINE)) {
-	    JavaErlang.logger.log(Level.FINE,"\r\n*** stopping thread");
-	}
+        if (JavaErlang.logger.isLoggable(Level.FINE)) {
+            JavaErlang.logger.log(Level.FINE,"\r\n*** stopping thread");
+        }
     }
 
     void do_receive() throws Exception {
         Short tag;
         OtpErlangPid replyPid;
         OtpErlangObject argument;
-	boolean finishing = false;
+        boolean finishing = false;
 
         do {
             final OtpErlangTuple t = (OtpErlangTuple) queue.take();
@@ -105,21 +105,21 @@ class ThreadMsgHandler implements Runnable {
                     } else {
                         result = e;
                     }
-		    if (JavaErlang.logger.isLoggable(Level.WARNING)) {
-			JavaErlang.logger.log(Level.WARNING,"\r\n*** Exception " + result + " thrown");
-			JavaErlang.logger.log(Level.WARNING,"\r");
-			((Throwable) result).printStackTrace();
-		    }
+                    if (JavaErlang.logger.isLoggable(Level.WARNING)) {
+                        JavaErlang.logger.log(Level.WARNING,"\r\n*** Exception " + result + " thrown");
+                        JavaErlang.logger.log(Level.WARNING,"\r");
+                        ((Throwable) result).printStackTrace();
+                    }
                 } catch (final Throwable e) {
-		    if (JavaErlang.logger.isLoggable(Level.WARNING)) {
-			JavaErlang.logger.log(Level.WARNING,"\r\n*** Exception " + e + " thrown");
-			JavaErlang.logger.log(Level.WARNING,"\r");
-			e.printStackTrace();
-		    }
+                    if (JavaErlang.logger.isLoggable(Level.WARNING)) {
+                        JavaErlang.logger.log(Level.WARNING,"\r\n*** Exception " + e + " thrown");
+                        JavaErlang.logger.log(Level.WARNING,"\r");
+                        e.printStackTrace();
+                    }
                     result = e;
                 }
                 if (result != null) {
-		    replyPid = (OtpErlangPid) t.elementAt(3);
+                    replyPid = (OtpErlangPid) t.elementAt(3);
                     root.reply(result, replyPid);
                 } else {
                     finishing = true;
@@ -131,31 +131,31 @@ class ThreadMsgHandler implements Runnable {
     }
 
     Object handleCall(final short tag, final OtpErlangObject argument)
-            throws Exception {
-	switch (tag) {
-	case Tags.call_constructorTag:
+        throws Exception {
+        switch (tag) {
+        case Tags.call_constructorTag:
             return call_constructor(argument);
-	case Tags.call_methodTag:
+        case Tags.call_methodTag:
             return call_method(argument);
-	case Tags.getFieldValueTag:
+        case Tags.getFieldValueTag:
             return getFieldValue(argument);
-	case Tags.setFieldValueTag:
+        case Tags.setFieldValueTag:
             return setFieldValue(argument);
-	case Tags.getClassNameTag:
+        case Tags.getClassNameTag:
             return getClassName(argument);
-	case Tags.array_to_listTag:
+        case Tags.array_to_listTag:
             return array_to_list(argument);
-	case Tags.list_to_arrayTag:
+        case Tags.list_to_arrayTag:
             return list_to_array(argument);
-	case Tags.instofTag:
+        case Tags.instofTag:
             return instof(argument);
-	case Tags.convertTag:
+        case Tags.convertTag:
             return convert(argument);
-	case Tags.is_subtypeTag:
+        case Tags.is_subtypeTag:
             return is_subtype(argument);
-	case Tags.getSimpleClassNameTag:
+        case Tags.getSimpleClassNameTag:
             return getSimpleClassName(argument);
-	case Tags.stopThreadTag:
+        case Tags.stopThreadTag:
             return null;
         default:
             System.err.println("\rBad tag " + tag + " in received message");
@@ -188,12 +188,12 @@ class ThreadMsgHandler implements Runnable {
             final Object arr = Array.newInstance(cl, objs.length);
             for (int i = 0; i < objs.length; i++) {
                 Array.set(arr, i,
-                        root.java_value_from_erlang(objs[i], element_type));
+                          root.java_value_from_erlang(objs[i], element_type));
             }
             return root.map_to_erlang(arr);
         } else {
             System.err.println("Cannot convert type description "
-                    + element_type + " to a type class");
+                               + element_type + " to a type class");
             throw new Exception();
         }
     }
@@ -292,7 +292,7 @@ class ThreadMsgHandler implements Runnable {
 
     @SuppressWarnings("rawtypes")
     OtpErlangObject getSimpleClassName(final OtpErlangObject cmd)
-            throws Exception {
+        throws Exception {
         final Object obj = root.java_value_from_erlang(cmd);
         final Class cl = obj.getClass();
         return new OtpErlangAtom(cl.getSimpleName());
@@ -311,26 +311,26 @@ class ThreadMsgHandler implements Runnable {
         final Object obj = root.java_value_from_erlang(t.elementAt(0));
         final Field field = root.get_field(t.elementAt(1));
         final OtpErlangObject value = t.elementAt(2);
-	Object setValue = root.java_value_from_erlang(value, field.getType());
+        Object setValue = root.java_value_from_erlang(value, field.getType());
         field.set(obj, setValue);
         return root.map_to_erlang_void();
     }
 
     @SuppressWarnings("rawtypes")
     OtpErlangObject call_constructor(final OtpErlangObject cmd)
-            throws Exception {
+        throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final Object fun = root.get_fun(t.elementAt(0));
         final OtpErlangObject[] args =
-	    ((OtpErlangTuple) t.elementAt(1)).elements();
+            ((OtpErlangTuple) t.elementAt(1)).elements();
         Object result;
 
         final Constructor cnstr = (Constructor) fun;
-	cnstr.setAccessible(true);
+        cnstr.setAccessible(true);
         result =
-	    cnstr.newInstance
-	    (root.java_values_from_erlang
-	     (args,cnstr.getParameterTypes()));
+            cnstr.newInstance
+            (root.java_values_from_erlang
+             (args,cnstr.getParameterTypes()));
         return root.map_to_erlang(result);
     }
 
@@ -338,28 +338,28 @@ class ThreadMsgHandler implements Runnable {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final Object fun = root.get_fun(t.elementAt(1));
         final OtpErlangObject[] args = ((OtpErlangTuple) t.elementAt(2))
-                .elements();
+            .elements();
         Object result;
 
         final Method method = (Method) fun;
-	method.setAccessible(true);
+        method.setAccessible(true);
         final OtpErlangObject otpObj = t.elementAt(0);
         final Object obj = root.java_value_from_erlang(otpObj);
         final Object[] translated_args = root.java_values_from_erlang(args,
-                method.getParameterTypes());
-	if (JavaErlang.logger.isLoggable(Level.FINER)) {
-	    JavaErlang.logger.log
-		(Level.FINER,
-		 "calling "+method+" with "+
-		 translated_args);
-	}
+                                                                      method.getParameterTypes());
+        if (JavaErlang.logger.isLoggable(Level.FINER)) {
+            JavaErlang.logger.log
+                (Level.FINER,
+                 "calling "+method+" with "+
+                 translated_args);
+        }
         result = method.invoke(obj, translated_args);
-	if (JavaErlang.logger.isLoggable(Level.FINER)) {
-	    JavaErlang.logger.log
-		(Level.FINER,
-		 "returning from "+method+" with "+
-		 translated_args + " result is "+result);
-	}
+        if (JavaErlang.logger.isLoggable(Level.FINER)) {
+            JavaErlang.logger.log
+                (Level.FINER,
+                 "returning from "+method+" with "+
+                 translated_args + " result is "+result);
+        }
         return root.map_to_erlang(result, method.getReturnType());
     }
 }

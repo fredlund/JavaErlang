@@ -13,20 +13,20 @@
 //       derived from this software without specific prior written permission.
 //
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ''AS IS''
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
-// BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
-// WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR 
-// OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+// WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+// OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 // ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // @author Lars-Ake Fredlund (lfredlund@fi.upm.es)
 // @copyright 2011 Lars-Ake Fredlund
-// 
+//
 
 package javaErlang;
 
@@ -46,12 +46,12 @@ class OtpStatusHandler extends OtpNodeStatus {
 
     @Override
     public void remoteStatus(final String node, final boolean up,
-            final Object info) {
+                             final Object info) {
         if (JavaErlang.logger.isLoggable(Level.FINER)) {
             JavaErlang.logger.log
-		(Level.FINER,
-		 "Event at node " + node + " with " + up
-		 + "; info=" + info);
+                (Level.FINER,
+                 "Event at node " + node + " with " + up
+                 + "; info=" + info);
         }
 
         if (connectedNode == null && up) {
@@ -59,9 +59,9 @@ class OtpStatusHandler extends OtpNodeStatus {
         } else if (connectedNode != null && !up && node.equals(connectedNode)) {
             if (JavaErlang.logger.isLoggable(Level.INFO)) {
                 JavaErlang.logger.log
-		    (Level.INFO,
-		     "Erlang peer node " + nodeIdentifier
-		     + " died; terminating...");
+                    (Level.INFO,
+                     "Erlang peer node " + nodeIdentifier
+                     + " died; terminating...");
             }
             System.exit(0);
         }
