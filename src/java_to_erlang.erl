@@ -13,15 +13,15 @@
 %%       derived from this software without specific prior written permission.
 %%
 %% THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ''AS IS''
-%% AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-%% IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-%% ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
-%% BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-%% CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-%% SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-%% BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
-%% WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR 
-%% OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+%% AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+%% IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+%% ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+%% BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+%% CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+%% SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+%% BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+%% WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+%% OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 %% ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 %% @author Lars-Ake Fredlund (lfredlund@fi.upm.es)
@@ -51,37 +51,37 @@ compute_class(NodeId,ClassName) when is_atom(ClassName) ->
   RawConstructors =
     java:report_java_exception
       (get_constructors(NodeId,ClassName,true)),
-  ConstructorsWithType = 
+  ConstructorsWithType =
     elements_with_type(NodeId,ClassName,?getConstructor,RawConstructors),
-  ConstructorsWithArity = 
+  ConstructorsWithArity =
     elements_with_arity(NodeId,ClassName,?getConstructor,RawConstructors),
 
   RawMethods =
     java:report_java_exception
       (get_methods(NodeId,ClassName,false,true)),
-  MethodsWithType = 
+  MethodsWithType =
     elements_with_type(NodeId,ClassName,?getMethod,RawMethods),
-  MethodsWithArity = 
+  MethodsWithArity =
     elements_with_arity(NodeId,ClassName,?getMethod,RawMethods),
 
   RawStaticMethods =
     java:report_java_exception
       (get_methods(NodeId,ClassName,true,true)),
-  StaticMethodsWithType = 
+  StaticMethodsWithType =
     elements_with_type(NodeId,ClassName,?getMethod,RawStaticMethods),
-  StaticMethodsWithArity = 
+  StaticMethodsWithArity =
     elements_with_arity(NodeId,ClassName,?getMethod,RawStaticMethods),
 
   RawFields =
     java:report_java_exception
       (get_fields(NodeId,ClassName,false,true)),
-  FieldsWithArity = 
+  FieldsWithArity =
     elements_with_arity(NodeId,ClassName,?getField,RawFields),
 
   RawStaticFields =
     java:report_java_exception
       (get_fields(NodeId,ClassName,true,true)),
-  StaticFieldsWithArity = 
+  StaticFieldsWithArity =
     elements_with_arity(NodeId,ClassName,?getField,RawStaticFields),
 
   #class{
@@ -102,7 +102,7 @@ elements_with_type(NodeId,ClassName,Getter,Elements) ->
 	     (NodeId,Getter,{ClassName,Name,list_to_tuple(TypeList)}),
 	 {{Name,TypeList},Element}
      end, Elements).
-  
+
 elements_with_arity(NodeId,ClassName,Getter,Elements) ->
   lists:foldl
     (fun ({Name,TypeList},Acc) ->
@@ -119,7 +119,7 @@ find_element_with_type(Key,RawElements) ->
     {_,Element} -> {ok,Element};
     _ -> false
   end.
-  
+
 find_element_without_type(NodeId,Key,Args,RawElements) ->
   case lists:keyfind(Key,1,RawElements) of
     {_,Elements} ->
@@ -134,7 +134,7 @@ find_element_without_type(NodeId,Key,Args,RawElements) ->
 	  end
       end;
     _ -> false
-  end.	      
+  end.
 
 add_to_elements_with_arity(N,A,T,E,[]) ->
   [{{N,A},[{T,E}]}];
@@ -151,7 +151,7 @@ tca(Node,Params,[Alternative={Types,_}|Rest]) ->
   ?LOG("Types=~p Params=~p~n",[Types,Params]),
   Result = java:javaCall(Node,?objTypeCompat,{list_to_tuple(Types),Params}),
   if
-    Result -> 
+    Result ->
       java:format(debug,"Params ~p matches ~p~n",[Params,Types]),
       {ok,Alternative};
     true ->
@@ -168,8 +168,8 @@ get_constructors(NodeId,ClassName,ObserverInPackage) ->
   java:javaCall(NodeId,?getConstructors,{ClassName,ObserverInPackage}).
 get_methods(NodeId,ClassName,Static,ObserverInPackage) ->
   java:javaCall(NodeId,?getMethods,{ClassName,Static,ObserverInPackage}).
-get_classes(NodeId,ClassName,ObserverInPackage) ->
-  java:javaCall(NodeId,?getClasses,{ClassName,ObserverInPackage}).
+%% get_classes(NodeId,ClassName,ObserverInPackage) ->
+%%   java:javaCall(NodeId,?getClasses,{ClassName,ObserverInPackage}).
 get_fields(NodeId,ClassName,Static,ObserverInPackage) ->
   java:javaCall(NodeId,?getFields,{ClassName,Static,ObserverInPackage}).
 
@@ -323,9 +323,9 @@ test() ->
   io:format
     ("SIZE=~p~n",[java:get_static(N,'java.lang.Integer','SIZE')]).
 
-  
-
-  
 
 
-  
+
+
+
+

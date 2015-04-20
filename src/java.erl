@@ -13,15 +13,15 @@
 %%       derived from this software without specific prior written permission.
 %%
 %% THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ''AS IS''
-%% AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-%% IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-%% ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
-%% BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-%% CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-%% SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-%% BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
-%% WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR 
-%% OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+%% AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+%% IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+%% ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+%% BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+%% CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+%% SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+%% BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+%% WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+%% OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 %% ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 %% @doc This module implements a facility for invoking Java code
@@ -62,7 +62,7 @@
 
 -export([init/1]).
 -export([connect/2,start_node/0,start_node/1,nodes/0]).
--export([default_options/0,version/0]). 
+-export([default_options/0,version/0]).
 -export([free/1,reset/1,terminate/1,terminate_all/0]).
 -export([brutally_terminate/1,recreate_node/1]).
 -export([node_id/1]).
@@ -77,7 +77,6 @@
 -export([identity/1]).
 -export([print_stacktrace/1,get_stacktrace/1]).
 -export([set_loglevel/1,format/2,format/3]).
--export_type([node_id/0,object_ref/0]).
 -export([acquire_class/2,report_java_exception/1]).
 -export([memory_usage/0,memory_usage/1]).
 
@@ -92,8 +91,10 @@
 
 -include("debug.hrl").
 
+-export_type([node_id/0,object_type/0,object_ref/0]).
+
 -type loglevel() ::
-  all | none | 
+  all | none |
   alert | critical | debug | emergency | error | info | notice | warning.
 
 -type option() ::
@@ -123,7 +124,7 @@
 %% with the above tuple as cause.</li>
 %% <li>`java_executable' determines which program will be used
 %% to start the Java interpreter (by default "java").</li>
-%% <li>`java_verbose' provides diagnostic output from the 
+%% <li>`java_verbose' provides diagnostic output from the
 %% Java interface class using the Java standard logger.</li>
 %% <li>`java_options' permits specifying command line options
 %% to the Java executable.</li>
@@ -135,10 +136,10 @@
 %% <li>`enable_proxies' determines whether the proxy facility provided
 %% by the `java_proxy' library can be used.
 %% Java objects communicated to Erlang or not.</li>
-%% <li>`call_timeout' sets a timeout value for all calls 
+%% <li>`call_timeout' sets a timeout value for all calls
 %% to Java from Erlang (default 10 seconds).</li>
 %% </ul>
- 
+
 -opaque node_id() :: integer().
 %%-type node_id() :: integer().
 %% Identifies a connected Java node.
@@ -232,7 +233,7 @@ start_node(UserOptions) ->
 	  node_node=NodeNode,
 	  symbolic_name=SymbolicName},
   spawn_java(PreNode,get_java_node_id()).
-  
+
 check_net_kernel() ->
   case whereis(net_kernel) of
     undefined ->
@@ -259,7 +260,7 @@ spawn_java(PreNode,PreNodeId) ->
       ClassPath = compute_classpath(Options),
       NodeName =
 	list_to_atom(node_part(NodeId,SymbolicName)++host_part(PreNode)),
-      PortPid = 
+      PortPid =
 	spawn
 	  (PreNode#node.node_node,
 	   ?MODULE,
@@ -311,7 +312,7 @@ compute_classpath(Options) ->
 check_options(Options) ->
   lists:foreach
     (fun (Option) ->
-	 OptionName = 
+	 OptionName =
 	   case Option of
 	     {Name,_} when is_atom(Name) -> Name;
 	     Name when is_atom(Name) -> Name
@@ -335,8 +336,7 @@ check_options(Options) ->
 
 %% @private
 get_option(Option,NodeId) ->
-  {ok,Node} = node_lookup(NodeId),
-  proplists:get_value(Option,Node#node.options).
+  get_option(Option,NodeId,undefined).
 
 get_option(Option,NodeId,Default) ->
   {ok,Node} = node_lookup(NodeId),
@@ -347,7 +347,7 @@ get_java_node_id() ->
 
 %% @private
 run_java(Identity,NodeName,Name,Executable,Verbose,JavaOptions,Paths,Class) ->
-  ClassPath = 
+  ClassPath =
     case combine_paths(Paths) of
       "" -> [];
       PathSpec -> ["-cp",PathSpec]
@@ -375,7 +375,7 @@ run_java(Identity,NodeName,Name,Executable,Verbose,JavaOptions,Paths,Class) ->
   java_reader(Port,Identity).
 
 combine_paths(Paths) ->
-  Combinator = 
+  Combinator =
     case runs_on_windows() of
       true -> ";";
       _ -> ":"
@@ -446,7 +446,7 @@ connect(NodeName,UserOptions) ->
 connectToNode(Node) ->
   connectToNode
     (Node,
-     addTimeStamps(erlang:now(),milliSecondsToTimeStamp(Node#node.ping_retry))).
+     addTimeStamps(java_timestamp(),milliSecondsToTimeStamp(Node#node.ping_retry))).
 
 connectToNode(PreNode,KeepOnTryingUntil) ->
   NodeName = PreNode#node.node_name,
@@ -461,8 +461,8 @@ connectToNode(PreNode,KeepOnTryingUntil) ->
       {javaNode,NodeName}!{?connect,PreNode#node.node_id,self()},
       connect_receive(NodeName,PreNode,KeepOnTryingUntil);
     pang ->
-      case compareTimes_ge(erlang:now(),KeepOnTryingUntil) of
-	true -> 
+      case compareTimes_ge(java_timestamp(),KeepOnTryingUntil) of
+	true ->
 	  format
 	    (warning,
 	     "*** Warning: failed trying to connect to Java node ~p~n",
@@ -495,7 +495,7 @@ connect_receive(NodeName,PreNode,KeepOnTryingUntil) ->
 	   "when trying to connect to node ~p~n",
 	 [NodeName,Other,{javaNode,NodeName}]),
       connect_receive(NodeName,PreNode,KeepOnTryingUntil)
-  after PreNode#node.connect_timeout -> 
+  after PreNode#node.connect_timeout ->
       %% Failed to connect. We should try to start another node.
       {error,connect_timeout}
   end.
@@ -563,11 +563,11 @@ node_part(_,SymbolicName) ->
   SymbolicName.
 
 host_part(Node) ->
-  NodeStr = 
+  NodeStr =
     case Node#node.node_node of
       void ->
 	atom_to_list(node());
-      _ -> 
+      _ ->
 	atom_to_list(Node#node.node_node)
     end,
   string:substr(NodeStr,string:str(NodeStr,"@")).
@@ -632,12 +632,12 @@ enable_gc(Item,_GC) ->
 
 create_msg(Type,Msg,Node) ->
   case msg_type(Type) of
-    thread_msg -> 
+    thread_msg ->
       {Type,get_thread(Node),Msg,self()};
     non_thread_msg ->
       {Type,Msg,self()}
   end.
-    
+
 msg_type(Tag) when Tag=<?last_nonthreaded_tag ->
   non_thread_msg;
 msg_type(_) ->
@@ -657,12 +657,12 @@ wait_for_reply(Node) ->
 	false ->
 	  throw_java_exception(ExceptionValue)
       end
-%%    Other -> 
+%%    Other ->
 %%      io:format
 %%	("~p(~p) at pid ~p~nstrange message ~p received~n",
 %%	 [Node#node.symbolic_name,Node#node.node_id,self(),Other]),
 %%      wait_for_reply(Node)
-  after Timeout -> throw(java_timeout) 
+  after Timeout -> throw(java_timeout)
   end.
 
 throw_java_exception(ExceptionValue) ->
@@ -686,11 +686,11 @@ get_thread(Node) ->
   NodeId = Node#node.node_id,
   Self = self(),
   case ets:lookup(java_threads,{NodeId,Self}) of
-    [{_,Thread}] -> 
+    [{_,Thread}] ->
       Thread;
     _ ->
       Thread = create_thread(NodeId),
-      ThreadsPerPid = 
+      ThreadsPerPid =
 	case ets:lookup(java_threads,Self) of
 	  [] -> [];
 	  [{_,ThreadsPP}] -> ThreadsPP
@@ -733,7 +733,7 @@ new(NodeId,ClassName,Args) when is_list(Args) ->
 %% a particular constructor.
 %% Returns an object reference.
 %% <p>
-%% Example: 
+%% Example:
 %%     ``java:new(NodeId,'java.lang.Integer',[int],[42])'',
 %% corresponding to the statement
 %% `new Integer(42)'.
@@ -747,8 +747,8 @@ new(NodeId,ClassName,ArgTypes,Args) when is_list(Args) ->
 
 %% @doc
 %% Calls a Java instance method.
-%% Example: 
-%%     ``java:call(Object,toString,[])'', 
+%% Example:
+%%     ``java:call(Object,toString,[])'',
 %% corresponding to the call `Object.toString()'.
 -spec call(object_ref(),method_name(),[value()]) -> value().
 call(Object,Method,Args) when is_list(Args) ->
@@ -770,7 +770,7 @@ call(Object,Method,ArgTypes,Args) when is_list(Args) ->
 %% @doc
 %% Calls a Java static method (a class method).
 %% Example:
-%%     ``java:call_static(NodeId,'java.lang.Integer',reverseBytes,[22])'', 
+%%     ``java:call_static(NodeId,'java.lang.Integer',reverseBytes,[22])'',
 %% corresponding to the call `Integer.reverseBytes(22)'.
 -spec call_static(node_id(),class_name(),method_name(),[value()]) -> value().
 call_static(NodeId,ClassName,Method,Args) when is_list(Args) ->
@@ -790,7 +790,7 @@ call_static(NodeId,ClassName,Method,ArgTypes,Args) when is_list(Args) ->
 
 %% @doc
 %% Retrieves the value of an instance attribute.
-%% Example: 
+%% Example:
 %% ``java:get(Object,v)', corresponding to 'Object.v''.
 -spec get(object_ref(), attribute_name()) -> value().
 get(Object,Field) ->
@@ -800,8 +800,8 @@ get(Object,Field) ->
 
 %% @doc
 %% Retrieves the value of a class attribute.
-%% Example: 
-%% ``java:get_static(NodeId,'java.lang.Integer','SIZE')'', 
+%% Example:
+%% ``java:get_static(NodeId,'java.lang.Integer','SIZE')'',
 %% corresponding to `Integer.SIZE'.
 -spec get_static(node_id(), class_name(), attribute_name()) -> value().
 get_static(NodeId,ClassName,Field) ->
@@ -844,8 +844,8 @@ init(UserOptions) ->
   Options = UserOptions++DefaultOptions,
   open_db(Options).
 
-open_db() ->
-  open_db(false,void).
+%% open_db() ->
+%%   open_db(false,void).
 
 open_db(Options) ->
   open_db(true,Options).
@@ -856,7 +856,7 @@ open_db(Init,Options) ->
     undefined ->
       spawn(fun () ->
 		%%io:format("spawned db ~p~n",[self()]),
-		try 
+		try
 		  ets:new(java_nodes,[named_table,public]),
 		  ets:insert(java_nodes,{java_node_counter,0}),
 		  ets:new(java_classes,[named_table,public]),
@@ -900,7 +900,7 @@ wait_until_stable() ->
 
 wait_forever() ->
   receive _ -> wait_forever() end.
-      
+
 %% @doc
 %% Returns a list with the default options.
 -spec default_options() -> [option()].
@@ -918,7 +918,7 @@ default_options() ->
 	[JavaErlangPath++"/JavaErlang.jar",JavaErlangPath++"/javassist.jar"]
     end,
   ClassPath = OtpClassPath++JavaErlangClassPath,
-  JavaExecutable = 
+  JavaExecutable =
     case os:find_executable("java") of
       false -> "java";
       Executable -> Executable
@@ -935,28 +935,32 @@ default_options() ->
 %% Returns the version number of the JavaErlang library.
 -spec version() -> string().
 version() ->
-  ?JAVA_ERLANG_VERSION.
-
+  case [ Vsn || {java_erlang, _, Vsn} <- application:loaded_applications() ] of
+      [] ->
+          "unknown";
+      [Vsn] ->
+          Vsn
+  end.
 
 %% @doc Returns the node where the object argument is located.
 -spec node_id(object_ref()) -> node_id().
 node_id({_,_,_,_,NodeId}) ->
   NodeId.
 
--spec object_id(object_ref()) -> integer().
-object_id({_,ObjectId,_,_,_}) ->
-  ObjectId.
+%% -spec object_id(object_ref()) -> integer().
+%% object_id({_,ObjectId,_,_,_}) ->
+%%   ObjectId.
 
 -spec class_id(object_ref()) -> integer().
 class_id({_,_,_,ClassId,_}) ->
   ClassId.
 
-%% @doc
-%% Returns the symbolic name of a Java node.
--spec symbolic_name(node_id()) -> string().
-symbolic_name(NodeId) ->
-  {ok,Node} = node_lookup(NodeId),
-  Node#node.symbolic_name.
+%% %% @doc
+%% %% Returns the symbolic name of a Java node.
+%% -spec symbolic_name(node_id()) -> string().
+%% symbolic_name(NodeId) ->
+%%   {ok,Node} = node_lookup(NodeId),
+%%   Node#node.symbolic_name.
 
 %% @doc
 %% Returns the set of active Java nodes.
@@ -972,8 +976,8 @@ nodes() ->
 	 ets:tab2list(java_nodes))
   end.
 
-%% @doc 
-%% Resets the state of a Java node, i.e., 
+%% @doc
+%% Resets the state of a Java node, i.e.,
 %% the object proxy is reset.
 %% This operation will cause all Java object references
 %% existing to become invalid (i.e., not referring to
@@ -1058,7 +1062,7 @@ recreate_node(NodeId) ->
   spawn_java(PreNode,get_java_node_id()).
 
 %% @doc
-%% Brutally shuts down and attempts to terminate 
+%% Brutally shuts down and attempts to terminate
 remove_thread_mappings(NodeId) ->
   lists:foreach
     (fun ({Key={NodeIdKey,_},_}) ->
@@ -1087,13 +1091,13 @@ remove_class_mappings(NodeId) ->
 %% Lets Java know that an object can be freed.
 -spec free(object_ref()) -> any().
 free(Object) ->
-  javaCall(node_id(Object),?free,Object).	      
+  javaCall(node_id(Object),?free,Object).
 
 %% @doc Sets the timeout value for Java calls.
 %% Calls to Java from the current Erlang process will henceforth
 %% fail after Timeout seconds (or never is the argument is
 %% the atom infinity).
-%% Implementation note: this function stores data in the Erlang 
+%% Implementation note: this function stores data in the Erlang
 %% process dictionary.
 -spec set_timeout(integer() | infinity) -> any().
 set_timeout(Timeout) ->
@@ -1127,7 +1131,7 @@ get_value(ValueName,Default) ->
 
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% @doc
 %% Returns true if its argument is a Java object reference, false otherwise.
@@ -1142,7 +1146,7 @@ is_object_ref(_) ->
   false.
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% @doc
 %% Returns the elements of the (one-dimensional) array object argument
@@ -1167,7 +1171,7 @@ string_to_list(String) ->
   Bytes = java:call(String,getBytes,[]),
   array_to_list(Bytes).
 
-%% @doc 
+%% @doc
 %% Converts the Erlang string argument to a Java string.
 %% This function is for convenience only; it is implementable using
 %% the rest of the Java API.
@@ -1259,7 +1263,7 @@ memory_usage() ->
 memory_usage(NodeId) ->
   javaCall(NodeId,?memoryUsage,void).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% @private
 -spec acquire_class(node_id(),class_name()) -> #class{}.
@@ -1336,7 +1340,7 @@ gen_stacktrace() ->
 
 node_store(Node) ->
   ets:insert(java_nodes,{Node#node.node_id,Node}).
-  
+
 %% @private
 find_class(Object) ->
   ClassId = class_id(Object),
@@ -1349,13 +1353,13 @@ find_class(Object) ->
       Class
   end.
 
-firstComponent(Atom) when is_atom(Atom) ->
-  list_to_atom(firstComponent(atom_to_list(Atom)));
-firstComponent(Atom) when is_list(Atom) ->
-  case string:chr(Atom,$.) of
-    0 -> Atom;
-    N -> string:substr(Atom,1,N-1)
-  end.
+%% firstComponent(Atom) when is_atom(Atom) ->
+%%   list_to_atom(firstComponent(atom_to_list(Atom)));
+%% firstComponent(Atom) when is_list(Atom) ->
+%%   case string:chr(Atom,$.) of
+%%     0 -> Atom;
+%%     N -> string:substr(Atom,1,N-1)
+%%   end.
 
 %% @private
 finalComponent(Atom) when is_atom(Atom) ->
@@ -1374,7 +1378,7 @@ ensure_non_null(Object) ->
     true -> ok
   end.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 runs_on_windows() ->
@@ -1383,7 +1387,7 @@ runs_on_windows() ->
       true;
     {win64,_} ->
       true;
-    _ -> 
+    _ ->
       false
   end.
 
@@ -1396,7 +1400,7 @@ runs_on_windows() ->
 get_options() ->
   case ets:info(java_nodes) of
     undefined -> default_options();
-    _ -> 
+    _ ->
       case ets:lookup(java_nodes,options) of
 	[{_,Options}] -> Options;
 	[] -> default_options()
@@ -1411,7 +1415,7 @@ set_loglevel(Level) ->
   user_level(Level),
   case init([{log_level,Level}]) of
     true -> ok;
-    false -> 
+    false ->
       Options = get_options(),
       ets:insert(java_nodes,{options,[{log_level,Level}|Options]})
   end.
@@ -1452,5 +1456,12 @@ level(info) -> 6;
 level(debug) -> 7;
 level(_) -> throw(badarg).
 
-    
 
+-compile({nowarn_deprecated_function, [{erlang, now, 0}]}).
+java_timestamp() ->
+    case erlang:function_exported(erlang, timestamp, 0) of
+        true ->
+            erlang:timestamp();
+        false ->
+            erlang:now()
+    end.

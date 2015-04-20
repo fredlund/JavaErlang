@@ -1,7 +1,7 @@
 #include "erl_nif.h"
 #include <stdio.h>
 
-void our_destructor(ErlNifEnv *, void *);
+static void our_destructor(ErlNifEnv *, void *);
 
 static ErlNifResourceType *our_resource = NULL;
 
@@ -19,14 +19,14 @@ static ERL_NIF_TERM create(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
   if (argc != 2 || !enif_is_pid(env,argv[1])) return enif_make_badarg(env);
 
-  ErlNifEnv* our_env = 
+  ErlNifEnv* our_env =
     enif_alloc_env();
   struct resource_term *resource_term =
-    (struct resource_term *) 
+    (struct resource_term *)
     enif_alloc_resource(our_resource, sizeof(struct resource_term));
   resource_term->term =
     enif_make_copy(our_env, argv[0]);
-  resource_term->env = 
+  resource_term->env =
     our_env;
 
   if (enif_get_local_pid(our_env, argv[1], &(resource_term->pid)) == 0) {
@@ -41,7 +41,7 @@ static ERL_NIF_TERM create(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
   return term;
 }
 
-int load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM load_info) {
+static int on_load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM load_info) {
   ErlNifResourceFlags tried;
 
   our_resource =
@@ -56,8 +56,8 @@ int load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM load_info) {
   return 0;
 }
 
-void our_destructor(ErlNifEnv *env, void *destr_obj) {
-  struct resource_term *resource_term = 
+static void our_destructor(ErlNifEnv *env, void *destr_obj) {
+  struct resource_term *resource_term =
     (struct resource_term *) destr_obj;
   enif_send
     (NULL,
@@ -73,4 +73,4 @@ static ErlNifFunc nif_funcs[] =
   {"is_loaded", 0, is_loaded}
 };
 
-ERL_NIF_INIT(java_int_resource,nif_funcs,load,NULL,NULL,NULL)
+ERL_NIF_INIT(java_int_resource,nif_funcs,&on_load,NULL,NULL,NULL)

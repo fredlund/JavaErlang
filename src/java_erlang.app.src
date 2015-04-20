@@ -1,0 +1,14 @@
+{application, java_erlang,
+ [{description, "Facilitate the communication between Java and Erlang nodes"}
+ ,{vsn, git}
+ ,{registered, []}
+ ,{mod, {'java_erlang_app', []}}
+ ,{applications, [kernel, stdlib]}
+ ,{env, []}
+ ,{modules, ['java',
+             'java_int_resource',
+             'java_proxy',
+             'java_resource',
+             'java_to_erlang'
+            ]}
+ ]}.

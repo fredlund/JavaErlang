@@ -1,108 +1,180 @@
 -module(java_tests).
 -compile(export_all).
 -include_lib("eunit/include/eunit.hrl").
- 
 
-%% Without gc 
-  
-test0_test() ->
+start() ->
+    case node() of
+        nonode@nohost ->
+            _ = os:cmd("epmd -daemon"),
+            {ok, _} = net_kernel:start([?MODULE, shortnames]),
+            ok;
+        _ ->
+            ok
+    end.
+
+stop(_) ->
+    todo.
+
+node_test_() ->
+    {setup, fun start/0, fun stop/1, fun all_tests/1}.
+
+node_gc_test_() ->
+    {setup, fun start/0, fun stop/1, fun all_gc_tests/1}.
+
+all_tests(_) ->
+    [?_test(test0()),
+     ?_test(test1()),
+     ?_test(test2()),
+     ?_test(test3()),
+     ?_test(test35()),
+     ?_test(test4()),
+     ?_test(test5()),
+     ?_test(test6()),
+     ?_test(test7()),
+     ?_test(test8()),
+     ?_test(test9()),
+     ?_test(test10()),
+     ?_test(test11()),
+     ?_test(test12()),
+     ?_test(test13()),
+     ?_test(test14()),
+     ?_test(test15()),
+     ?_test(test16()),
+     ?_test(test17()),
+     ?_test(test18()),
+     ?_test(test19()),
+     ?_test(test20()),
+     ?_test(test21()),
+     ?_test(test22())
+    ].
+
+all_gc_tests(_) ->
+    [?_test(test0gc()),
+     ?_test(test1gc()),
+     ?_test(test2gc()),
+     ?_test(test3gc()),
+     ?_test(test35gc()),
+     ?_test(test4gc()),
+     ?_test(test5gc()),
+     ?_test(test6gc()),
+     ?_test(test7gc()),
+     ?_test(test8gc()),
+     ?_test(test9gc()),
+     ?_test(test10gc()),
+     ?_test(test11gc()),
+     ?_test(test12gc()),
+     ?_test(test13gc()),
+     ?_test(test14gc()),
+     ?_test(test15gc()),
+     ?_test(test16gc()),
+     ?_test(test17gc()),
+     ?_test(test18gc()),
+     ?_test(test19gc()),
+     ?_test(test20gc()),
+     ?_test(test21gc()),
+     ?_test(test22gc())
+    ].
+
+%% Without gc
+
+test0() ->
   ?assertEqual("java.lang.Integer",print_exception(fun () -> tc() end)).
-test1_test() ->
+test1() ->
   ?assertEqual(999,print_exception(fun () -> tc1() end)).
-test2_test() ->
+test2() ->
   ?assertEqual(ok,print_exception(fun () -> tc2() end)).
-test3_test() ->
+test3() ->
   ?assertEqual(353,print_exception(fun () -> tc3() end)).
-test35_test() ->
+test35() ->
   ?assertEqual(ok,print_exception(fun () -> tc35() end)).
-test4_test() ->
+test4() ->
   ?assertEqual(3,print_exception(fun () -> tc4() end)).
-test5_test() ->
+test5() ->
   ?assertEqual(ok,print_exception(fun () -> tc5() end)).
-test6_test() ->
+test6() ->
   ?assertEqual(true,print_exception(fun () -> tc6() end)).
-test7_test() ->
+test7() ->
   ?assertEqual(ok,print_exception(fun () -> tc7() end)).
-test8_test() ->
+test8() ->
   ?assertEqual(4,print_exception(fun () -> tc8() end)).
-test9_test() ->
+test9() ->
   ?assertEqual(0,print_exception(fun () -> tc9() end)).
-test10_test() ->
+test10() ->
   ?assertEqual(0,print_exception(fun () -> tc10() end)).
-test11_test() ->
+test11() ->
   ?assertEqual(true,print_exception(fun () -> tc11() end)).
-test12_test() ->
+test12() ->
   ?assertEqual(true,print_exception(fun () -> tc12() end)).
-test13_test() ->
+test13() ->
   ?assertEqual(true,print_exception(fun () -> tc13() end)).
-test14_test() ->
+test14() ->
   ?assertEqual(true,print_exception(fun () -> tc14() end)).
-test15_test() ->
+test15() ->
   ?assertEqual(true,print_exception(fun () -> tc15() end)).
-test16_test() ->
+test16() ->
   ?assertEqual(true,print_exception(fun () -> tc16() end)).
-test17_test() ->
+test17() ->
   ?assertEqual(true,print_exception(fun () -> tc17() end)).
-test18_test() ->
+test18() ->
   ?assertEqual(true,print_exception(fun () -> tc18() end)).
-test19_test() ->
+test19() ->
   ?assertEqual(true,print_exception(fun () -> tc19() end)).
-test20_test() ->
+test20() ->
   ?assertEqual(1,print_exception(fun () -> tc20() end)).
-test21_test() ->
+test21() ->
   ?assertEqual(ok,print_exception(fun () -> tc21() end)).
-test22_test() ->
+test22() ->
   ?assertEqual(ok,print_exception(fun () -> tc22() end)).
 
-%% With gc 
+%% With gc
 
-test0gc_test() ->
+test0gc() ->
   ?assertEqual("java.lang.Integer",print_exception(fun () -> tc_gc() end)).
-test1gc_test() ->
+test1gc() ->
   ?assertEqual(999,print_exception(fun () -> tc1_gc() end)).
-test2gc_test() ->
+test2gc() ->
   ?assertEqual(ok,print_exception(fun () -> tc2_gc() end)).
-test3gc_test() ->
+test3gc() ->
   ?assertEqual(353,print_exception(fun () -> tc3_gc() end)).
-test35gc_test() ->
+test35gc() ->
   ?assertEqual(ok,print_exception(fun () -> tc35_gc() end)).
-test4gc_test() ->
+test4gc() ->
   ?assertEqual(3,print_exception(fun () -> tc4_gc() end)).
-test5gc_test() ->
+test5gc() ->
   ?assertEqual(ok,print_exception(fun () -> tc5_gc() end)).
-test6gc_test() ->
+test6gc() ->
   ?assertEqual(true,print_exception(fun () -> tc6_gc() end)).
-test7gc_test() ->
+test7gc() ->
   ?assertEqual(ok,print_exception(fun () -> tc7_gc() end)).
-test8gc_test() ->
+test8gc() ->
   ?assertEqual(4,print_exception(fun () -> tc8_gc() end)).
-test9gc_test() ->
+test9gc() ->
   ?assertEqual(0,print_exception(fun () -> tc9_gc() end)).
-test10gc_test() ->
+test10gc() ->
   ?assertEqual(0,print_exception(fun () -> tc10_gc() end)).
-test11gc_test() ->
+test11gc() ->
   ?assertEqual(true,print_exception(fun () -> tc11_gc() end)).
-test12gc_test() ->
+test12gc() ->
   ?assertEqual(true,print_exception(fun () -> tc12_gc() end)).
-test13gc_test() ->
+test13gc() ->
   ?assertEqual(true,print_exception(fun () -> tc13_gc() end)).
-test14gc_test() ->
+test14gc() ->
   ?assertEqual(true,print_exception(fun () -> tc14_gc() end)).
-test15gc_test() ->
+test15gc() ->
   ?assertEqual(true,print_exception(fun () -> tc15_gc() end)).
-test16gc_test() ->
+test16gc() ->
   ?assertEqual(true,print_exception(fun () -> tc16_gc() end)).
-test17gc_test() ->
+test17gc() ->
   ?assertEqual(true,print_exception(fun () -> tc17_gc() end)).
-test18gc_test() ->
+test18gc() ->
   ?assertEqual(true,print_exception(fun () -> tc18_gc() end)).
-test19gc_test() ->
+test19gc() ->
   ?assertEqual(true,print_exception(fun () -> tc19_gc() end)).
-test20gc_test() ->
+test20gc() ->
   ?assertEqual(1,print_exception(fun () -> tc20_gc() end)).
-test21gc_test() ->
+test21gc() ->
   ?assertEqual(ok,print_exception(fun () -> tc21_gc() end)).
-test22gc_test() ->
+test22gc() ->
   ?assertEqual(ok,print_exception(fun () -> tc22_gc() end)).
 
 tc() ->
@@ -190,7 +262,7 @@ tc3() ->
   io:format
     ("Java returned value ~p; whoohoop~n",
      [Value]),
-  Value2 = 
+  Value2 =
     java:call_static(NodeId,'java.lang.Integer',reverseBytes,[Value]),
   io:format
     ("Reversing bytes yields ~p~n",
@@ -204,7 +276,7 @@ tc3_gc() ->
   io:format
     ("Java returned value ~p; whoohoop~n",
      [Value]),
-  Value2 = 
+  Value2 =
     java:call_static(NodeId,'java.lang.Integer',reverseBytes,[Value]),
   io:format
     ("Reversing bytes yields ~p~n",
@@ -626,19 +698,19 @@ tc19a() ->
   {ok,NodeId} = java:start_node(),
   java:acquire_class(NodeId,'java.lang.Integer'),
   Int10 = java:new(NodeId,'java.lang.Integer',[10]),
-  String10 = java:call(Int10,toString,[]),
+  _String10 = java:call(Int10,toString,[]),
   true.
 
 tc19b() ->
   {ok,NodeId} = java:start_node(),
   Int10 = java:new(NodeId,'java.lang.Integer',[10]),
-  String10 = java:call(Int10,toString,[]),
+  _String10 = java:call(Int10,toString,[]),
   true.
 
 tc19c() ->
   {ok,NodeId} = java:start_node(),
-  False = java:new(NodeId,'java.lang.Boolean',[false]),
-  HelloWorldString = java:new(NodeId,'java.lang.String',[java:list_to_array(NodeId,"Hello World!",char)]),
+  _False = java:new(NodeId,'java.lang.Boolean',[false]),
+  _HelloWorldString = java:new(NodeId,'java.lang.String',[java:list_to_array(NodeId,"Hello World!",char)]),
   Zero = java:new(NodeId,'java.lang.Integer',[0]),
   0 = java:call(Zero,intValue,[]),
   "Hello World" = java:string_to_list(java:new(NodeId,'java.lang.String',[{{array,char,1},"Hello World"}])),
@@ -659,7 +731,7 @@ tc19e() ->
   0 = java:call(Zero,intValue,[]),
   true.
 
-tc19f() ->  
+tc19f() ->
   {ok,NodeId} = java:start_node(),
   try java:new(NodeId,'hola',[]), false
   catch {java_exception,Exc} ->
@@ -667,15 +739,15 @@ tc19f() ->
       java:print_stacktrace(Exc),
       true
   end.
-  
+
 tc19g() ->
   {ok,NodeId} = java:start_node(),
-  I2 = java:new(NodeId,'java.lang.Integer',[2]),
+  _I2 = java:new(NodeId,'java.lang.Integer',[2]),
   true.
 
 tc19h() ->
   {ok,NodeId} = java:start_node(),
-  I2 = java:new(NodeId,'java.lang.Integer',[2]),
+  _I2 = java:new(NodeId,'java.lang.Integer',[2]),
   true.
 
 tc19i() ->
@@ -685,7 +757,7 @@ tc19i() ->
   true = java:call(I2,equals,[I2b]),
   true.
 
-tc19j() -> 
+tc19j() ->
   {ok,NodeId} = java:start_node(),
   Err = java:get_static(NodeId,'java.lang.System',err),
   java:call(Err,println,[{int,2}]),
@@ -707,19 +779,19 @@ tc19a_gc() ->
   {ok,NodeId} = java:start_node([{enable_gc,true}]),
   java:acquire_class(NodeId,'java.lang.Integer'),
   Int10 = java:new(NodeId,'java.lang.Integer',[10]),
-  String10 = java:call(Int10,toString,[]),
+  _String10 = java:call(Int10,toString,[]),
   true.
 
 tc19b_gc() ->
   {ok,NodeId} = java:start_node([{enable_gc,true}]),
   Int10 = java:new(NodeId,'java.lang.Integer',[10]),
-  String10 = java:call(Int10,toString,[]),
+  _String10 = java:call(Int10,toString,[]),
   true.
 
 tc19c_gc() ->
   {ok,NodeId} = java:start_node([{enable_gc,true}]),
-  False = java:new(NodeId,'java.lang.Boolean',[false]),
-  HelloWorldString = java:new(NodeId,'java.lang.String',[java:list_to_array(NodeId,"Hello World!",char)]),
+  _False = java:new(NodeId,'java.lang.Boolean',[false]),
+  _HelloWorldString = java:new(NodeId,'java.lang.String',[java:list_to_array(NodeId,"Hello World!",char)]),
   Zero = java:new(NodeId,'java.lang.Integer',[0]),
   0 = java:call(Zero,intValue,[]),
   "Hello World" = java:string_to_list(java:new(NodeId,'java.lang.String',[{{array,char,1},"Hello World"}])),
@@ -740,7 +812,7 @@ tc19e_gc() ->
   0 = java:call(Zero,intValue,[]),
   true.
 
-tc19f_gc() ->  
+tc19f_gc() ->
   {ok,NodeId} = java:start_node([{enable_gc,true}]),
   try java:new(NodeId,'hola',[]), false
   catch {java_exception,Exc} ->
@@ -748,15 +820,15 @@ tc19f_gc() ->
       java:print_stacktrace(Exc),
       true
   end.
-  
+
 tc19g_gc() ->
   {ok,NodeId} = java:start_node([{enable_gc,true}]),
-  I2 = java:new(NodeId,'java.lang.Integer',[2]),
+  _I2 = java:new(NodeId,'java.lang.Integer',[2]),
   true.
 
 tc19h_gc() ->
   {ok,NodeId} = java:start_node([{enable_gc,true}]),
-  I2 = java:new(NodeId,'java.lang.Integer',[2]),
+  _I2 = java:new(NodeId,'java.lang.Integer',[2]),
   true.
 
 tc19i_gc() ->
@@ -766,7 +838,7 @@ tc19i_gc() ->
   true = java:call(I2,equals,[I2b]),
   true.
 
-tc19j_gc() -> 
+tc19j_gc() ->
   {ok,NodeId} = java:start_node([{enable_gc,true}]),
   Err = java:get_static(NodeId,'java.lang.System',err),
   java:call(Err,println,[{int,2}]),
@@ -797,7 +869,7 @@ do_loop(J,N,H,NodeId) ->
   java:call(H,add,[java:new(NodeId,'java.lang.Integer',[J])]),
   do_loop(J+1,N,H,NodeId).
 
-tc20l(0,H,I) ->
+tc20l(0,H,_I) ->
   java:call(H,size,[]);
 tc20l(N,H,I) ->
   java:call(H,add,[I]),
@@ -866,7 +938,7 @@ tc22_gc() ->
   count(100),
   java:terminate(NodeId),
   ok.
-  
+
 count(0) ->
   ok;
 count(N) ->
@@ -877,52 +949,52 @@ count(N) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 runtests() ->
-  tc(), 
-  tc1(), 
-  tc2(), 
-  tc3(), 
-  tc35(), 
-  tc4(), 
-  tc5(), 
-  tc6(), 
-  tc7(), 
-  tc8(), 
-  tc9(), 
-  tc10(), 
-  tc11(), 
-  tc12(), 
-  tc13(), 
-  tc14(), 
-  tc15(), 
-  tc16(), 
-  tc17(), 
-  tc18(), 
-  tc19(), 
-  tc20(), 
+  tc(),
+  tc1(),
+  tc2(),
+  tc3(),
+  tc35(),
+  tc4(),
+  tc5(),
+  tc6(),
+  tc7(),
+  tc8(),
+  tc9(),
+  tc10(),
+  tc11(),
+  tc12(),
+  tc13(),
+  tc14(),
+  tc15(),
+  tc16(),
+  tc17(),
+  tc18(),
+  tc19(),
+  tc20(),
   tc21(),
   tc22(),
 
-  tc_gc(), 
-  tc1_gc(), 
-  tc2_gc(), 
-  tc3_gc(), 
-  tc35_gc(), 
-  tc4_gc(), 
-  tc5_gc(), 
-  tc6_gc(), 
-  tc7_gc(), 
-  tc8_gc(), 
-  tc9_gc(), 
-  tc10_gc(), 
-  tc11_gc(), 
-  tc12_gc(), 
-  tc13_gc(), 
-  tc14_gc(), 
-  tc15_gc(), 
-  tc16_gc(), 
-  tc17_gc(), 
-  tc18_gc(), 
-  tc19_gc(), 
+  tc_gc(),
+  tc1_gc(),
+  tc2_gc(),
+  tc3_gc(),
+  tc35_gc(),
+  tc4_gc(),
+  tc5_gc(),
+  tc6_gc(),
+  tc7_gc(),
+  tc8_gc(),
+  tc9_gc(),
+  tc10_gc(),
+  tc11_gc(),
+  tc12_gc(),
+  tc13_gc(),
+  tc14_gc(),
+  tc15_gc(),
+  tc16_gc(),
+  tc17_gc(),
+  tc18_gc(),
+  tc19_gc(),
   tc20_gc(),
   tc21_gc(),
   tc22_gc().
