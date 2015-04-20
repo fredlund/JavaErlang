@@ -213,16 +213,12 @@ start_node(UserOptions) ->
   Options = UserOptions++default_options(),
   check_options(Options),
   LogLevel = proplists:get_value(log_level,Options),
-  EnableGC = proplists:get_value(enable_gc,Options,false),
+  %% NOOP EnableGC = proplists:get_value(enable_gc,Options,false),
   EnableProxies = proplists:get_value(enable_proxies,Options,false),
   init([{log_level,LogLevel}]),
   CallTimeout = proplists:get_value(call_timeout,Options),
   SymbolicName = proplists:get_value(symbolic_name,Options,void),
   NodeNode = proplists:get_value(erlang_remote,Options,node()),
-  if
-    EnableGC -> java_resource:init();
-    true -> ok
-  end,
   if
     EnableProxies -> java_proxy:start();
     true -> ok
