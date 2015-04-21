@@ -678,10 +678,7 @@ throw_java_exception(ExceptionValue) ->
   throw({java_exception,ExceptionValue}).
 
 report_java_exception({java_exception,Exception}) ->
-  StackTrace = erlang:get_stacktrace(),
-  io:format
-    ("*** Warning: unexpected Java exception; Erlang stacktrace:~n~p~n~n",
-     [StackTrace]),
+  io:format("*** Warning: unexpected Java exception:~n"),
   Err = get_static(node_id(Exception),'java.lang.System',err),
   call(Exception,printStackTrace,[Err]),
   throw_java_exception(Exception);
