@@ -369,6 +369,8 @@ which Java method to invoke.
 
 <table width="100%" border="0" summary="list of modules">
 <tr><td><a href="java.md" class="module">java</a></td></tr>
+<tr><td><a href="java_erlang_app.md" class="module">java_erlang_app</a></td></tr>
+<tr><td><a href="java_erlang_sup.md" class="module">java_erlang_sup</a></td></tr>
 <tr><td><a href="java_proxy.md" class="module">java_proxy</a></td></tr>
 <tr><td><a href="java_resource.md" class="module">java_resource</a></td></tr>
 <tr><td><a href="java_to_erlang.md" class="module">java_to_erlang</a></td></tr></table>
