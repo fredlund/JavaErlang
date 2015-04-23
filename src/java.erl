@@ -1452,12 +1452,10 @@ level(info) -> 6;
 level(debug) -> 7;
 level(_) -> throw(badarg).
 
-
--compile({nowarn_deprecated_function, [{erlang, now, 0}]}).
+-ifdef(non_deprecated_erlang_now).
 java_timestamp() ->
-    case erlang:function_exported(erlang, timestamp, 0) of
-        true ->
-            erlang:timestamp();
-        false ->
-            erlang:now()
-    end.
+    erlang:now().
+-else.
+java_timestamp() ->
+    erlang:timestamp().
+-endif.
