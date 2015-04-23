@@ -6,6 +6,8 @@
  ,{applications, [kernel, stdlib]}
  ,{env, []}
  ,{modules, ['java',
+             'java_erlang_app',
+             'java_erlang_sup',
              'java_proxy',
              'java_resource',
              'java_to_erlang'
