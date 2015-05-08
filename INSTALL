@@ -1,8 +1,29 @@
-To compile the JavaErlang library it normally suffices to execute 
-``configure" and then ``make'' in the main directory.  In the following 
-we assume that you are using a UNIX based system:
+JavaErlang requires rebar3 (http://www.rebar3.org) for building and
+testing.  See http://www.rebar3.org/v3.0/docs/getting-started for
+getting started with rebar3.
 
-$ ./configure; make
+To compile, execute the following command:
+
+```
+$ rebar3 compile
+```
+
+To test, execute the following command:
+
+```
+$ rebar3 eunit -v
+```
+
+If the eunit tests timeout, try re-running the test to see if the
+timeout repeats.
+
+
+To generate Markdown docs, execute the following command:
+
+```
+$ env ERL_LIBS=$PWD/_build/default/lib/edown rebar3 edoc
+```
+
 
 ===============================================
 
@@ -11,10 +32,10 @@ Installation as a normal Erlang library:
 ===============================================
 
 As an alternative to including the path to the JavaErlang scripts in the
-PATH variable, and adding the path to generated JavaErlang.jar file in 
+PATH variable, and adding the path to generated JavaErlang.jar file in
 the call to java:start_node/1, one can install JavaErlang as a normal Erlang
 library. This method will likely work much better for Windows
-installations of JavaErlang as well. 
+installations of JavaErlang as well.
 Steps:
 
 1. Compile JavaErlang as above, and then
