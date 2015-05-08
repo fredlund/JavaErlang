@@ -93,6 +93,22 @@ $ env ERL_LIBS=$PWD/_build/default/lib/edown rebar3 edoc
 
 ## News ##
 
+The library can now be built using rebar3 (https://github.com/rebar/rebar3).
+Many thanks are due to Joseph Wayne Norton for accomplishing this, and
+for other needed improvements.
+
+If you are using Javassist to create new classes which should be callable
+from Erlang, the library now supports "importing" such classes
+using java:acquire_class(Node,ClassRef) where ClassRef is the
+Class object corresponding to the newly created class. Using this mechanism
+the new class becomes callable using its name, e.g., 
+java:new(Node,'MyNewJavaAssistClass',[]).
+
+The library now also supports adding additional parameters to the Java
+interpreter in the java_options option, e.g., if for some reason 
+the Hotspot compiler should not be run, the option
+{java_options,["-Xint"]} disables it.
+
 The library now provides a facility to construct
 Java classes using Erlang, see the `java_proxy`
 module for details.
