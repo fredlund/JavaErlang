@@ -154,6 +154,8 @@
 -type class_name() :: atom() | string().
 %% A Java classname, e.g., the quoted atom 'java.lang.Integer'.
 
+-type class_ref() :: class_name() | object_type().
+
 -type method_name() :: atom().
 %% A name of a Java method, e.g., the atom 'toString'.
 
@@ -308,26 +310,27 @@ compute_classpath(Options) ->
 check_options(Options) ->
     lists:foreach
       (fun (Option) ->
-               OptionName =
-                   case Option of
-                       {Name,_} when is_atom(Name) -> Name;
-                       Name when is_atom(Name) -> Name
-                   end,
-               case lists:member
-                   (OptionName,
-                    [symbolic_name,log_level,enable_gc,enable_proxies,
-                     erlang_remote,
-                     java_class,java_classpath,add_to_java_classpath,
-                     java_exception_as_value,java_verbose,java_options,
-                     java_executable,call_timeout]) of
-                   true -> ok;
-                   false ->
-                       format
-                         (error,
-                          "*** error: option ~p to java:start_node/2 not understood~n",
-                          [OptionName]),
-                       throw(badarg)
-               end
+	       OptionName = 
+		   case Option of
+		       {Name,_} when is_atom(Name) -> Name;
+		       Name when is_atom(Name) -> Name
+		   end,
+	       case lists:member
+		   (OptionName,
+		    [symbolic_name,log_level,enable_gc,enable_proxies,
+		     erlang_remote,
+		     java_class,java_classpath,add_to_java_classpath,
+		     java_exception_as_value,java_timeout_as_value,
+		     java_verbose,java_options,
+		     java_executable,call_timeout]) of
+		   true -> ok;
+		   false ->
+		       format
+			 (error,
+			  "*** error: option ~p to java:start_node/2 not understood~n",
+			  [OptionName]),
+		       throw(badarg)
+	       end
        end, Options).
 
 %% @private
@@ -642,33 +645,36 @@ msg_type(_) ->
 wait_for_reply(Node) ->
     Timeout = get_timeout(Node),
     receive
-        {'EXIT',_Pid,normal} ->
-            wait_for_reply(Node);
-        {value,Val} ->
-            Val;
-        _Exc={exception,ExceptionValue} ->
-            case proplists:get_value(java_exception_as_value,Node#node.options,false) of
-                true ->
-                    {java_exception,ExceptionValue};
-                false ->
-                    throw_java_exception(ExceptionValue)
-            end
-            %%    Other ->
-            %%      io:format
-            %%  ("~p(~p) at pid ~p~nstrange message ~p received~n",
-            %%   [Node#node.symbolic_name,Node#node.node_id,self(),Other]),
-            %%      wait_for_reply(Node)
-    after Timeout -> throw(java_timeout)
+	{'EXIT',_Pid,normal} ->
+	    wait_for_reply(Node);
+	{value,Val} ->
+	    Val;
+	_Exc={exception,ExceptionValue} ->
+	    case proplists:get_value(java_exception_as_value,Node#node.options,false) of
+		true ->
+		    {java_exception,ExceptionValue};
+		false ->
+		    throw_java_exception(ExceptionValue)
+	    end
+	    %%    Other -> 
+	    %%      io:format
+	    %%	("~p(~p) at pid ~p~nstrange message ~p received~n",
+	    %%	 [Node#node.symbolic_name,Node#node.node_id,self(),Other]),
+	    %%      wait_for_reply(Node)
+    after Timeout -> 
+	    case proplists:get_value(java_timeout_as_value,Node#node.options,false) of
+		true ->
+		    java_timeout;
+		false ->
+		    throw(java_timeout) 
+	    end
     end.
 
 throw_java_exception(ExceptionValue) ->
     throw({java_exception,ExceptionValue}).
 
 report_java_exception({java_exception,Exception}) ->
-    StackTrace = erlang:get_stacktrace(),
-    io:format
-      ("*** Warning: unexpected Java exception; Erlang stacktrace:~n~p~n~n",
-       [StackTrace]),
+    io:format("*** Warning: unexpected Java exception:~n"),
     Err = get_static(node_id(Exception),'java.lang.System',err),
     call(Exception,printStackTrace,[Err]),
     throw_java_exception(Exception);
@@ -1262,27 +1268,41 @@ memory_usage(NodeId) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% @private
--spec acquire_class(node_id(),class_name()) -> #class{}.
-acquire_class(NodeId,ClassName) when is_atom(ClassName) ->
+-spec acquire_class(node_id(),class_ref()) -> #class{}.
+acquire_class(NodeId,ClassName) ->
     ?LOG("acquire_class(~p,~p)~n",[NodeId,ClassName]),
     acquire_class_int(NodeId,ClassName).
 
-acquire_class_int(NodeId,ClassName) ->
+acquire_class_int(NodeId,ClassName) when is_atom(ClassName) ->
     case class_lookup(NodeId,ClassName) of
-        {ok,Class} ->
-            Class;
-        _ ->
-            case get_load_permission(NodeId,ClassName) of
-                ok ->
-                    try java_to_erlang:compute_class(NodeId,ClassName) of
-                        Class ->
-                            ets:delete(java_classes,{loading,NodeId,ClassName}),
-                            class_store(NodeId,ClassName,Class)
-                    catch ExceptionClass:Reason ->
-                            ets:delete(java_classes,{loading,NodeId,ClassName}),
-                            erlang:raise(ExceptionClass,Reason,erlang:get_stacktrace())
-                    end
-            end
+	{ok,Class} ->
+	    Class;
+	_ ->
+	    case get_load_permission(NodeId,ClassName) of
+		ok ->
+		    try java_to_erlang:compute_class(NodeId,ClassName) of
+			Class ->
+			    ets:delete(java_classes,{loading,NodeId,ClassName}),
+			    class_store(NodeId,ClassName,Class)
+		    catch ExceptionClass:Reason ->
+			    ets:delete(java_classes,{loading,NodeId,ClassName}),
+			    erlang:raise(ExceptionClass,Reason,erlang:get_stacktrace())
+		    end
+	    end
+    end;
+acquire_class_int(NodeId,ClassRef) when is_tuple(ClassRef) ->
+    case get_load_permission(NodeId,ClassRef) of
+	ok ->
+	    try java_to_erlang:compute_class(NodeId,ClassRef) of
+		Class ->
+		    ets:delete(java_classes,{loading,NodeId,ClassRef}),
+		    ClassName =
+			list_to_atom(string_to_list(call(ClassRef,getCanonicalName,[]))),
+		    class_store(NodeId,ClassName,Class)
+	    catch ExceptionClass:Reason ->
+		    ets:delete(java_classes,{loading,NodeId,ClassRef}),
+		    erlang:raise(ExceptionClass,Reason,erlang:get_stacktrace())
+	    end
     end.
 
 %% Since classes can be loaded from multiple processes simultaneously

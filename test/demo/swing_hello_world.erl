@@ -35,7 +35,8 @@
 
 start() ->
     try
-        {ok,N} = java:start_node([{java_verbose,"WARNING"}]),
+        {ok,N} = java:start_node([{java_verbose,"WARNING"},
+				  {enable_proxies,true}]),
         _ActionListenerClass =
             java_proxy:class
               (N, 'myActionListener', 'javax.swing.AbstractAction',

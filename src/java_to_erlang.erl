@@ -37,52 +37,51 @@
 -export([find_static_method/4,find_static_method_with_type/4]).
 -export([find_field/2]).
 -export([find_static_field/3]).
--export([test/0]).
 
 -include("class.hrl").
 -include("debug.hrl").
 -include("tags.hrl").
 
 
-compute_class(NodeId,ClassName) when is_atom(ClassName) ->
+compute_class(NodeId,ClassName) ->
     ClassId =
-        java:report_java_exception
-          (lookup_class(NodeId,ClassName)),
+	java:report_java_exception
+	  (lookup_class(NodeId,ClassName)),
     RawConstructors =
-        java:report_java_exception
-          (get_constructors(NodeId,ClassName,true)),
-    ConstructorsWithType =
-        elements_with_type(NodeId,ClassName,?getConstructor,RawConstructors),
-    ConstructorsWithArity =
-        elements_with_arity(NodeId,ClassName,?getConstructor,RawConstructors),
+	java:report_java_exception
+	  (get_constructors(NodeId,ClassName,true)),
+    ConstructorsWithType = 
+	elements_with_type(NodeId,ClassName,?getConstructor,RawConstructors),
+    ConstructorsWithArity = 
+	elements_with_arity(NodeId,ClassName,?getConstructor,RawConstructors),
 
     RawMethods =
-        java:report_java_exception
-          (get_methods(NodeId,ClassName,false,true)),
-    MethodsWithType =
-        elements_with_type(NodeId,ClassName,?getMethod,RawMethods),
-    MethodsWithArity =
-        elements_with_arity(NodeId,ClassName,?getMethod,RawMethods),
+	java:report_java_exception
+	  (get_methods(NodeId,ClassName,false,true)),
+    MethodsWithType = 
+	elements_with_type(NodeId,ClassName,?getMethod,RawMethods),
+    MethodsWithArity = 
+	elements_with_arity(NodeId,ClassName,?getMethod,RawMethods),
 
     RawStaticMethods =
-        java:report_java_exception
-          (get_methods(NodeId,ClassName,true,true)),
-    StaticMethodsWithType =
-        elements_with_type(NodeId,ClassName,?getMethod,RawStaticMethods),
-    StaticMethodsWithArity =
-        elements_with_arity(NodeId,ClassName,?getMethod,RawStaticMethods),
+	java:report_java_exception
+	  (get_methods(NodeId,ClassName,true,true)),
+    StaticMethodsWithType = 
+	elements_with_type(NodeId,ClassName,?getMethod,RawStaticMethods),
+    StaticMethodsWithArity = 
+	elements_with_arity(NodeId,ClassName,?getMethod,RawStaticMethods),
 
     RawFields =
-        java:report_java_exception
-          (get_fields(NodeId,ClassName,false,true)),
-    FieldsWithArity =
-        elements_with_arity(NodeId,ClassName,?getField,RawFields),
-
+	java:report_java_exception
+	  (get_fields(NodeId,ClassName,false,true)),
+    FieldsWithArity = 
+	elements_with_arity(NodeId,ClassName,?getField,RawFields),
+    
     RawStaticFields =
-        java:report_java_exception
-          (get_fields(NodeId,ClassName,true,true)),
-    StaticFieldsWithArity =
-        elements_with_arity(NodeId,ClassName,?getField,RawStaticFields),
+	java:report_java_exception
+	  (get_fields(NodeId,ClassName,true,true)),
+    StaticFieldsWithArity = 
+	elements_with_arity(NodeId,ClassName,?getField,RawStaticFields),
 
     #class{
        name=ClassName,
@@ -305,23 +304,6 @@ find_static_field(NodeId,ClassName,Name) ->
                [Name,Class#class.name]),
             throw(badarg)
     end.
-
-
-test() ->
-    {ok,N} = java:start_node(),
-    I1=java:new(N,'java.lang.Integer',[1]),
-    I2=java:new(N,'java.lang.Integer',[int],[2]),
-    io:format("1==2?~p~n",[java:call(I1,equals,[I2])]),
-    io:format("2==2?~p~n",[java:call(I2,equals,[I2])]),
-    io:format
-      ("reverse(2)=~p~n",
-       [java:call_static(N,'java.lang.Integer',reverse,[23])]),
-    io:format
-      ("MIN_VALUE=~p~n",[java:get_static(N,'java.lang.Integer','MIN_VALUE')]),
-    io:format
-      ("MAX_VALUE=~p~n",[java:get_static(N,'java.lang.Integer','MAX_VALUE')]),
-    io:format
-      ("SIZE=~p~n",[java:get_static(N,'java.lang.Integer','SIZE')]).
 
 
 

@@ -265,8 +265,6 @@ public class JavaErlang {
             return getClasses(argument);
         case Tags.getFieldsTag:
             return getFields(argument);
-        case Tags.getClassLocationTag:
-            return getClassLocation(argument);
         case Tags.getConstructorTag:
             return getConstructor(argument);
         case Tags.getMethodTag:
@@ -714,6 +712,16 @@ public class JavaErlang {
         throw new Exception();
     }
 
+    Class findClass(final OtpErlangObject classRef) throws Exception {
+	if (classRef instanceof OtpErlangAtom) {
+	    final String className = ((OtpErlangAtom) classRef).atomValue();
+	    return findClass(className);
+	} else {
+	    Class cl = (Class) java_value_from_erlang(classRef);
+	    return cl;
+	}
+    }
+
     static Class findClass(final String className) throws Exception {
         try {
             final Class c = Class.forName(className);
@@ -980,23 +988,21 @@ public class JavaErlang {
     }
 
     synchronized OtpErlangObject lookupClass(final OtpErlangObject cmd) throws Exception {
-        final String className = ((OtpErlangAtom) cmd).atomValue();
-        final Class cl = findClass(className);
-        final Integer classNumber = classMap.get(cl);
-
-        if (classNumber != null) {
-            return new OtpErlangLong(classNumber);
-        } else {
-            classMap.put(cl,classCounter);
-            return new OtpErlangLong(classCounter++);
-        }
+	final Class cl = findClass(cmd);
+	final Integer classNumber = classMap.get(cl);
+	
+	if (classNumber != null) {
+	    return new OtpErlangLong(classNumber);
+	} else {
+	    classMap.put(cl,classCounter);
+	    return new OtpErlangLong(classCounter++);
+	}
     }
 
     OtpErlangObject getConstructor(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
         final OtpErlangTuple typeList = (OtpErlangTuple) t.elementAt(2);
-        final Constructor cnstr = getConstructor(className, typeList.elements());
+        final Constructor cnstr = getConstructor(t.elementAt(0), typeList.elements());
         if (logger.isLoggable(Level.FINER)) {
             logger.log(Level.FINER,"\rcmd " + cmd + " has typelist "
                        + typeList.elements());
@@ -1010,41 +1016,6 @@ public class JavaErlang {
         final Field field = getField(className,
                                      ((OtpErlangAtom) t.elementAt(1)).atomValue());
         return acc_map_to_erlang(field);
-    }
-
-    static OtpErlangObject getClassLocation(final OtpErlangObject n) {
-        String locationStr = "";
-        final String className = ((OtpErlangAtom) n).atomValue();
-
-        try {
-            final Class cl = findClass(className);
-            final ProtectionDomain d = cl.getProtectionDomain();
-            final CodeSource cs = d.getCodeSource();
-            final URL url = cs.getLocation();
-            locationStr = url.toString();
-        } catch (final Throwable t) {
-        }
-
-        if (locationStr.startsWith("file:")) {
-            locationStr = locationStr.substring(5);
-        }
-        if (!locationStr.equals("")) {
-            File fd = new File(locationStr);
-            final String extension = getExtension(locationStr);
-            if (extension.equals(".jar") && fd.isFile() && fd.canRead()) {
-                return new OtpErlangString(locationStr);
-            }
-
-            if (fd.isDirectory()) {
-                locationStr = add_className(locationStr, className);
-
-                fd = new File(locationStr);
-                if (fd.isFile() && fd.canRead()) {
-                    return new OtpErlangString(locationStr);
-                }
-            }
-        }
-        return new OtpErlangString("");
     }
 
     public static String add_className(String locationStr,
@@ -1083,13 +1054,12 @@ public class JavaErlang {
         return filename.substring(extensionIndex);
     }
 
-    static OtpErlangObject getConstructors(final OtpErlangObject cmd)
+    OtpErlangObject getConstructors(final OtpErlangObject cmd)
         throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
         final boolean observerInPackage = ((OtpErlangAtom) t.elementAt(1))
             .booleanValue();
-        final Class cl = findClass(className);
+        final Class cl = findClass(t.elementAt(0));
         final Constructor[] constructors = cl.getConstructors();
         final ArrayList<OtpErlangTuple> erlConstructors = new ArrayList<OtpErlangTuple>();
         for (final Constructor constructor : constructors) {
@@ -1113,22 +1083,21 @@ public class JavaErlang {
         return new OtpErlangList(tmp_arr);
     }
 
-    static OtpErlangObject getMethods(final OtpErlangObject cmd)
-        throws Exception {
+    OtpErlangObject getMethods(final OtpErlangObject cmd)
+            throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
-        final boolean selectStatics = ((OtpErlangAtom) t.elementAt(1))
-            .booleanValue();
+	final boolean selectStatics = ((OtpErlangAtom) t.elementAt(1))
+                .booleanValue(); 
         final boolean observerInPackage = ((OtpErlangAtom) t.elementAt(2))
-            .booleanValue();
-        final Class cl = findClass(className);
+                .booleanValue();
+        final Class cl = findClass(t.elementAt(0));
         final Method[] methods = cl.getMethods();
         final ArrayList<OtpErlangTuple> erlMethods = new ArrayList<OtpErlangTuple>();
         for (final Method method : methods) {
             if (method.isBridge() || method.isSynthetic()) {
                 if (logger.isLoggable(Level.FINER)) {
                     logger.log(Level.FINER,"Skipping synthetic or bridge method "
-                               + method + " in class " + className);
+			       + method + " in class " + cl);
                 }
                 continue;
             }
@@ -1154,11 +1123,10 @@ public class JavaErlang {
         return new OtpErlangList(tmp_arr);
     }
 
-    static OtpErlangObject getClasses(final OtpErlangObject cmd)
+    OtpErlangObject getClasses(final OtpErlangObject cmd)
         throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
-        final Class cl = findClass(className);
+        final Class cl = findClass(t.elementAt(0));
         final Class[] classes = cl.getClasses();
         final ArrayList<OtpErlangAtom> erlClasses = new ArrayList<OtpErlangAtom>();
         for (final Class cl_cand : classes) {
@@ -1176,13 +1144,12 @@ public class JavaErlang {
         return new OtpErlangList(tmp_arr);
     }
 
-    static OtpErlangObject getFields(final OtpErlangObject cmd)
-        throws Exception {
+    OtpErlangObject getFields(final OtpErlangObject cmd)
+            throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
-        final boolean selectStatics = ((OtpErlangAtom) t.elementAt(1))
-            .booleanValue();
-        final Class cl = findClass(className);
+	final boolean selectStatics = ((OtpErlangAtom) t.elementAt(1))
+                .booleanValue(); 
+        final Class cl = findClass(t.elementAt(0));
         final Field[] fields = cl.getFields();
         final ArrayList<OtpErlangTuple> erlFields = new ArrayList<OtpErlangTuple>();
         for (final Field field : fields) {
@@ -1194,7 +1161,7 @@ public class JavaErlang {
             if (field.isSynthetic()) {
                 if (logger.isLoggable(Level.FINER)) {
                     logger.log(Level.FINER,"Skipping synthetic or bridge field "
-                               + field + " in class " + className);
+                            + field + " in class " + cl);
                 }
                 continue;
             }
@@ -1238,17 +1205,16 @@ public class JavaErlang {
 
     OtpErlangObject getMethod(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
         final String methodName = ((OtpErlangAtom) t.elementAt(1)).atomValue();
         final OtpErlangTuple typeList = (OtpErlangTuple) t.elementAt(2);
-        final Method method = getMethod(findClass(className), methodName,
-                                        typeList.elements());
-        return acc_map_to_erlang(method);
+        final Method method = getMethod(findClass(t.elementAt(0)), methodName,
+                typeList.elements());
+	return acc_map_to_erlang(method);
     }
 
-    static Constructor getConstructor(final String className,
-                                      final OtpErlangObject[] erlTypes) throws Exception {
-        final Class cl = findClass(className);
+    Constructor getConstructor(final OtpErlangObject classRef,
+            final OtpErlangObject[] erlTypes) throws Exception {
+        final Class cl = findClass(classRef);
         final Type[] types = fromErlTypes(erlTypes);
         for (final Constructor cnstr : cl.getConstructors()) {
             if (checkTypes(cnstr.getParameterTypes(), types)) {
