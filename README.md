@@ -21,6 +21,7 @@ without the need to write any boilerplate code.
 An example:<br />
 
 ```
+application:ensure_started(java_erlang).
 {ok,NodeId} = java:start_node(),
 Int10 = java:new(NodeId,'java.lang.Integer',[10]),
 String10 = java:call(Int10,toString,[]).
@@ -30,7 +31,8 @@ String10 = java:call(Int10,toString,[]).
 
 
 
-The above code starts a Java node, and establishes
+The above code first starts the JavaErlang application,
+then creates a Java node, and establishes
 a connection to it. Then, a Java integer storing the value 10 is created,
 and finally a Java string representing "10" is returned
 from the Java integer just created.
@@ -68,9 +70,20 @@ $ rebar3 compile
 ```
 
 
+After compilation Erlang beam files will be left in the
+directory _build/default/lib/java_erlang/ebin/.
+
+Should you wish to install the JavaErlang library in the standard
+Erlang library structure, the following commands can be used:<br />
+
+```
+$ erl -pa _build/default/lib/java_erlang/ebin/
+
+> java_erlang_install:install().
+```
 
 
-To test, execute the following command:<br />
+To test JavaErlang, execute the following command:<br />
 
 ```
 $ rebar3 eunit -v
