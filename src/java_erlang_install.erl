@@ -46,11 +46,12 @@ install() ->
     Version = find_version(),
     install(Version,ThisModuleLocation,Lib).
 
-install(Version,PreDir,Lib) ->
-    Dir = PreDir++"-"++Version,
-    io:format("Version=~p PreDir=~p Lib=~p Dir=~p~n",[Version,Lib,PreDir,Dir]),
+install(Version,BuildDir,Lib) ->
+    Dir = BuildDir++"-"++Version,
+    io:format("Version=~p BuildDir=~p Lib=~p Dir=~p~n",[Version,Lib,BuildDir,Dir]),
     io:format("Installation program for JavaErlang.~n~n",[]),
-    ToDelete = conflicts(Lib,filename:basename(Dir)),
+    ToDir = Lib++"/java_erlang-"++Version,
+    ToDelete = conflicts(ToDir),
     io:format("This will install ~s~nin the directory ~s~n",[Version,Lib]),
     if
 	ToDelete=/=[] ->
@@ -64,33 +65,31 @@ install(Version,PreDir,Lib) ->
     case io:get_line("Proceed? ") of
 	"y\n" ->
 	    delete_conflicts(ToDelete),
-	    install(Lib,Dir);
+	    install(BuildDir,ToDir);
 	_ ->
 	    io:format("Cancelling install--answer \"y\" at this point to proceed.\n"),
 	    throw(installation_cancelled)
     end.
 
-conflicts(Lib,Dir) ->
-    FullDir = Lib++"/"++Dir,
-    case file:read_file_info(FullDir) of
+conflicts(ToDir) ->
+    case file:read_file_info(ToDir) of
 	{ok,_} ->
-	    [FullDir];
+	    [ToDir];
 	_ ->
 	    []
     end.
 
-install(Lib,Dir) ->
-    copy_java_erlang(Lib,Dir),
+install(From,ToDir) ->
+    copy_java_erlang(From,ToDir),
     io:format("JavaErlang is installed successfully.\n",[]),
-    code:add_paths([Lib++"/"++Dir++"/ebin"]).
+    code:add_paths([ToDir++"/ebin"]).
 
 find_version() ->
-    application:start(java_erlang),
+    ok = application:ensure_started(java_erlang),
     java:version().
 
-copy_java_erlang(Lib,Dir) ->
-    AppDir = filename:basename(Dir),
-    case copy(Dir,Lib++"/"++AppDir) of
+copy_java_erlang(From,ToDir) ->
+    case copy(From,ToDir) of
 	ok ->
 	    ok;
 	eaccess ->
