@@ -1,5 +1,5 @@
 %% encoding: UTF-8
 {application,java_erlang}.
 {packages,[]}.
-{modules,[java,java_erlang_app,java_erlang_sup,java_proxy,java_resource,
-          java_to_erlang]}.
+{modules,[java,java_erlang_app,java_erlang_install,java_erlang_sup,java_proxy,
+          java_resource,java_to_erlang]}.

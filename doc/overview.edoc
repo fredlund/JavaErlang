@@ -14,9 +14,10 @@ without the need to write any boilerplate code.
 <p>
 An example:<br/>
 ```
-{ok,NodeId} = java:start_node(),
-Int10 = java:new(NodeId,'java.lang.Integer',[10]),
-String10 = java:call(Int10,toString,[]).
+> application:ensure_started(java_erlang).
+> {ok,NodeId} = java:start_node().
+> Int10 = java:new(NodeId,'java.lang.Integer',[10]).
+> String10 = java:call(Int10,toString,[]).
 '''
 </p>
 <p>
@@ -50,6 +51,22 @@ To compile, execute the following command:<br/>
 ```
 $ rebar3 compile
 '''
+</p>
+
+<p>
+After compilation Erlang beam files will be left in the
+directory _build/default/lib/java_erlang/ebin/.
+</p>
+
+<p>
+Should you wish to install the JavaErlang library in the standard
+Erlang library structure, the following commands can be used:<br />
+
+```
+$ erl -pa _build/default/lib/java_erlang/ebin/
+
+> java_erlang_install:install().
+```
 </p>
 
 <p>

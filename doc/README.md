@@ -21,9 +21,10 @@ without the need to write any boilerplate code.
 An example:<br />
 
 ```
-{ok,NodeId} = java:start_node(),
-Int10 = java:new(NodeId,'java.lang.Integer',[10]),
-String10 = java:call(Int10,toString,[]).
+> application:ensure_started(java_erlang).
+> {ok,NodeId} = java:start_node().
+> Int10 = java:new(NodeId,'java.lang.Integer',[10]).
+> String10 = java:call(Int10,toString,[]).
 ```
 
 
@@ -70,8 +71,22 @@ $ rebar3 compile
 
 
 
-To test, execute the following command:<br />
+After compilation Erlang beam files will be left in the
+directory _build/default/lib/java_erlang/ebin/.
 
+
+
+Should you wish to install the JavaErlang library in the standard
+Erlang library structure, the following commands can be used:<br />
+```
+$ erl -pa _build/default/lib/java_erlang/ebin/
+
+> java_erlang_install:install().
+```
+</p>
+
+<p>
+To test, execute the following command:<br/>
 ```
 $ rebar3 eunit -v
 ```
@@ -370,6 +385,7 @@ which Java method to invoke.
 <table width="100%" border="0" summary="list of modules">
 <tr><td><a href="java.md" class="module">java</a></td></tr>
 <tr><td><a href="java_erlang_app.md" class="module">java_erlang_app</a></td></tr>
+<tr><td><a href="java_erlang_install.md" class="module">java_erlang_install</a></td></tr>
 <tr><td><a href="java_erlang_sup.md" class="module">java_erlang_sup</a></td></tr>
 <tr><td><a href="java_proxy.md" class="module">java_proxy</a></td></tr>
 <tr><td><a href="java_resource.md" class="module">java_resource</a></td></tr>

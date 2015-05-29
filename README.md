@@ -21,18 +21,17 @@ without the need to write any boilerplate code.
 An example:<br />
 
 ```
-application:ensure_started(java_erlang).
-{ok,NodeId} = java:start_node(),
-Int10 = java:new(NodeId,'java.lang.Integer',[10]),
-String10 = java:call(Int10,toString,[]).
+> application:ensure_started(java_erlang).
+> {ok,NodeId} = java:start_node().
+> Int10 = java:new(NodeId,'java.lang.Integer',[10]).
+> String10 = java:call(Int10,toString,[]).
 ```
 
 
 
 
 
-The above code first starts the JavaErlang application,
-then creates a Java node, and establishes
+The above code starts a Java node, and establishes
 a connection to it. Then, a Java integer storing the value 10 is created,
 and finally a Java string representing "10" is returned
 from the Java integer just created.
@@ -70,21 +69,24 @@ $ rebar3 compile
 ```
 
 
+
+
 After compilation Erlang beam files will be left in the
 directory _build/default/lib/java_erlang/ebin/.
 
+
+
 Should you wish to install the JavaErlang library in the standard
 Erlang library structure, the following commands can be used:<br />
-
 ```
 $ erl -pa _build/default/lib/java_erlang/ebin/
 
 > java_erlang_install:install().
 ```
+</p>
 
-
-To test JavaErlang, execute the following command:<br />
-
+<p>
+To test, execute the following command:<br/>
 ```
 $ rebar3 eunit -v
 ```
@@ -105,22 +107,6 @@ $ env ERL_LIBS=$PWD/_build/default/lib/edown rebar3 edoc
 
 
 ## News ##
-
-The library can now be built using rebar3 (https://github.com/rebar/rebar3).
-Many thanks are due to Joseph Wayne Norton for accomplishing this, and
-for other needed improvements.
-
-If you are using Javassist to create new classes which should be callable
-from Erlang, the library now supports "importing" such classes
-using java:acquire_class(Node,ClassRef) where ClassRef is the
-Class object corresponding to the newly created class. Using this mechanism
-the new class becomes callable using its name, e.g., 
-java:new(Node,'MyNewJavaAssistClass',[]).
-
-The library now also supports adding additional parameters to the Java
-interpreter in the java_options option, e.g., if for some reason 
-the Hotspot compiler should not be run, the option
-{java_options,["-Xint"]} disables it.
 
 The library now provides a facility to construct
 Java classes using Erlang, see the `java_proxy`
@@ -399,6 +385,7 @@ which Java method to invoke.
 <table width="100%" border="0" summary="list of modules">
 <tr><td><a href="https://github.com/fredlund/JavaErlang/blob/master/doc/java.md" class="module">java</a></td></tr>
 <tr><td><a href="https://github.com/fredlund/JavaErlang/blob/master/doc/java_erlang_app.md" class="module">java_erlang_app</a></td></tr>
+<tr><td><a href="https://github.com/fredlund/JavaErlang/blob/master/doc/java_erlang_install.md" class="module">java_erlang_install</a></td></tr>
 <tr><td><a href="https://github.com/fredlund/JavaErlang/blob/master/doc/java_erlang_sup.md" class="module">java_erlang_sup</a></td></tr>
 <tr><td><a href="https://github.com/fredlund/JavaErlang/blob/master/doc/java_proxy.md" class="module">java_proxy</a></td></tr>
 <tr><td><a href="https://github.com/fredlund/JavaErlang/blob/master/doc/java_resource.md" class="module">java_resource</a></td></tr>
