@@ -48,7 +48,6 @@ install() ->
 
 install(Version,BuildDir,Lib) ->
     Dir = BuildDir++"-"++Version,
-    io:format("Version=~p BuildDir=~p Lib=~p Dir=~p~n",[Version,Lib,BuildDir,Dir]),
     io:format("Installation program for JavaErlang.~n~n",[]),
     ToDir = Lib++"/java_erlang-"++Version,
     ToDelete = conflicts(ToDir),

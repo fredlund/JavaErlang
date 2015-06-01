@@ -934,7 +934,7 @@ default_options() ->
 
 
 %% @doc
-%% Returns the version number of the JavaErlang library.
+%% Returns the major version number of the JavaErlang library.
 -spec version() -> string().
 version() ->
     case [ Vsn || {java_erlang, _, Vsn} <- application:loaded_applications() ] of
