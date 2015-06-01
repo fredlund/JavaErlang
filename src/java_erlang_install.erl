@@ -50,6 +50,13 @@ install(Version,BuildDir,Lib) ->
     Dir = BuildDir++"-"++Version,
     io:format("Installation program for JavaErlang.~n~n",[]),
     ToDir = Lib++"/java_erlang-"++Version,
+    if
+	BuildDir == ToDir ->
+	    io:format("*** Error: source and destination are the same~n"),
+	    throw(bad);
+	true ->
+	    ok
+    end,
     ToDelete = conflicts(ToDir),
     io:format("This will install ~s~nin the directory ~s~n",[Version,Lib]),
     if
