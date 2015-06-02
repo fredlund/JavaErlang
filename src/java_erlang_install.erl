@@ -47,7 +47,6 @@ install() ->
     install(Version,ThisModuleLocation,Lib).
 
 install(Version,BuildDir,Lib) ->
-    Dir = BuildDir++"-"++Version,
     io:format("Installation program for JavaErlang.~n~n",[]),
     ToDir = Lib++"/java_erlang-"++Version,
     if
