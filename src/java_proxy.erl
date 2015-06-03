@@ -117,6 +117,7 @@ wait_until_stable() ->
 %% (typically in a Java Swing application).
 -spec class(java:node_id(),atom(),atom(),[{[{atom(),java:type()}],fun((...) -> reply())}],any()) -> java:obj_ref().
 class(NodeId,Name,SuperClassName,MethodFuns,DefaultInit) ->
+    ok = application:ensure_started(java_erlang),
     {Methods,Functions} =
         lists:unzip(MethodFuns),
     Proxy =
