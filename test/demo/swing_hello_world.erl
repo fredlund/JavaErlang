@@ -35,27 +35,29 @@
 
 start() ->
     try
-        {ok,N} = java:start_node([{java_verbose,"WARNING"},
-				  {enable_proxies,true}]),
+        {ok,N} = java:start_node([{java_verbose,"WARNING"}]),
         _ActionListenerClass =
             java_proxy:class
               (N, 'myActionListener', 'javax.swing.AbstractAction',
-               [{{actionPerformed,['java.awt.event.ActionEvent']},fun actionPerformed/3}]),
+               [{{actionPerformed,['java.awt.event.ActionEvent']},
+		 fun actionPerformed/3}],
+	       false),
         _WindowListenerClass =
             java_proxy:class
               (N, 'myWindowListener', 'java.awt.event.WindowAdapter',
-               [{{windowClosed,['java.awt.event.WindowEvent']},fun windowClosed/3}]),
+               [{{windowClosed,['java.awt.event.WindowEvent']},fun windowClosed/3}],
+	       void),
         Frame = java:new(N,'javax.swing.JFrame',[java:list_to_string(N,"HelloWorldSwing")]),
         java:call
           (Frame,setDefaultCloseOperation,
            [java:get_static(N,'javax.swing.JFrame','DISPOSE_ON_CLOSE')]),
         Pane = java:call(Frame,getContentPane,[]),
         Button = java:new(N,'javax.swing.JButton',[]),
-        java:call(Button,setAction,[java_proxy:new(N,'myActionListener',false)]),
+        java:call(Button,setAction,[java_proxy:new(N,'myActionListener')]),
         java:call(Pane,add,[Button]),
         java:call(Button,setText,[java:list_to_string(N,"Hello World")]),
         java:call(Frame,pack,[]),
-        java:call(Frame,addWindowListener,[java_proxy:new(N,'myWindowListener',void)]),
+        java:call(Frame,addWindowListener,[java_proxy:new(N,'myWindowListener')]),
         java:call(Frame,setVisible,[true])
     catch {java_exception,Exc} ->
             erlang:display(erlang:get_stacktrace()),

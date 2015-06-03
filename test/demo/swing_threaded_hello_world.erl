@@ -39,11 +39,13 @@ start() ->
         _ActionListenerClass =
             java_proxy:class
               (N, 'myActionListener', 'javax.swing.AbstractAction',
-               [{{actionPerformed,['java.awt.event.ActionEvent']},fun actionPerformed/3}]),
+               [{{actionPerformed,['java.awt.event.ActionEvent']},fun actionPerformed/3}],
+	       false),
         _WindowListenerClass =
             java_proxy:class
               (N, 'myWindowListener', 'java.awt.event.WindowAdapter',
-               [{{windowClosed,['java.awt.event.WindowEvent']},fun windowClosed/3}]),
+               [{{windowClosed,['java.awt.event.WindowEvent']},fun windowClosed/3}],
+	       void),
         Frame = java:new(N,'javax.swing.JFrame',[java:list_to_string(N,"HelloWorldSwing")]),
         java:call
           (Frame,setDefaultCloseOperation,
@@ -54,7 +56,7 @@ start() ->
         java:call(Pane,add,[Button]),
         java:call(Button,setText,[java:list_to_string(N,"Hello World")]),
         java:call(Frame,pack,[]),
-        java:call(Frame,addWindowListener,[java_proxy:new(N,'myWindowListener',false)]),
+        java:call(Frame,addWindowListener,[java_proxy:new(N,'myWindowListener')]),
         java:call(Frame,setVisible,[true]),
         loop()
     catch {java_exception,Exc} ->

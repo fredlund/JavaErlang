@@ -33,7 +33,7 @@
 -record(proxy,{id,state,status,queue,funs,handler}).
 
 -export([start/0]).
--export([class/4,new/3]).
+-export([class/5,new/2,new/3]).
 
 -include("tags.hrl").
 
@@ -115,8 +115,8 @@ wait_until_stable() ->
 %% '''
 %% creates a new Java class that handles invocations of ``actionPerformed''
 %% (typically in a Java Swing application).
--spec class(java:node_id(),atom(),atom(),[{[{atom(),java:type()}],fun((...) -> reply())}]) -> java:obj_ref().
-class(NodeId,Name,SuperClassName,MethodFuns) ->
+-spec class(java:node_id(),atom(),atom(),[{[{atom(),java:type()}],fun((...) -> reply())}],any()) -> java:obj_ref().
+class(NodeId,Name,SuperClassName,MethodFuns,DefaultInit) ->
     {Methods,Functions} =
         lists:unzip(MethodFuns),
     Proxy =
@@ -124,7 +124,7 @@ class(NodeId,Name,SuperClassName,MethodFuns) ->
           (NodeId,
            ?new_proxy_class,
            {SuperClassName,Methods}),
-    ets:insert(proxy_classes,{{NodeId,Name},NodeId,Proxy,list_to_tuple(Functions)}),
+    ets:insert(proxy_classes,{{NodeId,Name},NodeId,Proxy,list_to_tuple(Functions),DefaultInit}),
     Proxy.
 
 %% @doc Creates a new instance of a proxy class.
@@ -136,18 +136,28 @@ class(NodeId,Name,SuperClassName,MethodFuns) ->
 -spec new(java:node_id(),atom(),any()) -> java:obj_ref().
 new(NodeId,Name,Init) ->
     case ets:lookup(proxy_classes,{NodeId,Name}) of
-        [{_,NodeId,ProxyClass,Funs}] ->
-            Counter = ets:update_counter(proxy_objects,proxy_counter,1),
-            [{_,ProxyPid}] = ets:lookup(proxy_classes,proxy_pid),
-            {Object,Handler} =
-                java:javaCall
-                  (NodeId,
-                   ?new_proxy_object,
-                   {ProxyClass,Counter,ProxyPid}),
-            Proxy = #proxy{id=Counter,state=Init,status=idle,queue=[],funs=Funs,handler=Handler},
-            ets:insert(proxy_objects,Proxy),
-            Object
+        [{_,NodeId,ProxyClass,Funs,_DefaultInit}] ->
+	    new_proxy(NodeId,ProxyClass,Funs,Init)
     end.
+
+-spec new(java:node_id(),atom()) -> java:obj_ref().
+new(NodeId,Name) ->
+    case ets:lookup(proxy_classes,{NodeId,Name}) of
+        [{_,NodeId,ProxyClass,Funs,DefaultInit}] ->
+	    new_proxy(NodeId,ProxyClass,Funs,DefaultInit)
+    end.
+
+new_proxy(NodeId,ProxyClass,Funs,InitialValue) ->
+    Counter = ets:update_counter(proxy_objects,proxy_counter,1),
+    [{_,ProxyPid}] = ets:lookup(proxy_classes,proxy_pid),
+    {Object,Handler} =
+	java:javaCall
+	  (NodeId,
+	   ?new_proxy_object,
+	   {ProxyClass,Counter,ProxyPid}),
+    Proxy = #proxy{id=Counter,state=InitialValue,status=idle,queue=[],funs=Funs,handler=Handler},
+    ets:insert(proxy_objects,Proxy),
+    Object.
 
 handle_call(FunIndex,Proxy,Args,Context,ProxyServer) ->
     Fun = element(FunIndex,Proxy#proxy.funs),

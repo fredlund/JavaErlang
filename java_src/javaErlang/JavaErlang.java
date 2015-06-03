@@ -507,6 +507,12 @@ public class JavaErlang {
                     initializeArray(arr, value, arrElement);
                     return arr;
                 }
+		if (logger.isLoggable(Level.FINE)) {
+		    logger.log
+			(Level.FINE,"Cannot convert " + value + " to type "
+			 + typeClass + " dimensions = "+dimensions);
+		}
+		throw new Exception();
             }
             if (logger.isLoggable(Level.FINE)) {
                 logger.log
