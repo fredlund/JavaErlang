@@ -46,7 +46,7 @@ start() ->
               (N, 'myWindowListener', 'java.awt.event.WindowAdapter',
                [{{windowClosed,['java.awt.event.WindowEvent']},fun windowClosed/3}],
 	       void),
-        Frame = java:new(N,'javax.swing.JFrame',[java:list_to_string(N,"HelloWorldSwing")]),
+        Frame = java:new(N,'javax.swing.JFrame',["HelloWorldSwing"]),
         java:call
           (Frame,setDefaultCloseOperation,
            [java:get_static(N,'javax.swing.JFrame','DISPOSE_ON_CLOSE')]),
@@ -54,7 +54,7 @@ start() ->
         Button = java:new(N,'javax.swing.JButton',[]),
         java:call(Button,setAction,[java_proxy:new(N,'myActionListener',{self(),false})]),
         java:call(Pane,add,[Button]),
-        java:call(Button,setText,[java:list_to_string(N,"Hello World")]),
+        java:call(Button,setText,["Hello World"]),
         java:call(Frame,pack,[]),
         java:call(Frame,addWindowListener,[java_proxy:new(N,'myWindowListener')]),
         java:call(Frame,setVisible,[true]),
@@ -79,7 +79,7 @@ actionPerformed(_Context,{MainThread,Reversed},Event) ->
         {event,
          fun () ->
                  Button = java:call(Event,getSource,[]),
-                 java:call(Button,setText,[java:list_to_string(java:node_id(Button),String)])
+                 java:call(Button,setText,[String])
          end,
          self()},
     receive _ -> {reply,void,{MainThread,not(Reversed)}} end.
