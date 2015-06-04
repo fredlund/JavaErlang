@@ -40,13 +40,11 @@ start() ->
             java_proxy:class
               (N, 'myActionListener', 'javax.swing.AbstractAction',
                [{{actionPerformed,['java.awt.event.ActionEvent']},
-		 fun actionPerformed/3}],
-	       false),
+		 fun actionPerformed/3}]),
         _WindowListenerClass =
             java_proxy:class
               (N, 'myWindowListener', 'java.awt.event.WindowAdapter',
-               [{{windowClosed,['java.awt.event.WindowEvent']},fun windowClosed/3}],
-	       void),
+               [{{windowClosed,['java.awt.event.WindowEvent']},fun windowClosed/3}]),
         Frame = java:new(N,'javax.swing.JFrame',["HelloWorldSwing"]),
         java:call
           (Frame,setDefaultCloseOperation,
@@ -64,20 +62,20 @@ start() ->
             java:print_stacktrace(Exc)
     end.
 
-actionPerformed(_Context,Reversed,Event) ->
-    io:format("An action was performed!~n",[]),
+actionPerformed(_,_,Event) ->
+    Button = java:call(Event,getSource,[]),
+    Text = java:string_to_list(java:call(Button,getText,[])),
     String =
-        if Reversed -> "Hello World";
+        if Text=="World Hello" -> "Hello World";
            true -> "World Hello"
         end,
-    Button = java:call(Event,getSource,[]),
     java:call(Button,setText,[String]),
-    {reply,void,not(Reversed)}.
+    {reply,void}.
 
 windowClosed(_Context,_State,_Event) ->
     io:format("The main window was closed.~n",[]),
     halt(),
-    {reply,void,void}.
+    {reply,void}.
 
 
 

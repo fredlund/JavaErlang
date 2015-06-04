@@ -33,7 +33,7 @@
 -record(proxy,{id,state,status,queue,funs,handler}).
 
 -export([start/0]).
--export([class/5,new/2,new/3]).
+-export([class/5,class/4,new/2,new/3]).
 
 -include("tags.hrl").
 
@@ -117,6 +117,13 @@ wait_until_stable() ->
 %% (typically in a Java Swing application).
 -spec class(java:node_id(),atom(),atom(),[{[{atom(),java:type()}],fun((...) -> reply())}],any()) -> java:obj_ref().
 class(NodeId,Name,SuperClassName,MethodFuns,DefaultInit) ->
+    class_int(NodeId,Name,SuperClassName,MethodFuns,DefaultInit).
+
+-spec class(java:node_id(),atom(),atom(),[{[{atom(),java:type()}],fun((...) -> reply())}]) -> java:obj_ref().
+class(NodeId,Name,SuperClassName,MethodFuns) ->
+    class_int(NodeId,Name,SuperClassName,MethodFuns,void).
+
+class_int(NodeId,Name,SuperClassName,MethodFuns,DefaultInit) ->
     ok = application:ensure_started(java_erlang),
     {Methods,Functions} =
         lists:unzip(MethodFuns),
@@ -165,16 +172,18 @@ handle_call(FunIndex,Proxy,Args,Context,ProxyServer) ->
     Handler = Proxy#proxy.handler,
     NodeId = java:node_id(Handler),
     java:format(info,"calling function with arguments of length ~p~n",[length(Args)+2]),
-    case apply(Fun,[Context,Proxy#proxy.state|Args]) of
-        {reply,PreResult,NewState} ->
-            Result =
-                if
-                    PreResult==void -> null;
-                    true -> PreResult
-                end,
-            java:javaCall(NodeId,?proxy_reply,{Handler,Result}),
-            ProxyServer!{done,Proxy#proxy.id,NewState}
-    end.
+    {PreResult,NewState} =
+	case apply(Fun,[Context,Proxy#proxy.state|Args]) of
+	    {reply,PR,NS} -> {PR,NS};
+	    {reply,PR} -> {PR,Proxy#proxy.state}
+	end,
+    Result =
+	if
+	    PreResult==void -> null;
+	    true -> PreResult
+	end,
+    java:javaCall(NodeId,?proxy_reply,{Handler,Result}),
+    ProxyServer!{done,Proxy#proxy.id,NewState}.
 
 looper() ->
     receive
