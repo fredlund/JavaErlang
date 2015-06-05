@@ -2,5 +2,6 @@
   A list of bytes are returned, which since they are signed, may be
   negative and thus crash Erlang.
 
+- It is probably better to move tga analysis wholly to Java
 
 
