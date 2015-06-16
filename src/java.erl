@@ -65,7 +65,7 @@
 -export([default_options/0,version/0]).
 -export([free/1,reset/1,terminate/1,terminate_all/0]).
 -export([brutally_terminate/1,recreate_node/1]).
--export([node_id/1]).
+-export([node_id/1,node_is_alive/1]).
 -export([new/3,new/4]).
 -export([call/3,call/4,call_static/4,call_static/5]).
 -export([eq/2]).
@@ -948,6 +948,16 @@ version() ->
 -spec node_id(object_ref()) -> node_id().
 node_id({_,_,_,_,NodeId}) ->
     NodeId.
+
+%% @doc Returns true if the node is alive, false otherwise.
+-spec node_is_alive(object_ref()) -> boolean().
+node_is_alive(NodeId) ->
+  case node_lookup(NodeId,false) of
+    {ok,_} ->
+      true;
+    Other ->
+      Other
+  end.
 
 %% -spec object_id(object_ref()) -> integer().
 %% object_id({_,ObjectId,_,_,_}) ->
