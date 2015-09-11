@@ -24,7 +24,7 @@ __Authors:__ [`Lars-Ake Fredlund (lfredlund@fi.upm.es)`](mailto:Lars-Ake Fredlun
 
 ### compute_class/2 ###
 
-`compute_class(NodeId, ClassName) -> any()`
+`compute_class(NodeId, ClassArg) -> any()`
 
 
 <a name="find_constructor-3"></a>

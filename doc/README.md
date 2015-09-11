@@ -21,6 +21,7 @@ without the need to write any boilerplate code.
 An example:<br />
 
 ```
+$ erl -sname anyname
 > application:ensure_started(java_erlang).
 > {ok,NodeId} = java:start_node().
 > Int10 = java:new(NodeId,'java.lang.Integer',[10]).
@@ -31,7 +32,7 @@ An example:<br />
 
 
 
-The above code starts a Java node, and establishes
+The above code starts a Java node with a specified name (note the name itself does not matter, just that we start erlang with the `-sname` or `-name` option), and establishes
 a connection to it. Then, a Java integer storing the value 10 is created,
 and finally a Java string representing "10" is returned
 from the Java integer just created.

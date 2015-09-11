@@ -34,7 +34,7 @@ reply() = {reply, <a href="java.md#type-value">java:value()</a>, any()}
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#class-4">class/4</a></td><td>Creates a new proxy class with the given name and superclass.</td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td>Creates a new instance of a proxy class.</td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#class-4">class/4</a></td><td></td></tr><tr><td valign="top"><a href="#class-5">class/5</a></td><td>Creates a new proxy class with the given name and superclass.</td></tr><tr><td valign="top"><a href="#new-2">new/2</a></td><td></td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td>Creates a new instance of a proxy class.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -48,6 +48,17 @@ reply() = {reply, <a href="java.md#type-value">java:value()</a>, any()}
 
 <pre><code>
 class(NodeId::<a href="java.md#type-node_id">java:node_id()</a>, Name::atom(), SuperClassName::atom(), MethodFuns::[{[{atom(), <a href="java.md#type-type">java:type()</a>}], fun((...) -&gt; <a href="#type-reply">reply()</a>)}]) -&gt; <a href="java.md#type-obj_ref">java:obj_ref()</a>
+</code></pre>
+<br />
+
+
+<a name="class-5"></a>
+
+### class/5 ###
+
+
+<pre><code>
+class(NodeId::<a href="java.md#type-node_id">java:node_id()</a>, Name::atom(), SuperClassName::atom(), MethodFuns::[{[{atom(), <a href="java.md#type-type">java:type()</a>}], fun((...) -&gt; <a href="#type-reply">reply()</a>)}], DefaultInit::any()) -&gt; <a href="java.md#type-obj_ref">java:obj_ref()</a>
 </code></pre>
 <br />
 
@@ -84,6 +95,17 @@ An example:<br />
 
 creates a new Java class that handles invocations of `actionPerformed`
 (typically in a Java Swing application).
+<a name="new-2"></a>
+
+### new/2 ###
+
+
+<pre><code>
+new(NodeId::<a href="java.md#type-node_id">java:node_id()</a>, Name::atom()) -&gt; <a href="java.md#type-obj_ref">java:obj_ref()</a>
+</code></pre>
+<br />
+
+
 <a name="new-3"></a>
 
 ### new/3 ###

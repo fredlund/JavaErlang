@@ -316,7 +316,7 @@ Returns an integer corresponding to the number of Java object that are
 currently known to the Java part of the java library, at the node argument.</td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td>
 Calls the constructor of a Java class.</td></tr><tr><td valign="top"><a href="#new-4">new/4</a></td><td>
 Calls the constructor of a Java class, explicitely selecting
-a particular constructor.</td></tr><tr><td valign="top"><a href="#node_id-1">node_id/1</a></td><td>Returns the node where the object argument is located.</td></tr><tr><td valign="top"><a href="#nodes-0">nodes/0</a></td><td>
+a particular constructor.</td></tr><tr><td valign="top"><a href="#node_id-1">node_id/1</a></td><td>Returns the node where the object argument is located.</td></tr><tr><td valign="top"><a href="#node_is_alive-1">node_is_alive/1</a></td><td>Returns true if the node is alive, false otherwise.</td></tr><tr><td valign="top"><a href="#nodes-0">nodes/0</a></td><td>
 Returns the set of active Java nodes.</td></tr><tr><td valign="top"><a href="#print_stacktrace-1">print_stacktrace/1</a></td><td>
 Prints the Java stacktrace on the standard error file error descriptor
 that resulted in the throwable object argument.</td></tr><tr><td valign="top"><a href="#recreate_node-1">recreate_node/1</a></td><td>
@@ -331,7 +331,7 @@ to Erlang.</td></tr><tr><td valign="top"><a href="#string_to_list-1">string_to_l
 Returns the elements of the Java String as an Erlang list.</td></tr><tr><td valign="top"><a href="#terminate-1">terminate/1</a></td><td>
 Shuts down and terminates the connection to a Java node.</td></tr><tr><td valign="top"><a href="#terminate_all-0">terminate_all/0</a></td><td>
 Shuts down and terminates the connection to all known Java nodes.</td></tr><tr><td valign="top"><a href="#version-0">version/0</a></td><td>
-Returns the version number of the JavaErlang library.</td></tr></table>
+Returns the major version number of the JavaErlang library.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -731,6 +731,17 @@ node_id(X1::<a href="#type-object_ref">object_ref()</a>) -&gt; <a href="#type-no
 <br />
 
 Returns the node where the object argument is located.
+<a name="node_is_alive-1"></a>
+
+### node_is_alive/1 ###
+
+
+<pre><code>
+node_is_alive(NodeId::<a href="#type-object_ref">object_ref()</a>) -&gt; boolean()
+</code></pre>
+<br />
+
+Returns true if the node is alive, false otherwise.
 <a name="nodes-0"></a>
 
 ### nodes/0 ###
@@ -939,4 +950,4 @@ version() -&gt; string()
 <br />
 
 
-Returns the version number of the JavaErlang library.
+Returns the major version number of the JavaErlang library.
