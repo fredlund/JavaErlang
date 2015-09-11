@@ -72,7 +72,7 @@ sample_commands() ->
 
 %% @private
 initial_state() ->
-    #state{}.
+    #state{sets=[]}.
 
 %% @private
 command(State) ->
