@@ -107,6 +107,17 @@ $ env ERL_LIBS=$PWD/_build/default/lib/edown rebar3 edoc
 
 
 
+## Examples ##
+
+
+The `test` directory contains a number of examples. The subdirectory
+`qc` contains a simple Quviq QuickCheck test model for the Java `HashSet`
+class -- if QuickCheck is installed the class can be verified by
+invoking the `hashset_test:test()` function. The `demo` subdirectory
+contains a simple example of using the Swing GUI library from Erlang.
+
+
+
 ## News ##
 
 The library now provides a facility to construct
