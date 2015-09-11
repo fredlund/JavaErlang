@@ -43,45 +43,53 @@
 -include("tags.hrl").
 
 
-compute_class(NodeId,ClassName) ->
+compute_class(NodeId,ClassArg) ->
+    ClassName =
+        if
+	    is_atom(ClassArg) ->
+	        ClassArg;
+	    is_tuple(ClassArg) ->
+	        java:report_java_exception
+                  (java:string_to_list(java:call(ClassArg,getName,[])))
+        end,
     ClassId =
 	java:report_java_exception
-	  (lookup_class(NodeId,ClassName)),
+	  (lookup_class(NodeId,ClassArg)),
     RawConstructors =
 	java:report_java_exception
-	  (get_constructors(NodeId,ClassName,true)),
+	  (get_constructors(NodeId,ClassArg,true)),
     ConstructorsWithType = 
-	elements_with_type(NodeId,ClassName,?getConstructor,RawConstructors),
+	elements_with_type(NodeId,ClassArg,?getConstructor,RawConstructors),
     ConstructorsWithArity = 
-	elements_with_arity(NodeId,ClassName,?getConstructor,RawConstructors),
+	elements_with_arity(NodeId,ClassArg,?getConstructor,RawConstructors),
 
     RawMethods =
 	java:report_java_exception
-	  (get_methods(NodeId,ClassName,false,true)),
+	  (get_methods(NodeId,ClassArg,false,true)),
     MethodsWithType = 
-	elements_with_type(NodeId,ClassName,?getMethod,RawMethods),
+	elements_with_type(NodeId,ClassArg,?getMethod,RawMethods),
     MethodsWithArity = 
-	elements_with_arity(NodeId,ClassName,?getMethod,RawMethods),
+	elements_with_arity(NodeId,ClassArg,?getMethod,RawMethods),
 
     RawStaticMethods =
 	java:report_java_exception
-	  (get_methods(NodeId,ClassName,true,true)),
+	  (get_methods(NodeId,ClassArg,true,true)),
     StaticMethodsWithType = 
-	elements_with_type(NodeId,ClassName,?getMethod,RawStaticMethods),
+	elements_with_type(NodeId,ClassArg,?getMethod,RawStaticMethods),
     StaticMethodsWithArity = 
-	elements_with_arity(NodeId,ClassName,?getMethod,RawStaticMethods),
+	elements_with_arity(NodeId,ClassArg,?getMethod,RawStaticMethods),
 
     RawFields =
 	java:report_java_exception
-	  (get_fields(NodeId,ClassName,false,true)),
+	  (get_fields(NodeId,ClassArg,false,true)),
     FieldsWithArity = 
-	elements_with_arity(NodeId,ClassName,?getField,RawFields),
+	elements_with_arity(NodeId,ClassArg,?getField,RawFields),
     
     RawStaticFields =
 	java:report_java_exception
-	  (get_fields(NodeId,ClassName,true,true)),
+	  (get_fields(NodeId,ClassArg,true,true)),
     StaticFieldsWithArity = 
-	elements_with_arity(NodeId,ClassName,?getField,RawStaticFields),
+	elements_with_arity(NodeId,ClassArg,?getField,RawStaticFields),
 
     #class{
        name=ClassName,
