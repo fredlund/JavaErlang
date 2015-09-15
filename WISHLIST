@@ -4,8 +4,5 @@
 
 - It is probably better to move tga analysis wholly to Java.
 
-- The Java classpath should probably reflect the normal Java classpath,
-i.e., include "." in the classpath.
-
 - Provide a nice pretty printer for Java classes, for debugging purposes.
 

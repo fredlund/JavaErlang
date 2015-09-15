@@ -919,7 +919,7 @@ default_options() ->
             JavaErlangPath when is_list(JavaErlangPath) ->
                 [JavaErlangPath++"/JavaErlang.jar",JavaErlangPath++"/javassist.jar"]
         end,
-    ClassPath = OtpClassPath++JavaErlangClassPath,
+    ClassPath = OtpClassPath++JavaErlangClassPath++["."],
     JavaExecutable =
         case os:find_executable("java") of
             false -> "java";
