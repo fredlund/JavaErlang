@@ -14,6 +14,7 @@ without the need to write any boilerplate code.
 <p>
 An example:<br/>
 ```
+$ erl -sname anyname
 > application:ensure_started(java_erlang).
 > {ok,NodeId} = java:start_node().
 > Int10 = java:new(NodeId,'java.lang.Integer',[10]).
@@ -21,7 +22,7 @@ An example:<br/>
 '''
 </p>
 <p>
-The above code starts a Java node, and establishes
+The above code starts a Java node with a specified name (note that the name itself does not matter, just that we start erlang with the `-sname' or `-name' option), and establishes
 a connection to it. Then, a Java integer storing the value 10 is created,
 and finally a Java string representing "10" is returned
 from the Java integer just created.
@@ -84,6 +85,16 @@ To generate Markdown docs, execute the following command:<br/>
 ```
 $ env ERL_LIBS=$PWD/_build/default/lib/edown rebar3 edoc
 '''
+</p>
+
+<h2>Examples</h2>
+
+<p>
+The ``test'' directory contains a number of examples. The subdirectory
+``qc'' contains a simple Quviq QuickCheck test model for the Java ``HashSet''
+class -- if QuickCheck is installed the class can be verified by
+invoking the ``hashset_test:test()'' function. The ``demo'' subdirectory
+contains a simple example of using the Swing GUI library from Erlang.
 </p>
 
 <h2>News</h2>
