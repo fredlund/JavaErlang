@@ -1505,7 +1505,7 @@ print_class(NodeId,ClassName) ->
     ++ ",\n" ++ "  methods = [\n" 
     ++ print_elements(element(1,Class#class.methods),fun print_method/1,Pre,Combiner) 
     ++ "\n  ]"
-    ++ ",\n" ++ "  methods = [\n" 
+    ++ ",\n" ++ "  static_methods = [\n" 
     ++ print_elements(element(1,Class#class.static_methods),fun print_method/1,Pre,Combiner) 
     ++ "\n  ]"
     ++ ",\n" ++ "  fields = [\n" 
