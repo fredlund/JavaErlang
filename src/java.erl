@@ -79,6 +79,7 @@
 -export([set_loglevel/1,format/2,format/3]).
 -export([acquire_class/2,report_java_exception/1]).
 -export([memory_usage/0,memory_usage/1]).
+-export([print_class/2]).
 
 %% Private
 -export([javaCall/3]).
@@ -1481,6 +1482,91 @@ level(notice) -> 5;
 level(info) -> 6;
 level(debug) -> 7;
 level(_) -> throw(badarg).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% @doc Outputs to standard output a textual representation
+%% of what the library knows about a certain Java class.
+%% Mainly useful as a debugging aid.
+%%
+-spec print_class(node_id(),class_ref()) -> any().
+print_class(NodeId,ClassName) ->
+  Class = acquire_class(NodeId,ClassName),
+  Pre = fun () -> "    " end,
+  Combiner = fun () -> "\n" end,
+  String =
+    print_term(Class#class.name) ++ ": \n" ++
+    "  id = " ++ print_term(Class#class.id)
+    ++ ",\n" ++ "  node = " ++ print_term(Class#class.node)
+    ++ ",\n" ++ "  location = " ++ print_term(Class#class.class_location)
+    ++ ",\n" ++ "  constructors = [\n" 
+    ++ print_elements(element(1,Class#class.constructors),fun print_constructor/1,Pre,Combiner) 
+    ++ "\n  ]"
+    ++ ",\n" ++ "  methods = [\n" 
+    ++ print_elements(element(1,Class#class.methods),fun print_method/1,Pre,Combiner) 
+    ++ "\n  ]"
+    ++ ",\n" ++ "  methods = [\n" 
+    ++ print_elements(element(1,Class#class.static_methods),fun print_method/1,Pre,Combiner) 
+    ++ "\n  ]"
+    ++ ",\n" ++ "  fields = [\n" 
+    ++ print_elements(Class#class.fields,
+		      fun (Field) -> print_field(Field,Pre) end,
+		      Pre,
+		      Combiner)
+    ++ "\n  ]"
+    ++ ",\n" ++ "  static_fields = [\n" 
+    ++ print_elements(Class#class.static_fields,
+		      fun (Field) -> print_field(Field,Pre) end,
+		      Pre,
+		      Combiner)
+    ++ "\n  ]"
+    ++ "\n",
+  io:format("~s~n",[String]).
+
+print_elements(Elements,Printer,Pre,Combiner) ->
+  lists:foldr
+    (fun (Element,Acc) ->
+	 String = Pre() ++ Printer(Element),
+	 if
+	   Acc=="" -> String;
+	   true -> Acc++Combiner()++String
+	 end
+     end, "", Elements).
+
+print_method({{Name,ArgTypes},_}) ->
+  io_lib:format("~p",[Name])++print_args(ArgTypes).
+    
+print_constructor({{_,ArgTypes},_}) ->
+  print_args(ArgTypes).
+
+print_args(ArgTypes) ->
+  Pre = fun () -> "" end,
+  Combiner = fun () -> "," end,
+  "(" ++ print_elements(ArgTypes,fun print_type/1,Pre,Combiner) ++ ")".
+
+print_type(Type) ->
+  case Type of
+    {array,ArrayType,0} ->
+      print_type(ArrayType);
+    {array,ArrayType,Dimension} ->
+      print_type({array,ArrayType,Dimension-1})++"[]";
+    NoArrayType ->
+      io_lib:format("~p",[NoArrayType])
+  end.
+
+print_field({{Name,_},Vars},Pre) ->
+  print_elements
+    (Vars,
+     fun ({[Type],_}) ->
+	 io_lib:format("~p",[Name])++":"++print_type(Type)
+     end,
+     fun () -> "" end,
+     Pre).
+
+print_term(Term) ->
+  io_lib:format("~p",[Term]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -ifdef(non_deprecated_erlang_now).
 java_timestamp() ->

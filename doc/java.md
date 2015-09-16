@@ -73,6 +73,18 @@ class_name() = atom() | string()
 
 
 
+### <a name="type-class_ref">class_ref()</a> ###
+
+
+
+<pre><code>
+class_ref() = <a href="#type-class_name">class_name()</a> | <a href="#type-object_type">object_type()</a>
+</code></pre>
+
+
+
+
+
 ### <a name="type-float_type">float_type()</a> ###
 
 
@@ -317,7 +329,8 @@ currently known to the Java part of the java library, at the node argument.</td>
 Calls the constructor of a Java class.</td></tr><tr><td valign="top"><a href="#new-4">new/4</a></td><td>
 Calls the constructor of a Java class, explicitely selecting
 a particular constructor.</td></tr><tr><td valign="top"><a href="#node_id-1">node_id/1</a></td><td>Returns the node where the object argument is located.</td></tr><tr><td valign="top"><a href="#node_is_alive-1">node_is_alive/1</a></td><td>Returns true if the node is alive, false otherwise.</td></tr><tr><td valign="top"><a href="#nodes-0">nodes/0</a></td><td>
-Returns the set of active Java nodes.</td></tr><tr><td valign="top"><a href="#print_stacktrace-1">print_stacktrace/1</a></td><td>
+Returns the set of active Java nodes.</td></tr><tr><td valign="top"><a href="#print_class-2">print_class/2</a></td><td>Outputs to standard output a textual representation
+of what the library knows about a certain Java class.</td></tr><tr><td valign="top"><a href="#print_stacktrace-1">print_stacktrace/1</a></td><td>
 Prints the Java stacktrace on the standard error file error descriptor
 that resulted in the throwable object argument.</td></tr><tr><td valign="top"><a href="#recreate_node-1">recreate_node/1</a></td><td>
 Recreates a possibly dead node.</td></tr><tr><td valign="top"><a href="#report_java_exception-1">report_java_exception/1</a></td><td></td></tr><tr><td valign="top"><a href="#reset-1">reset/1</a></td><td>
@@ -754,6 +767,20 @@ nodes() -&gt; [<a href="#type-node_id">node_id()</a>]
 
 
 Returns the set of active Java nodes.
+<a name="print_class-2"></a>
+
+### print_class/2 ###
+
+
+<pre><code>
+print_class(NodeId::<a href="#type-node_id">node_id()</a>, ClassName::<a href="#type-class_ref">class_ref()</a>) -&gt; any()
+</code></pre>
+<br />
+
+Outputs to standard output a textual representation
+of what the library knows about a certain Java class.
+Mainly useful as a debugging aid.
+
 <a name="print_stacktrace-1"></a>
 
 ### print_stacktrace/1 ###
