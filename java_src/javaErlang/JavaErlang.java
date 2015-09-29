@@ -1018,8 +1018,7 @@ public class JavaErlang {
 
     OtpErlangObject getField(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final String className = ((OtpErlangAtom) t.elementAt(0)).atomValue();
-        final Field field = getField(className,
+        final Field field = getField(findClass(t.elementAt(0)),
                                      ((OtpErlangAtom) t.elementAt(1)).atomValue());
         return acc_map_to_erlang(field);
     }
@@ -1243,9 +1242,8 @@ public class JavaErlang {
         throw new Exception();
     }
 
-    static Field getField(final String className, final String fieldName)
+    static Field getField(final Class cl, final String fieldName)
         throws Exception {
-        final Class cl = findClass(className);
         for (final Field field : cl.getFields()) {
             if (field.getName().equals(fieldName)) {
                 // Fix for java bug 4071957
