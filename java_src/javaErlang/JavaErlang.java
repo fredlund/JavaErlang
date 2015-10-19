@@ -903,10 +903,16 @@ public class JavaErlang {
     }
 
     public static OtpErlangObject map_to_erlang_double(final double value) {
+        if (Double.isNaN(value) || Double.isInfinite(value))
+          throw new ArithmeticException("Can't represent infinite or NaN doubles");
+
         return new OtpErlangDouble(value);
     }
 
     public static OtpErlangObject map_to_erlang_float(final float value) {
+        if (Float.isNaN(value) || Float.isInfinite(value))
+            throw new ArithmeticException("Can't represent infinite or NaN floats");
+
         return new OtpErlangDouble(value);
     }
 
