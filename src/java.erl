@@ -92,7 +92,7 @@
 
 -include("debug.hrl").
 
--export_type([node_id/0,object_type/0,object_ref/0]).
+-export_type([node_id/0,object_type/0,object_ref/0,value/0,type/0]).
 
 -type loglevel() ::
         all | none |
@@ -149,7 +149,7 @@
 %%-opaque object_type() :: object | executable | thread.
 -opaque object_type() :: object.
 
--opaque object_ref() :: {object_type(), integer(), integer(), integer(), node_id()}.
+-type object_ref() :: {object_type(), integer(), integer(), integer(), node_id()}.
 %% A Java object reference.
 
 -type class_name() :: atom() | string().
@@ -1412,8 +1412,8 @@ runs_on_windows() ->
     case os:type() of
         {win32,_} ->
             true;
-        {win64,_} ->
-            true;
+%%        {win64,_} ->
+%%            true;
         _ ->
             false
     end.
@@ -1497,8 +1497,6 @@ print_class(NodeId,ClassName) ->
   String =
     print_term(Class#class.name) ++ ": \n" ++
     "  id = " ++ print_term(Class#class.id)
-    ++ ",\n" ++ "  node = " ++ print_term(Class#class.node)
-    ++ ",\n" ++ "  location = " ++ print_term(Class#class.class_location)
     ++ ",\n" ++ "  constructors = [\n" 
     ++ print_elements(element(1,Class#class.constructors),fun print_constructor/1,Pre,Combiner) 
     ++ "\n  ]"

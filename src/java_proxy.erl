@@ -115,11 +115,11 @@ wait_until_stable() ->
 %% '''
 %% creates a new Java class that handles invocations of ``actionPerformed''
 %% (typically in a Java Swing application).
--spec class(java:node_id(),atom(),atom(),[{[{atom(),java:type()}],fun((...) -> reply())}],any()) -> java:obj_ref().
+-spec class(java:node_id(),atom(),atom(),[{[{atom(),java:type()}],fun((...) -> reply())}],any()) -> java:object_ref().
 class(NodeId,Name,SuperClassName,MethodFuns,DefaultInit) ->
     class_int(NodeId,Name,SuperClassName,MethodFuns,DefaultInit).
 
--spec class(java:node_id(),atom(),atom(),[{[{atom(),java:type()}],fun((...) -> reply())}]) -> java:obj_ref().
+-spec class(java:node_id(),atom(),atom(),[{[{atom(),java:type()}],fun((...) -> reply())}]) -> java:object_ref().
 class(NodeId,Name,SuperClassName,MethodFuns) ->
     class_int(NodeId,Name,SuperClassName,MethodFuns,void).
 
@@ -141,14 +141,14 @@ class_int(NodeId,Name,SuperClassName,MethodFuns,DefaultInit) ->
 %% ```
 %% java_proxy:new(N,'myActionListener',0).
 %% '''
--spec new(java:node_id(),atom(),any()) -> java:obj_ref().
+-spec new(java:node_id(),atom(),any()) -> java:object_ref().
 new(NodeId,Name,Init) ->
     case ets:lookup(proxy_classes,{NodeId,Name}) of
         [{_,NodeId,ProxyClass,Funs,_DefaultInit}] ->
 	    new_proxy(NodeId,ProxyClass,Funs,Init)
     end.
 
--spec new(java:node_id(),atom()) -> java:obj_ref().
+-spec new(java:node_id(),atom()) -> java:object_ref().
 new(NodeId,Name) ->
     case ets:lookup(proxy_classes,{NodeId,Name}) of
         [{_,NodeId,ProxyClass,Funs,DefaultInit}] ->

@@ -42,7 +42,6 @@
 -include("debug.hrl").
 -include("tags.hrl").
 
-
 compute_class(NodeId,ClassArg) ->
     ClassName =
         if
@@ -93,6 +92,7 @@ compute_class(NodeId,ClassArg) ->
 
     #class{
        name=ClassName,
+       node_id=NodeId,
        id=ClassId,
        constructors={ConstructorsWithType,ConstructorsWithArity},
        methods={MethodsWithType,MethodsWithArity},
