@@ -88,24 +88,42 @@ public class JavaErlang {
     boolean isConnected = false;
 
     public static void main(final String args[]) {
-        final String name = args[0];
+	Level logLevel = Level.WARNING;
+	int currentArg = 0;
+        final String name = args[currentArg++];
+	String cookie = null;
 
-        if (args.length > 1) {
-            if (args[1].equals("-loglevel")) {
-                Level level = Level.parse(args[2]);
-                logger.setLevel(level);
-            } else {
-                System.err.println("\rCannot understand argument " + args[1]);
+	while (currentArg < args.length) {
+	    final String arg = args[currentArg++];
+
+	    if (arg.equals("-loglevel"))
+		if (currentArg < args.length)
+		    logLevel = Level.parse(args[currentArg++]);
+		else {
+		    System.err.println("Missing argument for -loglevel option");
+		    System.exit(-1);
+		}
+	    else if (arg.equals("-setcookie"))
+		if (currentArg < args.length)
+		    cookie = args[currentArg++];
+		else {
+		    System.err.println("Missing argument for -setcookie option");
+		    System.exit(-1);
+		}
+	    else {
+                System.err.println("\rCannot understand argument " + arg);
                 System.exit(-1);
-            }
-        } else logger.setLevel(Level.WARNING);
+	    }
+	}
+
+        logger.setLevel(logLevel);
 
         ConsoleHandler consoleHandler = new ConsoleHandler();
         consoleHandler.setLevel(logger.getLevel());
         logger.addHandler(consoleHandler);
 
         try {
-            new JavaErlang(name).do_receive();
+            new JavaErlang(name,cookie).do_receive();
         } catch (final Exception e) {
             logger.log
                 (Level.SEVERE,
@@ -115,7 +133,7 @@ public class JavaErlang {
 
     }
 
-    public JavaErlang(final String name) {
+    public JavaErlang(final String name, final String cookie) {
         toErlangMap = new ConcurrentHashMap<RefEqualsObject, JavaObjectEntry>();
         fromErlangMap = new ConcurrentHashMap<JavaObjectKey, JavaObjectEntry>();
         accToErlangMap = new ConcurrentHashMap<Object, OtpErlangObject>();
@@ -123,7 +141,10 @@ public class JavaErlang {
         classMap = new ConcurrentHashMap<Class, Integer>();
         threadMap = new ConcurrentHashMap<OtpErlangObject, ThreadMsgHandler>();
         try {
-            final OtpNode node = new OtpNode(name);
+            final OtpNode node;
+
+	    if (cookie == null) node = new OtpNode(name);
+	    else node = new OtpNode(name,cookie);
 
             node.registerStatusHandler(new OtpStatusHandler(nodeIdentifier));
             if (logger.isLoggable(Level.INFO)) {

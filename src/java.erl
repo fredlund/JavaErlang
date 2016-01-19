@@ -53,6 +53,7 @@
          gc_pid=void,
          node_node,
          options,
+	 cookie=void,
          symbolic_name=void,
          unix_pid=void,ping_retry=5000,connect_timeout=1000,
          max_java_start_tries=3,call_timeout,num_start_tries=0}).
@@ -87,7 +88,7 @@
 -export([finalComponent/1]).
 -export([find_class/1]).
 -export([node_lookup/1]).
--export([run_java/8]).
+-export([run_java/9]).
 -export([terminate_brutally/1]).
 
 -include("debug.hrl").
@@ -110,6 +111,7 @@
       | {log_level,loglevel()}
       | {enable_gc,boolean()}
       | {java_options,[string()]}
+      | {setcookie,string()}
       | {enable_proxies,boolean()}
       | {call_timeout,integer() | infinity}.
 %% <ul>
@@ -135,8 +137,7 @@
 %% <li>`enable_gc' determines whether to garbage collect
 %% Java objects communicated to Erlang or not.</li>
 %% <li>`enable_proxies' determines whether the proxy facility provided
-%% by the `java_proxy' library can be used.
-%% Java objects communicated to Erlang or not.</li>
+%% <li>`setcookie' sets the cookie for the Java node.</li>
 %% <li>`call_timeout' sets a timeout value for all calls
 %% to Java from Erlang (default 10 seconds).</li>
 %% </ul>
@@ -222,6 +223,7 @@ start_node(UserOptions) ->
     CallTimeout = proplists:get_value(call_timeout,Options),
     SymbolicName = proplists:get_value(symbolic_name,Options,void),
     NodeNode = proplists:get_value(erlang_remote,Options,node()),
+    Cookie = proplists:get_value(setcookie,Options,undefined),
     if
         EnableProxies -> java_proxy:start();
         true -> ok
@@ -230,6 +232,7 @@ start_node(UserOptions) ->
         #node{options=Options,
               call_timeout=CallTimeout,
               node_node=NodeNode,
+	      cookie=Cookie,
               symbolic_name=SymbolicName},
     spawn_java(PreNode,get_java_node_id()).
 
@@ -259,6 +262,7 @@ spawn_java(PreNode,PreNodeId) ->
             ClassPath = compute_classpath(Options),
             NodeName =
                 list_to_atom(node_part(NodeId,SymbolicName)++host_part(PreNode)),
+  	    Cookie = PreNode#node.cookie,
             PortPid =
                 spawn
                   (PreNode#node.node_node,
@@ -272,6 +276,7 @@ spawn_java(PreNode,PreNodeId) ->
                     JavaVerbose,
                     JavaOptions,
                     ClassPath,
+		    Cookie,
                     proplists:get_value(java_class,Options)
                    ]),
             PreNode1 =
@@ -323,6 +328,7 @@ check_options(Options) ->
 		     java_class,java_classpath,add_to_java_classpath,
 		     java_exception_as_value,java_timeout_as_value,
 		     java_verbose,java_options,
+		     setcookie,
 		     java_executable,call_timeout]) of
 		   true -> ok;
 		   false ->
@@ -346,12 +352,14 @@ get_java_node_id() ->
     ets:update_counter(java_nodes,java_node_counter,1).
 
 %% @private
-run_java(Identity,NodeName,Name,Executable,Verbose,JavaOptions,Paths,Class) ->
+run_java(Identity,NodeName,Name,Executable,Verbose,JavaOptions,Paths,Cookie,Class) ->
     ClassPath =
         case combine_paths(Paths) of
             "" -> [];
             PathSpec -> ["-cp",PathSpec]
         end,
+    CookieArg = 
+        if Cookie=/=undefined -> ["-setcookie",Cookie]; true -> [] end,
     VerboseArg =
         if Verbose=/=undefined -> ["-loglevel",Verbose]; true -> [] end,
     JavaOptionsArgs =
@@ -360,7 +368,7 @@ run_java(Identity,NodeName,Name,Executable,Verbose,JavaOptions,Paths,Class) ->
         JavaOptionsArgs++
         ClassPath++
         [Class,NodeName]++
-        VerboseArg,
+        VerboseArg++CookieArg,
     format
       (info,
        "~p: starting Java node at ~p with command~n~s and args ~p~n",
