@@ -916,6 +916,20 @@ wait_forever() ->
 %% Returns a list with the default options.
 -spec default_options() -> [option()].
 default_options() ->
+    [
+     {Name, default_option(Name)} ||
+        Name <- [
+                 java_class,
+                 java_classpath,
+                 java_executable,
+                 call_timeout,
+                 log_level
+                ]
+    ].
+
+default_option(java_class) ->
+    "javaErlang.JavaErlang";
+default_option(java_classpath) ->
     OtpClassPath =
         case code:priv_dir(jinterface) of
             {error,_} -> [];
@@ -929,18 +943,17 @@ default_options() ->
                 [JavaErlangPath++"/JavaErlang.jar",JavaErlangPath++"/javassist.jar"]
         end,
     ClassPath = OtpClassPath++JavaErlangClassPath++["."],
-    JavaExecutable =
-        case os:find_executable("java") of
-            false -> "java";
-            Executable -> Executable
-        end,
     ?LOG("Java classpath is ~p~n",[ClassPath]),
-    [{java_class,"javaErlang.JavaErlang"},
-     {java_classpath,ClassPath},
-     {java_executable,JavaExecutable},
-     {call_timeout,10000},
-     {log_level,notice}].
-
+    ClassPath;
+default_option(java_executable) ->
+    case os:find_executable("java") of
+        false -> "java";
+        Executable -> Executable
+    end;
+default_option(call_timeout) ->
+    10000;
+default_option(log_level) ->
+    debug.
 
 %% @doc
 %% Returns the major version number of the JavaErlang library.
@@ -1432,13 +1445,35 @@ runs_on_windows() ->
 %% Rudimentary logging support; in the future we should probably use
 %% a standard logger
 
+get_option(Name) ->
+    case get_node_options() of
+        undefined ->
+            default_option(Name);
+        Options ->
+            case proplists:get_value(Name, Options) of
+                undefined ->
+                    default_option(Name);
+                Value ->
+                    Value
+            end
+    end.
+
 get_options() ->
-    case ets:info(java_nodes) of
+    case get_node_options() of
         undefined -> default_options();
+        Options -> Options
+    end.
+
+get_node_options() ->
+    case ets:info(java_nodes) of
+        undefined ->
+            undefined;
         _ ->
-            case ets:lookup(java_nodes,options) of
-                [{_,Options}] -> Options;
-                [] -> default_options()
+            case ets:lookup(java_nodes, options) of
+                [{_, Options}] ->
+                    Options;
+                [] ->
+                    undefined
             end
     end.
 
@@ -1456,7 +1491,7 @@ set_loglevel(Level) ->
     end.
 
 get_loglevel() ->
-    proplists:get_value(log_level,get_options()).
+    get_option(log_level).
 
 %% @private
 format(Level,Message) ->
