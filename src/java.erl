@@ -953,7 +953,7 @@ default_option(java_executable) ->
 default_option(call_timeout) ->
     10000;
 default_option(log_level) ->
-    debug.
+    notice.
 
 %% @doc
 %% Returns the major version number of the JavaErlang library.
