@@ -1,3 +1,9 @@
+4/11 -- 2016:
+
+The library now handles widening conversions better, e.g., instead
+of java:call_static(Node,'java.lang.math',pow,[2,3]) raising an exception as
+before, JavaCall now widens the ints 2 and 3 automatically.
+
 4/3 -- 2015:
 
 If you are using Javassist to create new classes which should be callable
