@@ -659,7 +659,7 @@ tc18() ->
             {value,X} -> {X,receive {value,Y} -> Y end}
         end,
     receive {node,_} -> ok end,
-    (V1==1 andalso V2==3) orelse (V1==3 andalso V2==3).
+    (V1==1 andalso V2==3) orelse (V1==3 andalso V2==1).
 
 set_get_report_gc(Parent,Value) ->
     {ok,N} = java:start_node([{add_to_java_classpath,["classes"]},{enable_gc,true}]),
