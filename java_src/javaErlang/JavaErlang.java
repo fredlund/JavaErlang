@@ -429,8 +429,8 @@ public class JavaErlang {
                         final Class comp = (Class) fromErlType(t.elementAt(1));
                         final int dimensions = ((OtpErlangLong) t.elementAt(2))
                             .intValue();
-                        final int[] arr_dimensions = checkDimensions(
-                                                                     dimensions, arg);
+                        final int[] arr_dimensions = 
+			    checkDimensions(dimensions, arg);
                         final Object array = Array.newInstance(comp,
                                                                arr_dimensions);
                         initializeArray(array, arg, comp);
@@ -477,7 +477,7 @@ public class JavaErlang {
         return objects;
     }
 
-    Object java_value_from_erlang(final OtpErlangObject value, final Type type)
+    Object java_value_from_erlang(Object value, final Type type)
         throws Exception {
 
         if (logger.isLoggable(Level.FINE)) {
@@ -485,12 +485,14 @@ public class JavaErlang {
                        " type "+type);
         }
 
-        if (value instanceof OtpErlangTuple) {
-            return java_value_from_erlang(value);
+        if (value instanceof OtpErlangAtom) {
+	    OtpErlangAtom a = (OtpErlangAtom) value;
+            return java_value_from_erlang(a);
         }
 
-        if (value instanceof OtpErlangAtom) {
-            return java_value_from_erlang(value);
+        if (value instanceof OtpErlangTuple) {
+	    OtpErlangTuple t = (OtpErlangTuple) value;
+            value = java_value_from_erlang(t);
         }
 
         // We have to use type information to interpret the value
@@ -527,145 +529,220 @@ public class JavaErlang {
         } else if ((value instanceof OtpErlangList) &&
                    (type == java.lang.String.class)) {
             return ((OtpErlangList) value).stringValue();
-        }
-        else {
+        } else {
             if (type instanceof Class) {
                 final Class typeClass = (Class) type;
                 final int dimensions = dimensions(typeClass);
-                if (typeClass.isArray()) {
-                    final Class arrElement = getArrayElementClass(typeClass);
-                    final int[] lengths = checkDimensions(dimensions, value);
-                    final Object arr = Array.newInstance(arrElement, lengths);
-                    initializeArray(arr, value, arrElement);
-                    return arr;
-                }
+
 		if (logger.isLoggable(Level.FINE)) {
 		    logger.log
-			(Level.FINE,"Cannot convert " + value + " to type "
-			 + typeClass + " dimensions = "+dimensions);
+			(Level.FINE,
+			 "typeClass="+typeClass+
+			 ", dimensions="+dimensions+
+			 ", value="+value);
 		}
-		throw new Exception();
+
+		if (dimensions > 0) {
+		    if (typeClass.isArray()) {
+			final Class arrElement = 
+			    getArrayElementClass(typeClass);
+			final int[] lengths = 
+			    checkDimensions(dimensions, value);
+			final Object arr = 
+			    Array.newInstance(arrElement, lengths);
+			initializeArray(arr, value, arrElement);
+			return arr;
+		    } else {
+			if (logger.isLoggable(Level.FINE)) {
+			    logger.log
+				(Level.FINE,
+				 "Cannot convert " + value + " to type "
+				 + typeClass + " dimensions = "+dimensions);
+			}
+			throw new Exception();
+		    }
+		}
+		return value;
             }
+
             if (logger.isLoggable(Level.FINE)) {
                 logger.log
                     (Level.FINE,"Cannot convert " + value + " to type "
                      + type);
             }
+
             throw new Exception();
         }
     }
 
-    static Object convert_to_character(final OtpErlangObject value)
+    static Object convert_to_character(final Object value)
         throws Exception {
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).charValue();
-        }
-	if (logger.isLoggable(Level.FINE)) {
-	    logger.log(Level.FINE,"\rerror: convert_to_character " + value);
-	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+        } else if (value instanceof Character) {
+	    return value;
 	}
+
+        logger.log(Level.FINE,"\rerror: convert_to_character " + value);
+        logger.log(Level.FINE,"\rtype is " + value.getClass());
         throw new Exception();
     }
 
-    static Object convert_to_byte(final OtpErlangObject value) throws Exception {
+    static Object convert_to_byte(final Object value) throws Exception {
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).byteValue();
-        }
-	if (logger.isLoggable(Level.FINE)) {
-	    logger.log(Level.FINE,"\rerror: convert_to_byte " + value);
-	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+        } else if (value instanceof Byte) {
+	    return value;
 	}
+
+        logger.log(Level.FINE,"\rerror: convert_to_byte " + value);
+        logger.log(Level.FINE,"\rtype is " + value.getClass());
         throw new Exception();
     }
 
-    static Object convert_to_float(final OtpErlangObject value)
+    static Object convert_to_float(final Object value)
         throws Exception {
+
         if (value instanceof OtpErlangDouble) {
             return ((OtpErlangDouble) value).floatValue();
-        }
-	if (logger.isLoggable(Level.FINE)) {
-	    logger.log(Level.FINE,"\rerror: convert_to_float " + value);
-	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+        } else if (value instanceof OtpErlangLong) {
+	    return ((OtpErlangLong) value).longValue();
+	} else if (value instanceof Float) {
+	    return value;
+	} else if (value instanceof Long) {
+	    return ((Long) value).floatValue();
+	} else if (value instanceof Integer) {
+	    return ((Integer) value).floatValue();
+	} else if (value instanceof Byte) {
+	    return ((Byte) value).floatValue();
+	} else if (value instanceof Short) {
+	    return ((Short) value).floatValue();
+	} else if (value instanceof Character) {
+	    return new Float(((Character) value).charValue());
 	}
+	
+        logger.log(Level.FINE,"\rerror: convert_to_float " + value);
+        logger.log(Level.FINE,"\rtype is " + value.getClass());
         throw new Exception();
     }
 
-    static Object convert_to_double(final OtpErlangObject value)
+    static Object convert_to_double(final Object value)
         throws Exception {
+
         if (value instanceof OtpErlangDouble) {
             return ((OtpErlangDouble) value).doubleValue();
-        }
-	if (logger.isLoggable(Level.FINE)) {
-	    logger.log(Level.FINE,"\rerror: convert_to_double " + value);
-	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+        } else if (value instanceof OtpErlangLong) {
+	    return ((OtpErlangLong) value).longValue();
+	} else if (value instanceof Float) {
+	    return ((Float) value).doubleValue();
+	} else if (value instanceof Long) {
+	    return ((Long) value).floatValue();
+	} else if (value instanceof Integer) {
+	    return ((Integer) value).doubleValue();
+	} else if (value instanceof Byte) {
+	    return ((Byte) value).doubleValue();
+	} else if (value instanceof Short) {
+	    return ((Short) value).doubleValue();
+	} else if (value instanceof Character) {
+	    return new Double(((Character) value).charValue());
 	}
+	
+        logger.log(Level.FINE,"\rerror: convert_to_double " + value);
+        logger.log(Level.FINE,"\rtype is " + value.getClass());
         throw new Exception();
     }
 
-    static Object convert_to_void(final OtpErlangObject value) throws Exception {
-	if (logger.isLoggable(Level.FINE)) {
-	    logger.log(Level.FINE,"\rerror: convert_to_void " + value);
-	    logger.log(Level.FINE,"\rtype is " + value.getClass());
-	}
+    static Object convert_to_void(final Object value) throws Exception {
+        logger.log(Level.FINE,"\rerror: convert_to_void " + value);
+        logger.log(Level.FINE,"\rtype is " + value.getClass());
         throw new Exception();
     }
 
-    static Object convert_to_short(final OtpErlangObject value)
+    static Object convert_to_short(final Object value)
         throws Exception {
+
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).shortValue();
-        }
-	if (logger.isLoggable(Level.FINE)) {
-	    logger.log(Level.FINE,"\rerror: convert_to_short " + value);
-	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	} else if (value instanceof Byte) {
+	    return ((Byte) value).shortValue();
+	} else if (value instanceof Short) {
+	    return value;
 	}
+	
+        logger.log(Level.FINE,"\rerror: convert_to_short " + value);
+        logger.log(Level.FINE,"\rtype is " + value.getClass());
         throw new Exception();
     }
 
-    static Object convert_to_integer(final OtpErlangObject value)
+    static Object convert_to_integer(final Object value)
         throws Exception {
+
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).intValue();
-        }
-	if (logger.isLoggable(Level.FINE)) {
-	    logger.log(Level.FINE,"\rerror: convert_to_integer " + value);
-	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+        } else if (value instanceof Integer) {
+	    return value;
+	} else if (value instanceof Byte) {
+	    return ((Byte) value).intValue();
+	} else if (value instanceof Short) {
+	    return ((Short) value).intValue();
+	} else if (value instanceof Character) {
+	    return new Integer(((Character) value).charValue());
 	}
+	
+        logger.log(Level.FINE,"\rerror: convert_to_integer " + value);
+        logger.log(Level.FINE,"\rtype is " + value.getClass());
         throw new Exception();
     }
 
-    static Object convert_to_long(final OtpErlangObject value) throws Exception {
+    static Object convert_to_long(final Object value) throws Exception {
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).longValue();
-        }
-	if (logger.isLoggable(Level.FINE)) {
-	    logger.log(Level.FINE,"\rerror: convert_to_long " + value);
-	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+        } else if (value instanceof Long) {
+	    return value;
+	} else if (value instanceof Integer) {
+	    return ((Integer) value).longValue();
+	} else if (value instanceof Byte) {
+	    return ((Byte) value).longValue();
+	} else if (value instanceof Short) {
+	    return ((Short) value).longValue();
+	} else if (value instanceof Character) {
+	    return new Long(((Character) value).charValue());
 	}
+	
+        logger.log(Level.FINE,"\rerror: convert_to_long " + value);
+        logger.log(Level.FINE,"\rtype is " + value.getClass());
         throw new Exception();
     }
 
-    static OtpErlangObject[] elements(final OtpErlangObject t) {
+    static Object[] elements(final Object t) throws Exception {
         if (t instanceof OtpErlangList) {
             return ((OtpErlangList) t).elements();
-        }
-
-        // Jinterface braindamage follows...
-        final String value = ((OtpErlangString) t).stringValue();
-        final byte[] bytes = value.getBytes();
-        final OtpErlangObject[] otpBytes = new OtpErlangObject[bytes.length];
-        for (int i = 0; i < bytes.length; i++) {
-            otpBytes[i] = new OtpErlangLong(bytes[i]);
-        }
-        return otpBytes;
+        } else if (t instanceof OtpErlangString) {
+	    // Jinterface braindamage follows...
+	    final String value = ((OtpErlangString) t).stringValue();
+	    final byte[] bytes = value.getBytes();
+	    final OtpErlangObject[] otpBytes = 
+		new OtpErlangObject[bytes.length];
+	    for (int i = 0; i < bytes.length; i++) {
+		otpBytes[i] = new OtpErlangLong(bytes[i]);
+	    }
+	    return otpBytes;
+	} else if (t.getClass().isArray()) {
+	    Object arr[] = new Object[Array.getLength(t)];
+	    for (int i=0; i<arr.length; i++)
+		arr[i] = Array.get(t,i);
+	    return arr;
+	} else {
+	    throw new Exception();
+	}
     }
 
-    void initializeArray(final Object arr, final OtpErlangObject value, Class objClass)
+    void initializeArray(final Object arr, final Object value, Class objClass)
         throws Exception {
         final int len = Array.getLength(arr);
-        final OtpErlangObject[] elements = elements(value);
+        final Object[] elements = elements(value);
         for (int i = 0; i < len; i++) {
-            final OtpErlangObject element = elements[i];
+            final Object element = elements[i];
             final Object obj_at_i = Array.get(arr, i);
             if (objClass.isArray()) {
                 initializeArray(obj_at_i, element, objClass);
@@ -686,10 +763,12 @@ public class JavaErlang {
         }
     }
 
-    static int[] checkDimensions(int dimensions, final OtpErlangObject value) {
+    static int[] checkDimensions(int dimensions, final Object value) 
+	throws Exception 
+    {
         final ArrayList<Integer> result = new ArrayList<Integer>();
         while (dimensions > 0) {
-            final OtpErlangObject[] elements = elements(value);
+            final Object[] elements = elements(value);
             result.add(elements.length);
             dimensions--;
         }
