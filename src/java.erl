@@ -590,8 +590,12 @@ javaCall(NodeId,Type,Msg,Warn) when is_integer(Type), Type>=0, Type=<?last_tag -
         {ok, Node} ->
             JavaMsg = create_msg(Type,Msg,Node),
             case permit_output(get_loglevel(),debug) of
-                true -> java:format(debug,"to_java: ~p~n",[JavaMsg]);
-                false -> ok
+	      true -> 
+		java:format
+		  (debug,"to_java: ~s:~p ~n",
+		   [msgtype_to_list(Type),Msg]);
+	      false -> 
+		ok
             end,
             Node#node.node_pid!JavaMsg,
             case wait_for_reply(Node) of
@@ -599,8 +603,13 @@ javaCall(NodeId,Type,Msg,Warn) when is_integer(Type), Type>=0, Type=<?last_tag -
                     throw(impossible);
                 Reply ->
                     case permit_output(get_loglevel(),debug) of
-                        true -> java:format(debug,"from_java: ~p -> ~p~n",[JavaMsg,Reply]);
-                        false -> ok
+		      true -> 
+			java:format
+			  (debug,
+			   "from_java: ~s:~p -> ~p~n",
+			   [msgtype_to_list(Type),Msg,Reply]);
+		      false -> 
+			ok
                     end,
                     enable_gc(Reply,Node#node.gc_pid)
             end;
@@ -608,7 +617,9 @@ javaCall(NodeId,Type,Msg,Warn) when is_integer(Type), Type>=0, Type=<?last_tag -
             if
                 Warn ->
                     format(error,"javaCall: nodeId ~p not found~n",[NodeId]),
-                    format(error,"type: ~p message: ~p~n",[Type,Msg]),
+                    format
+		      (error,
+		       "type: ~s message: ~p~n",[msgtype_to_list(Type),Msg]),
                     throw(javaCall);
                 true ->
                     fail
@@ -1412,6 +1423,79 @@ ensure_non_null(Object) ->
             throw(badarg);
         true -> ok
     end.
+
+msgtype_to_list(Type) ->
+  case Type of
+    0 ->
+      "identity";
+    1 ->
+      "reset";
+    2 ->
+      "terminate";
+    3 ->
+      "connect";
+    4 ->
+      "getConstructors";
+    5 ->
+      "lookupClass";
+    6 ->
+      "getClassLocation";
+    7 ->
+      "getMethods";
+    8 ->
+      "getClasses";
+    9 ->
+      "getFields";
+    10 ->
+      "getConstructor";
+    11 ->
+      "getMethod";
+    12 ->
+      "getField";
+    13 ->
+      "objTypeCompat";
+    14 ->
+      "createThread";
+    15 ->
+      "stopThread";
+    16 ->
+      "free";
+    17 ->
+      "freeInstance";
+    18 ->
+      "memoryUsage";
+    19 -> 
+      "new_proxy_class";
+    20 ->
+      "new_proxy_object";
+    21 ->
+      "proxy_reply";
+    51 ->
+      "call_method";
+    52 ->
+      "call_constructor";
+    53 ->
+      "getFieldValue";
+    54 ->
+      "setFieldValue";
+    55 ->
+      "getClassName";
+    56 ->
+      "array_to_list";
+    57 ->
+      "list_to_array";
+    58 ->
+      "instof";
+    59 ->
+      "convert";
+    60 ->
+      "is_subtype";
+    61 ->
+      "getSimpleClassName";
+
+    N ->
+      "?? unknown tag "++integer_to_list(N)
+  end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
