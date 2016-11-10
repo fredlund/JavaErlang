@@ -644,9 +644,9 @@ set_get_report(Parent,Value) ->
     {ok,N} = java:start_node([{add_to_java_classpath,["classes"]}]),
     Parent!{node,N},
     Obj = java:new(N,'javaErlang.testing.Test',[]),
-    timer:sleep(random:uniform(2)*1000),
+    timer:sleep(rand:uniform(2)*1000),
     java:set(Obj,v,Value),
-    timer:sleep(random:uniform(2)*1000),
+    timer:sleep(rand:uniform(2)*1000),
     Parent!{value,(java:get(Obj,v))}.
 
 tc18() ->
@@ -665,9 +665,9 @@ set_get_report_gc(Parent,Value) ->
     {ok,N} = java:start_node([{add_to_java_classpath,["classes"]},{enable_gc,true}]),
     Parent!{node,N},
     Obj = java:new(N,'javaErlang.testing.Test',[]),
-    timer:sleep(random:uniform(2)*1000),
+    timer:sleep(rand:uniform(2)*1000),
     java:set(Obj,v,Value),
-    timer:sleep(random:uniform(2)*1000),
+    timer:sleep(rand:uniform(2)*1000),
     Parent!{value,(java:get(Obj,v))}.
 
 tc18_gc() ->
@@ -881,9 +881,9 @@ tc21() ->
       (fun (_) ->
                spawn
                  (fun () ->
-                          timer:sleep(100+random:uniform(100)),
+                          timer:sleep(100+rand:uniform(100)),
                           java:new(NodeId,'java.lang.Integer',[2]),
-                          timer:sleep(100+random:uniform(100))
+                          timer:sleep(100+rand:uniform(100))
                   end)
        end,
        lists:duplicate(100,10)),
@@ -895,9 +895,9 @@ tc21_gc() ->
       (fun (_) ->
                spawn
                  (fun () ->
-                          timer:sleep(100+random:uniform(100)),
+                          timer:sleep(100+rand:uniform(100)),
                           java:new(NodeId,'java.lang.Integer',[2]),
-                          timer:sleep(100+random:uniform(100))
+                          timer:sleep(100+rand:uniform(100))
                   end)
        end,
        lists:duplicate(100,10)),
@@ -910,10 +910,10 @@ tc22() ->
       (fun (_) ->
                spawn
                  (fun () ->
-                          timer:sleep(100+random:uniform(100)),
+                          timer:sleep(100+rand:uniform(100)),
                           java:new(NodeId,'java.lang.Integer',[2]),
                           Self!ok,
-                          timer:sleep(300+random:uniform(100))
+                          timer:sleep(300+rand:uniform(100))
                   end)
        end,
        lists:duplicate(100,10)),
@@ -928,10 +928,10 @@ tc22_gc() ->
       (fun (_) ->
                spawn
                  (fun () ->
-                          timer:sleep(100+random:uniform(100)),
+                          timer:sleep(100+rand:uniform(100)),
                           java:new(NodeId,'java.lang.Integer',[2]),
                           Self!ok,
-                          timer:sleep(300+random:uniform(100))
+                          timer:sleep(300+rand:uniform(100))
                   end)
        end,
        lists:duplicate(100,10)),
