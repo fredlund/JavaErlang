@@ -80,7 +80,7 @@ do_test(Nid,N,M,J) ->
 do_send(_B,[]) ->
     ok;
 do_send(B,L) ->
-    N = random:uniform(length(L)),
+    N = rand:uniform(length(L)),
     {Before,Item,After} = split(N,L),
     java:call(Item,intValue,[]),
     B!Item,
