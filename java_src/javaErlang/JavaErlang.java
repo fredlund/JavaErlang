@@ -167,6 +167,7 @@ public class JavaErlang {
             if (logger.isLoggable(Level.FINER)) {
                 logger.log(Level.FINER,"\rGot message " + msg);
             }
+
             if (msg instanceof OtpErlangTuple) {
                 final OtpErlangTuple t = (OtpErlangTuple) msg;
                 if (t.arity() == 3 && t.elementAt(0) instanceof OtpErlangLong
@@ -180,11 +181,13 @@ public class JavaErlang {
                            && t.elementAt(0) instanceof OtpErlangLong) {
                     handle_noncall_msg(t);
                 } else {
-                    logger.log(Level.FINER,"\nMalformed message " + msg
-                               + " received");
+		    if (logger.isLoggable(Level.FINER))
+			logger.log(Level.FINER,"\nMalformed message " + msg
+				   + " received");
                 }
             } else {
-                logger.log(Level.FINER,"\nMalformed message " + msg + " received");
+		if (logger.isLoggable(Level.FINER))
+		    logger.log(Level.FINER,"\nMalformed message " + msg + " received");
             }
         } while (true);
     }
@@ -213,7 +216,8 @@ public class JavaErlang {
                                       msgs.self(), new OtpErlangLong(intPid)), replyPid);
                 isConnected = true;
             } else {
-                logger.log(Level.FINER,"\nFirst message should be connect " + t);
+		if (logger.isLoggable(Level.FINER))
+		    logger.log(Level.FINER,"\nFirst message should be connect " + t);
             }
         } else {
             Object result;
@@ -249,7 +253,8 @@ public class JavaErlang {
             final ThreadMsgHandler th = (ThreadMsgHandler) map_result;
             th.queue.put(t);
         } else {
-            logger.log(Level.FINER,"Thread " + t.elementAt(1) + " not found");
+	    if (logger.isLoggable(Level.FINER))
+		logger.log(Level.FINER,"Thread " + t.elementAt(1) + " not found");
         }
     }
 
@@ -332,9 +337,10 @@ public class JavaErlang {
                 threadMap.remove(argument);
                 stop_thread(th);
             } else {
-                logger.log
-                    (Level.FINER,
-                     "*** Warning: thread missing in stopThread");
+		if (logger.isLoggable(Level.FINER))
+		    logger.log
+			(Level.FINER,
+			 "*** Warning: thread missing in stopThread");
                 //throw new Exception();
             }
             return map_to_erlang_void();
@@ -386,7 +392,8 @@ public class JavaErlang {
             if (stringValue.equals("false")) {
                 return new Boolean(false);
             }
-            logger.log(Level.WARNING,"java_value_from_erlang: " + value);
+	    if (logger.isLoggable(Level.WARNING))
+		logger.log(Level.WARNING,"java_value_from_erlang: " + value);
             throw new Exception();
         }
 
@@ -455,7 +462,8 @@ public class JavaErlang {
                 }
             }
         }
-        logger.log(Level.WARNING,"java_value_from_erlang: " + value);
+	if (logger.isLoggable(Level.WARNING))
+	    logger.log(Level.WARNING,"java_value_from_erlang: " + value);
         throw new Exception();
     }
 
@@ -552,8 +560,10 @@ public class JavaErlang {
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).charValue();
         }
-        logger.log(Level.FINE,"\rerror: convert_to_character " + value);
-        logger.log(Level.FINE,"\rtype is " + value.getClass());
+	if (logger.isLoggable(Level.FINE)) {
+	    logger.log(Level.FINE,"\rerror: convert_to_character " + value);
+	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	}
         throw new Exception();
     }
 
@@ -561,8 +571,10 @@ public class JavaErlang {
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).byteValue();
         }
-        logger.log(Level.FINE,"\rerror: convert_to_byte " + value);
-        logger.log(Level.FINE,"\rtype is " + value.getClass());
+	if (logger.isLoggable(Level.FINE)) {
+	    logger.log(Level.FINE,"\rerror: convert_to_byte " + value);
+	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	}
         throw new Exception();
     }
 
@@ -571,8 +583,10 @@ public class JavaErlang {
         if (value instanceof OtpErlangDouble) {
             return ((OtpErlangDouble) value).floatValue();
         }
-        logger.log(Level.FINE,"\rerror: convert_to_float " + value);
-        logger.log(Level.FINE,"\rtype is " + value.getClass());
+	if (logger.isLoggable(Level.FINE)) {
+	    logger.log(Level.FINE,"\rerror: convert_to_float " + value);
+	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	}
         throw new Exception();
     }
 
@@ -581,14 +595,18 @@ public class JavaErlang {
         if (value instanceof OtpErlangDouble) {
             return ((OtpErlangDouble) value).doubleValue();
         }
-        logger.log(Level.FINE,"\rerror: convert_to_double " + value);
-        logger.log(Level.FINE,"\rtype is " + value.getClass());
+	if (logger.isLoggable(Level.FINE)) {
+	    logger.log(Level.FINE,"\rerror: convert_to_double " + value);
+	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	}
         throw new Exception();
     }
 
     static Object convert_to_void(final OtpErlangObject value) throws Exception {
-        logger.log(Level.FINE,"\rerror: convert_to_void " + value);
-        logger.log(Level.FINE,"\rtype is " + value.getClass());
+	if (logger.isLoggable(Level.FINE)) {
+	    logger.log(Level.FINE,"\rerror: convert_to_void " + value);
+	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	}
         throw new Exception();
     }
 
@@ -597,8 +615,10 @@ public class JavaErlang {
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).shortValue();
         }
-        logger.log(Level.FINE,"\rerror: convert_to_short " + value);
-        logger.log(Level.FINE,"\rtype is " + value.getClass());
+	if (logger.isLoggable(Level.FINE)) {
+	    logger.log(Level.FINE,"\rerror: convert_to_short " + value);
+	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	}
         throw new Exception();
     }
 
@@ -607,8 +627,10 @@ public class JavaErlang {
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).intValue();
         }
-        logger.log(Level.FINE,"\rerror: convert_to_integer " + value);
-        logger.log(Level.FINE,"\rtype is " + value.getClass());
+	if (logger.isLoggable(Level.FINE)) {
+	    logger.log(Level.FINE,"\rerror: convert_to_integer " + value);
+	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	}
         throw new Exception();
     }
 
@@ -616,8 +638,10 @@ public class JavaErlang {
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).longValue();
         }
-        logger.log(Level.FINE,"\rerror: convert_to_long " + value);
-        logger.log(Level.FINE,"\rtype is " + value.getClass());
+	if (logger.isLoggable(Level.FINE)) {
+	    logger.log(Level.FINE,"\rerror: convert_to_long " + value);
+	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	}
         throw new Exception();
     }
 
@@ -738,7 +762,8 @@ public class JavaErlang {
                 return arrayClass;
             }
         }
-        logger.log(Level.WARNING,"\rtype " + erlType + " is not understood?");
+	if (logger.isLoggable(Level.WARNING)) 
+	    logger.log(Level.WARNING,"\rtype " + erlType + " is not understood?");
         throw new Exception();
     }
 
@@ -762,10 +787,11 @@ public class JavaErlang {
         do {
             final int lastIndex = str.lastIndexOf(".");
             if (lastIndex == -1) {
-                logger.log
-                    (Level.WARNING,
-                     "findClass: cannot locate class " + str +
-                     " using classpath\n"+System.getProperty("java.class.path")+
+		if (logger.isLoggable(Level.WARNING))
+		    logger.log
+			(Level.WARNING,
+			 "findClass: cannot locate class " + str +
+			 " using classpath\n"+System.getProperty("java.class.path")+
                      "\nworking directory is "+System.getProperty("user.dir"));
                 if (logger.isLoggable(Level.WARNING)) {
                     logger.log(Level.WARNING,"findClass: cannot locate class " + str);
@@ -1012,6 +1038,9 @@ public class JavaErlang {
                                                 .elementAt(0)).elements();
         final OtpErlangObject[] objs = ((OtpErlangTuple) tuple.elementAt(1))
             .elements();
+
+	if (logger.isLoggable(Level.FINER))
+	    logger.log(Level.FINER,"objTypeCompat: "+cmd);
 
         for (int i = 0; i < objs.length; i++) {
             final Type t = fromErlType(alternatives[i]);
@@ -1260,15 +1289,18 @@ public class JavaErlang {
                 return cnstr;
             }
         }
-        logger.log(Level.FINE,"No constructor found for " + cl.getName() + ":");
+	if (logger.isLoggable(Level.FINE))
+	    logger.log(Level.FINE,"No constructor found for " + cl.getName() + ":");
         printObjectArray(types);
-        logger.log(Level.FINER,"");
-        logger.log(Level.FINER,"Available constructors: ");
-        for (final Constructor cnstr : cl.getConstructors()) {
-            logger.log(Level.FINER,"constructor: ");
-            printObjectArray(cnstr.getParameterTypes());
-        }
-        logger.log(Level.FINER,"\r------------------------");
+	if (logger.isLoggable(Level.FINER)) {
+	    logger.log(Level.FINER,"");
+	    logger.log(Level.FINER,"Available constructors: ");
+	    for (final Constructor cnstr : cl.getConstructors()) {
+		logger.log(Level.FINER,"constructor: ");
+		printObjectArray(cnstr.getParameterTypes());
+	    }
+	    logger.log(Level.FINER,"\r------------------------");
+	}
         throw new Exception();
     }
 
@@ -1283,9 +1315,12 @@ public class JavaErlang {
                 return field;
             }
         }
-        logger.log(Level.FINE,"\rNo field found");
-        for (final Field field : cl.getFields()) {
-            logger.log(Level.FINER,"\rfield: " + field.getName());
+	if (logger.isLoggable(Level.FINE))
+	    logger.log(Level.FINE,"\rNo field found");
+	if (logger.isLoggable(Level.FINER)) {
+	    for (final Field field : cl.getFields()) {
+		logger.log(Level.FINER,"\rfield: " + field.getName());
+	    }
         }
         throw new Exception();
     }
@@ -1305,18 +1340,21 @@ public class JavaErlang {
                 return method;
             }
         }
-        logger.log(Level.FINE,"No method found for " + cl.getName() + "."
-                   + methodName + ":");
-        printObjectArray(types);
-        logger.log(Level.FINER,"");
-        logger.log(Level.FINER,"Available methods: ");
-        for (final Method method : cl.getMethods()) {
-            if (method.getName().equals(methodName)) {
-                logger.log(Level.FINER,"method: ");
-                printObjectArray(method.getParameterTypes());
-            }
-        }
-        logger.log(Level.FINER,"\r------------------------");
+	if (logger.isLoggable(Level.FINE))
+	    logger.log(Level.FINE,"No method found for " + cl.getName() + "."
+		       + methodName + ":");
+	if (logger.isLoggable(Level.FINER)) {
+	    printObjectArray(types);
+	    logger.log(Level.FINER,"");
+	    logger.log(Level.FINER,"Available methods: ");
+	    for (final Method method : cl.getMethods()) {
+		if (method.getName().equals(methodName)) {
+		    logger.log(Level.FINER,"method: ");
+		    printObjectArray(method.getParameterTypes());
+		}
+	    }
+	    logger.log(Level.FINER,"\r------------------------");
+	}
         throw new Exception();
     }
 
@@ -1325,12 +1363,15 @@ public class JavaErlang {
         if (result instanceof Method || result instanceof Constructor) {
             return result;
         }
-        logger.log(Level.FINE,cmd + " is not a method/constructor");
-        final Set<OtpErlangObject> keys = accFromErlangMap.keySet();
-        logger.log(Level.FINER,"\rMap contains:");
-        for (final OtpErlangObject key : keys) {
-            logger.log(Level.FINER,key + ",");
-        }
+	if (logger.isLoggable(Level.FINE))
+	    logger.log(Level.FINE,cmd + " is not a method/constructor");
+	if (logger.isLoggable(Level.FINER)) {
+	    final Set<OtpErlangObject> keys = accFromErlangMap.keySet();
+	    logger.log(Level.FINER,"\rMap contains:");
+	    for (final OtpErlangObject key : keys) {
+		logger.log(Level.FINER,key + ",");
+	    }
+	}
         throw new Exception();
     }
 
@@ -1355,12 +1396,37 @@ public class JavaErlang {
         try {
             obj = java_value_from_erlang(value, type);
         } catch (final Exception e) {
+	    if (logger.isLoggable(Level.FINER))
+		logger.log
+		    (Level.FINER,
+		     "cannot convert "+value+" into type "+type);
             return false;
         }
 
+	if (obj == null)
+	    return !is_basic_type(type);
+	
         final Class normalizedType = conv_basic_type(type);
         result = obj != null && normalizedType.isAssignableFrom(obj.getClass());
+	if (!result && logger.isLoggable(Level.FINER)) {
+	    logger.log
+		(Level.FINER,
+		 value+" is not acceptable as an argument for "+type);
+	}
         return result;
+    }
+
+    static boolean is_basic_type(final Class type) {
+	return
+	    (type == java.lang.Integer.TYPE)
+	    || (type == java.lang.Long.TYPE)
+	    || (type == java.lang.Short.TYPE)
+	    || (type == java.lang.Character.TYPE)
+	    || (type == java.lang.Byte.TYPE)
+	    || (type == java.lang.Float.TYPE)
+	    || (type == java.lang.Double.TYPE)
+	    || (type == java.lang.Boolean.TYPE)
+	    || (type == java.lang.Void.TYPE);
     }
 
     static Class conv_basic_type(final Class type) {
@@ -1395,8 +1461,10 @@ public class JavaErlang {
     }
 
     static void printObjectArray(final Object[] arr) {
-        for (final Object t : arr) {
-            logger.log(Level.FINER,t + ", ");
+	if (logger.isLoggable(Level.FINER)) {
+	    for (final Object t : arr) {
+		logger.log(Level.FINER,t + ", ");
+	    }
         }
     }
 
@@ -1412,8 +1480,9 @@ public class JavaErlang {
                 return new OtpErlangAtom(c.getCanonicalName());
             }
         } else {
+	if (logger.isLoggable(Level.WARNING))
             logger.log(Level.WARNING,"\rCannot handle " + t + " yet");
-            throw new Exception();
+	throw new Exception();
         }
     }
 
