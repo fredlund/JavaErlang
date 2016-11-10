@@ -583,8 +583,10 @@ public class JavaErlang {
 	    return value;
 	}
 
-        logger.log(Level.FINE,"\rerror: convert_to_character " + value);
-        logger.log(Level.FINE,"\rtype is " + value.getClass());
+	if (logger.isLoggable(Level.FINE)) {
+	    logger.log(Level.FINE,"\rerror: convert_to_character " + value);
+	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	}
         throw new Exception();
     }
 
@@ -595,8 +597,10 @@ public class JavaErlang {
 	    return value;
 	}
 
-        logger.log(Level.FINE,"\rerror: convert_to_byte " + value);
-        logger.log(Level.FINE,"\rtype is " + value.getClass());
+	if (logger.isLoggable(Level.FINE)) {
+	    logger.log(Level.FINE,"\rerror: convert_to_byte " + value);
+	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	}
         throw new Exception();
     }
 
@@ -621,8 +625,10 @@ public class JavaErlang {
 	    return new Float(((Character) value).charValue());
 	}
 	
-        logger.log(Level.FINE,"\rerror: convert_to_float " + value);
-        logger.log(Level.FINE,"\rtype is " + value.getClass());
+	if (logger.isLoggable(Level.FINE)) {
+	    logger.log(Level.FINE,"\rerror: convert_to_float " + value);
+	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	}
         throw new Exception();
     }
 
@@ -647,14 +653,18 @@ public class JavaErlang {
 	    return new Double(((Character) value).charValue());
 	}
 	
-        logger.log(Level.FINE,"\rerror: convert_to_double " + value);
-        logger.log(Level.FINE,"\rtype is " + value.getClass());
+	if (logger.isLoggable(Level.FINE)) {
+	    logger.log(Level.FINE,"\rerror: convert_to_double " + value);
+	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	}
         throw new Exception();
     }
 
     static Object convert_to_void(final Object value) throws Exception {
-        logger.log(Level.FINE,"\rerror: convert_to_void " + value);
-        logger.log(Level.FINE,"\rtype is " + value.getClass());
+	if (logger.isLoggable(Level.FINE)) {
+	    logger.log(Level.FINE,"\rerror: convert_to_void " + value);
+	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	}
         throw new Exception();
     }
 
@@ -669,8 +679,10 @@ public class JavaErlang {
 	    return value;
 	}
 	
-        logger.log(Level.FINE,"\rerror: convert_to_short " + value);
-        logger.log(Level.FINE,"\rtype is " + value.getClass());
+	if (logger.isLoggable(Level.FINE)) {
+	    logger.log(Level.FINE,"\rerror: convert_to_short " + value);
+	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	}
         throw new Exception();
     }
 
@@ -689,8 +701,10 @@ public class JavaErlang {
 	    return new Integer(((Character) value).charValue());
 	}
 	
-        logger.log(Level.FINE,"\rerror: convert_to_integer " + value);
-        logger.log(Level.FINE,"\rtype is " + value.getClass());
+	if (logger.isLoggable(Level.FINE)) {
+	    logger.log(Level.FINE,"\rerror: convert_to_integer " + value);
+	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	}
         throw new Exception();
     }
 
@@ -709,8 +723,10 @@ public class JavaErlang {
 	    return new Long(((Character) value).charValue());
 	}
 	
-        logger.log(Level.FINE,"\rerror: convert_to_long " + value);
-        logger.log(Level.FINE,"\rtype is " + value.getClass());
+	if (logger.isLoggable(Level.FINE)) {
+	    logger.log(Level.FINE,"\rerror: convert_to_long " + value);
+	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	}
         throw new Exception();
     }
 
