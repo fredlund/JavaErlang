@@ -84,6 +84,7 @@ public class JavaErlang {
     volatile OtpMbox msgs;
     volatile OtpErlangObject nodeIdentifier = null;
     static volatile Logger logger = Logger.getLogger("JavaErlangLogger");
+    static volatile OtpMbox mbox;
 
     boolean isConnected = false;
 
@@ -151,6 +152,7 @@ public class JavaErlang {
                 logger.log(Level.INFO,"\rRegistered host " + node.node());
             }
             msgs = node.createMbox("javaNode");
+	    mbox = msgs;
         } catch (final Throwable e) {
             if (logger.isLoggable(Level.SEVERE))
                 logger.log
@@ -1630,5 +1632,9 @@ public class JavaErlang {
         final ProxyHandler handler = (ProxyHandler) java_value_from_erlang(t.elementAt(0));
         handler.setAnswer(t.elementAt(1));
         return map_to_erlang_void();
+    }
+
+    public static OtpMbox getMbox() {
+	return mbox;
     }
 }
