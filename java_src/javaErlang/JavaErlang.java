@@ -80,11 +80,11 @@ public class JavaErlang {
     volatile int classCounter = 0;
     volatile private int accCounter = 0;
     volatile private int threadCounter = 0;
-
-    volatile OtpMbox msgs;
+    volatile String  connectedErlangNode = null;
+    volatile OtpMbox msgs = null;
     volatile OtpErlangObject nodeIdentifier = null;
     static volatile Logger logger = Logger.getLogger("JavaErlangLogger");
-    static volatile OtpMbox mbox;
+    static volatile JavaErlang javaErlang;
 
     boolean isConnected = false;
 
@@ -152,7 +152,7 @@ public class JavaErlang {
                 logger.log(Level.INFO,"\rRegistered host " + node.node());
             }
             msgs = node.createMbox("javaNode");
-	    mbox = msgs;
+	    javaErlang = this;
         } catch (final Throwable e) {
             if (logger.isLoggable(Level.SEVERE))
                 logger.log
@@ -216,6 +216,7 @@ public class JavaErlang {
                 }
                 reply(makeErlangTuple(new OtpErlangAtom("connected"),
                                       msgs.self(), new OtpErlangLong(intPid)), replyPid);
+		connectedErlangNode = replyPid.node();
                 isConnected = true;
             } else {
 		if (logger.isLoggable(Level.FINER))
@@ -1634,7 +1635,15 @@ public class JavaErlang {
         return map_to_erlang_void();
     }
 
-    public static OtpMbox getMbox() {
-	return mbox;
+    public static JavaErlang getJavaErlang() {
+	return javaErlang;
+    }
+
+    public OtpMbox getMbox() {
+	return msgs;
+    }
+
+    public String getConnectedErlangNode() {
+	return connectedErlangNode;
     }
 }
