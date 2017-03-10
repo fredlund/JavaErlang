@@ -83,6 +83,7 @@ public class JavaErlang {
     volatile String  connectedErlangNode = null;
     volatile OtpMbox msgs = null;
     volatile OtpErlangObject nodeIdentifier = null;
+    volatile OtpNode node = null;
     static volatile Logger logger = Logger.getLogger("JavaErlangLogger");
     static volatile JavaErlang javaErlang;
 
@@ -142,8 +143,6 @@ public class JavaErlang {
         classMap = new ConcurrentHashMap<Class, Integer>();
         threadMap = new ConcurrentHashMap<OtpErlangObject, ThreadMsgHandler>();
         try {
-            final OtpNode node;
-
 	    if (cookie == null) node = new OtpNode(name);
 	    else node = new OtpNode(name,cookie);
 
@@ -1645,5 +1644,9 @@ public class JavaErlang {
 
     public String getConnectedErlangNode() {
 	return connectedErlangNode;
+    }
+
+    public OtpNode getNode() {
+	return node;
     }
 }
