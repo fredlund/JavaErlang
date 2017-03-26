@@ -12,7 +12,7 @@
   Idea:
 	start_node
 	([{permit_access_to,
-   	   [{'Cl1',{method,'name'},{field,'name'},{class,'class'}}]
+   	   [{'Cl1',[{method,'name'},{field,'name'},{class,'class'}]}]
 	  }]).
 
 We add this information to the node, and then in acquire_class we lookup

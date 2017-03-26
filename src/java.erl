@@ -47,17 +47,7 @@
 
 -include_lib("kernel/include/file.hrl").
 
--record(node,
-        {node_name=void,node_pid=void,port_pid=void,node_id=void,
-         monitor_pids=void,
-         gc_pid=void,
-         node_node,
-         options,
-	 cookie=void,
-         symbolic_name=void,
-         unix_pid=void,ping_retry=5000,connect_timeout=1000,
-         max_java_start_tries=3,call_timeout,num_start_tries=0}).
-
+-include("node.hrl").
 -include("class.hrl").
 -include("tags.hrl").
 
@@ -107,6 +97,7 @@
       | {java_exception_as_value,boolean()}
       | {java_verbose,string()}
       | {java_executable,string()}
+      | {member_permissions,[{atom(),[member_spec()]}]}
       | {erlang_remote,string()}
       | {log_level,loglevel()}
       | {enable_gc,boolean()}
@@ -131,6 +122,9 @@
 %% Java interface class using the Java standard logger.</li>
 %% <li>`java_options' permits specifying command line options
 %% to the Java executable.</li>
+%% <li>`member_permissions' specifies that a number of members 
+%% (fields, methods or subclasses) of classes should be accessible, 
+%% although they are not declared public.</li>.
 %% <li>`erlang_remote' specifies a (possibly remote)
 %% Erlang node which is responsible
 %% for starting the new Java node.</li>
@@ -188,6 +182,10 @@
 -type int_type() :: int | long | short | char | byte .
 -type float_type() :: float | double.
 
+-type member_spec() :: 
+	{ 'method', atom() } |
+	{ 'field', atom() } | 
+	{ 'class', atom() }.
 
 %% @doc Starts a Java node and establises the connection
 %% to Erlang. Returns a Java library "node identifier" (not a normal
@@ -222,6 +220,7 @@ start_node(UserOptions) ->
     init([{log_level,LogLevel}]),
     CallTimeout = proplists:get_value(call_timeout,Options),
     SymbolicName = proplists:get_value(symbolic_name,Options,void),
+    MemberPermissions = proplists:get_value(member_permissions,Options,[]),
     NodeNode = proplists:get_value(erlang_remote,Options,node()),
     Cookie = proplists:get_value(setcookie,Options,undefined),
     if
@@ -233,6 +232,7 @@ start_node(UserOptions) ->
               call_timeout=CallTimeout,
               node_node=NodeNode,
 	      cookie=Cookie,
+	      member_permissions=MemberPermissions,
               symbolic_name=SymbolicName},
     spawn_java(PreNode,get_java_node_id()).
 

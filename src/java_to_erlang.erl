@@ -38,11 +38,21 @@
 -export([find_field/2]).
 -export([find_static_field/3]).
 
+-include("node.hrl").
 -include("class.hrl").
--include("debug.hrl").
 -include("tags.hrl").
 
+-include("debug.hrl").
+
 compute_class(NodeId,ClassArg) ->
+    {ok,Node} =
+        java:node_lookup(NodeId),
+    {
+      NonPublicAccessibleClasses, 
+      NonPublicAccessibleMethods,
+      NonPublicAccessibleFields
+    } = find_member_permissions(ClassArg,Node),
+	
     ClassName =
         if
 	    is_atom(ClassArg) ->
@@ -100,6 +110,21 @@ compute_class(NodeId,ClassArg) ->
        fields=FieldsWithArity,
        static_fields=StaticFieldsWithArity
       }.
+
+find_member_permissions(Class,Node) ->
+  lists:foldl
+    (fun (Member,{NPAC,NPAM,NPAF}) ->
+	 case Member of
+	   {field,F} when is_atom(F) -> {NPAC,NPAM,[F|NPAF]};
+	   {class,C} when is_atom(C) -> {[C|NPAC],NPAM,NPAF};
+	   {method,M} when is_atom(M) -> {NPAC,[M|NPAM],NPAF}
+	 end
+     end, 
+     {[],[],[]},
+     case lists:keyfind(Class,1,Node#node.member_permissions) of
+       false -> [];
+       {_,Members} -> Members
+     end).
 
 elements_with_type(NodeId,ClassName,Getter,Elements) ->
     lists:map
