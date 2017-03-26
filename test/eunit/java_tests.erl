@@ -45,7 +45,8 @@ all_tests(_) ->
      ?_test(test19()),
      ?_test(test20()),
      ?_test(test21()),
-     ?_test(test22())
+     ?_test(test22()),
+     ?_test(test23())
     ].
 
 all_gc_tests(_) ->
@@ -72,7 +73,8 @@ all_gc_tests(_) ->
      ?_test(test19gc()),
      ?_test(test20gc()),
      ?_test(test21gc()),
-     ?_test(test22gc())
+     ?_test(test22gc()),
+     ?_test(test23gc())
     ].
 
 %% Without gc
@@ -125,6 +127,8 @@ test21() ->
     ?assertEqual(ok,print_exception(fun () -> tc21() end)).
 test22() ->
     ?assertEqual(ok,print_exception(fun () -> tc22() end)).
+test23() ->
+    ?assertEqual(0,print_exception(fun () -> tc23() end)).
 
 %% With gc
 
@@ -176,6 +180,8 @@ test21gc() ->
     ?assertEqual(ok,print_exception(fun () -> tc21_gc() end)).
 test22gc() ->
     ?assertEqual(ok,print_exception(fun () -> tc22_gc() end)).
+test23gc() ->
+    ?assertEqual(0,print_exception(fun () -> tc23_gc() end)).
 
 tc() ->
     io:format("Starting tc~n",[]),
@@ -938,6 +944,16 @@ tc22_gc() ->
     count(100),
     java:terminate(NodeId),
     ok.
+
+tc23() ->
+  {ok,NodeId} = java:start_node([{add_to_java_classpath,["classes"]}]),
+  Obj = java:new(NodeId,'javaErlang.testing.Test',[]),
+  java:call(Obj,value,[]).
+
+tc23_gc() ->
+  {ok,NodeId} = java:start_node([{add_to_java_classpath,["classes"]}]),
+  Obj = java:new(NodeId,'javaErlang.testing.Test',[]),
+  java:call(Obj,value,[]).
 
 count(0) ->
     ok;

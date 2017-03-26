@@ -1252,7 +1252,7 @@ public class JavaErlang {
         final boolean observerInPackage = ((OtpErlangAtom) t.elementAt(2))
                 .booleanValue();
         final Class cl = findClass(t.elementAt(0));
-        final Method[] methods = cl.getMethods();
+        final Method[] methods = cl.getDeclaredMethods();
         final ArrayList<OtpErlangTuple> erlMethods = new ArrayList<OtpErlangTuple>();
         for (final Method method : methods) {
             if (method.isBridge() || method.isSynthetic()) {
@@ -1263,6 +1263,7 @@ public class JavaErlang {
                 continue;
             }
             final int modifiers = method.getModifiers();
+	    System.out.println("checking method "+method+" has modifiers "+modifiers);
             if (is_static(modifiers) != selectStatics) continue;
             if (is_executable(modifiers)
                 && is_visibleToUs(modifiers, observerInPackage)) {
@@ -1277,6 +1278,7 @@ public class JavaErlang {
                 logger.log(Level.FINER,"\rMethod is not visible to us");
             }
         }
+	System.out.println("no more methods");
         final OtpErlangTuple[] tmp_arr = new OtpErlangTuple[erlMethods.size()];
         for (int i = 0; i < erlMethods.size(); i++) {
             tmp_arr[i] = erlMethods.get(i);
@@ -1348,12 +1350,15 @@ public class JavaErlang {
     }
 
     static boolean is_visibleToUs(final int modifier, final boolean inPackage) {
+	return true;
+	/*
         if (!inPackage) {
             return (modifier & Modifier.PUBLIC) != 0;
         } else {
             return (modifier & (Modifier.PUBLIC | Modifier.PROTECTED)) != 0
                 || (modifier & Modifier.PRIVATE) == 0;
         }
+	*/
     }
 
     Field get_field(final OtpErlangObject obj) throws Exception {

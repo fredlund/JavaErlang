@@ -10,4 +10,8 @@ public class Test {
     public void print() {
         System.out.println("attribute v in object " + this + " has value " + v);
     }
+
+    int value() {
+	return 0;
+    }
 }

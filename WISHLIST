@@ -7,15 +7,20 @@
 - Provide a nice pretty printer for Java classes, for debugging purposes.
 
 - Program an interface to permit easy access to non-public
-  fields, methods (and maybe classes).
+  fields and methods.
 
   Idea:
-	start_node
-	([{permit_access_to,
-   	   [{'Cl1',[{method,'name'},{field,'name'},{class,'class'}]}]
-	  }]).
+	start_node([{inside_classes,['Cl1']}])
+
+This declaration means that all declared methods and declared fields
+in CL1 will become visible to JavaErlang.
 
 We add this information to the node, and then in acquire_class we lookup
 the node and send along such information to java_to_erlang who forwards
 the information to java.
+
+Note however that we have to make sure this works with classes
+rewritten using Javassist. Maybe we can add an option to acquire_class as
+a hint which is the original class name.
+
 

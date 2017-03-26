@@ -45,13 +45,6 @@
 -include("debug.hrl").
 
 compute_class(NodeId,ClassArg) ->
-    {ok,Node} =
-        java:node_lookup(NodeId),
-    {
-      NonPublicAccessibleMethods,
-      NonPublicAccessibleFields
-    } = find_member_permissions(ClassArg,Node),
-	
     ClassName =
         if
 	    is_atom(ClassArg) ->
@@ -73,7 +66,7 @@ compute_class(NodeId,ClassArg) ->
 
     RawMethods =
 	java:report_java_exception
-	  (get_methods(NodeId,ClassArg,false,true,NonPublicAccessibleMethods)),
+	  (get_methods(NodeId,ClassArg,false,true)),
     MethodsWithType = 
 	elements_with_type(NodeId,ClassArg,?getMethod,RawMethods),
     MethodsWithArity = 
@@ -81,7 +74,7 @@ compute_class(NodeId,ClassArg) ->
 
     RawStaticMethods =
 	java:report_java_exception
-	  (get_methods(NodeId,ClassArg,true,true,NonPublicAccessibleMethods)),
+	  (get_methods(NodeId,ClassArg,true,true)),
     StaticMethodsWithType = 
 	elements_with_type(NodeId,ClassArg,?getMethod,RawStaticMethods),
     StaticMethodsWithArity = 
@@ -89,13 +82,13 @@ compute_class(NodeId,ClassArg) ->
 
     RawFields =
 	java:report_java_exception
-	  (get_fields(NodeId,ClassArg,false,true,NonPublicAccessibleFields)),
+	  (get_fields(NodeId,ClassArg,false,true)),
     FieldsWithArity = 
 	elements_with_arity(NodeId,ClassArg,?getField,RawFields),
     
     RawStaticFields =
 	java:report_java_exception
-	  (get_fields(NodeId,ClassArg,true,true,NonPublicAccessibleFields)),
+	  (get_fields(NodeId,ClassArg,true,true)),
     StaticFieldsWithArity = 
 	elements_with_arity(NodeId,ClassArg,?getField,RawStaticFields),
 
@@ -109,21 +102,6 @@ compute_class(NodeId,ClassArg) ->
        fields=FieldsWithArity,
        static_fields=StaticFieldsWithArity
       }.
-
-find_member_permissions(Class,Node) ->
-  lists:foldl
-    (fun (Member,{NPAC,NPAM,NPAF}) ->
-	 case Member of
-	   {field,F} when is_atom(F) -> {NPAC,NPAM,[F|NPAF]};
-	   {class,C} when is_atom(C) -> {[C|NPAC],NPAM,NPAF};
-	   {method,M} when is_atom(M) -> {NPAC,[M|NPAM],NPAF}
-	 end
-     end, 
-     {[],[],[]},
-     case lists:keyfind(Class,1,Node#node.member_permissions) of
-       false -> [];
-       {_,Members} -> Members
-     end).
 
 elements_with_type(NodeId,ClassName,Getter,Elements) ->
     lists:map
@@ -198,11 +176,17 @@ lookup_class(NodeId,ClassName) ->
 get_constructors(NodeId,ClassName,ObserverInPackage) ->
     java:javaCall(NodeId,?getConstructors,{ClassName,ObserverInPackage}).
 get_methods(NodeId,ClassName,Static,ObserverInPackage) ->
-    java:javaCall(NodeId,?getMethods,{ClassName,Static,ObserverInPackage}).
+    java:javaCall
+      (NodeId,
+       ?getMethods,
+       {ClassName,Static,ObserverInPackage}).
 %% get_classes(NodeId,ClassName,ObserverInPackage) ->
 %%   java:javaCall(NodeId,?getClasses,{ClassName,ObserverInPackage}).
 get_fields(NodeId,ClassName,Static,ObserverInPackage) ->
-    java:javaCall(NodeId,?getFields,{ClassName,Static,ObserverInPackage}).
+    java:javaCall
+      (NodeId,
+       ?getFields,
+       {ClassName,Static,ObserverInPackage}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
