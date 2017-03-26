@@ -6,3 +6,16 @@
 
 - Provide a nice pretty printer for Java classes, for debugging purposes.
 
+- Program an interface to permit easy access to non-public
+  fields, methods (and maybe classes).
+
+  Idea:
+	start_node
+	([{permit_access_to,
+   	   [{'Cl1',{method,'name'},{field,'name'},{class,'class'}}]
+	  }]).
+
+We add this information to the node, and then in acquire_class we lookup
+the node and send along such information to java_to_erlang who forwards
+the information to java.
+
