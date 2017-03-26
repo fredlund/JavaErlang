@@ -48,7 +48,6 @@ compute_class(NodeId,ClassArg) ->
     {ok,Node} =
         java:node_lookup(NodeId),
     {
-      NonPublicAccessibleClasses, 
       NonPublicAccessibleMethods,
       NonPublicAccessibleFields
     } = find_member_permissions(ClassArg,Node),
@@ -74,7 +73,7 @@ compute_class(NodeId,ClassArg) ->
 
     RawMethods =
 	java:report_java_exception
-	  (get_methods(NodeId,ClassArg,false,true)),
+	  (get_methods(NodeId,ClassArg,false,true,NonPublicAccessibleMethods)),
     MethodsWithType = 
 	elements_with_type(NodeId,ClassArg,?getMethod,RawMethods),
     MethodsWithArity = 
@@ -82,7 +81,7 @@ compute_class(NodeId,ClassArg) ->
 
     RawStaticMethods =
 	java:report_java_exception
-	  (get_methods(NodeId,ClassArg,true,true)),
+	  (get_methods(NodeId,ClassArg,true,true,NonPublicAccessibleMethods)),
     StaticMethodsWithType = 
 	elements_with_type(NodeId,ClassArg,?getMethod,RawStaticMethods),
     StaticMethodsWithArity = 
@@ -90,13 +89,13 @@ compute_class(NodeId,ClassArg) ->
 
     RawFields =
 	java:report_java_exception
-	  (get_fields(NodeId,ClassArg,false,true)),
+	  (get_fields(NodeId,ClassArg,false,true,NonPublicAccessibleFields)),
     FieldsWithArity = 
 	elements_with_arity(NodeId,ClassArg,?getField,RawFields),
     
     RawStaticFields =
 	java:report_java_exception
-	  (get_fields(NodeId,ClassArg,true,true)),
+	  (get_fields(NodeId,ClassArg,true,true,NonPublicAccessibleFields)),
     StaticFieldsWithArity = 
 	elements_with_arity(NodeId,ClassArg,?getField,RawStaticFields),
 

@@ -123,7 +123,7 @@
 %% <li>`java_options' permits specifying command line options
 %% to the Java executable.</li>
 %% <li>`member_permissions' specifies that a number of members 
-%% (fields, methods or subclasses) of classes should be accessible, 
+%% (fields or methods) of classes should be accessible, 
 %% although they are not declared public.</li>.
 %% <li>`erlang_remote' specifies a (possibly remote)
 %% Erlang node which is responsible
@@ -184,8 +184,7 @@
 
 -type member_spec() :: 
 	{ 'method', atom() } |
-	{ 'field', atom() } | 
-	{ 'class', atom() }.
+	{ 'field', atom() }.
 
 %% @doc Starts a Java node and establises the connection
 %% to Erlang. Returns a Java library "node identifier" (not a normal
