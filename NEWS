@@ -1,3 +1,14 @@
+27/3 -- 2017:
+
+The library now has better support for accessing non-public
+members (methods and fields) by specifying the enter_classes option
+when starting a node.
+Example:
+
+	start_node([{enter_classes,['MyClassyClass']}])
+will permit non-public methods in instances of MyClassyClass (or static
+methods) to be called, and fields are handled similarly.
+
 4/11 -- 2016:
 
 The library now handles widening conversions better, e.g., instead
@@ -44,20 +55,6 @@ Yes, we should probably use a better build system. What this is, given
 a mix of Erlang, Java and C code, and the requirement to have a system
 usable on both Linux and Windows, I don't know.
 
-
-21/11 -- 2012:
-
-The code for generating an Erlang module corresponding to
-a Java class has been removed in this version of the library.
-Thus, Java objects can be created and accessed only
-using the functions exported from the ``java'' module.
-
-Java nodes can now be started on remote Erlang nodes --
-see the options for the ``java:start_node/1'' function.
-
-
-15/09 -- 2011: 
-      First public release of the JavaErlang library.
 
 
       
