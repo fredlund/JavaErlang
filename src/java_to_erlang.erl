@@ -31,18 +31,20 @@
 -module(java_to_erlang).
 %%-compile(export_all).
 
--export([compute_class/2]).
+-export([compute_class/3]).
 -export([find_constructor/3,find_constructor_with_type/3]).
 -export([find_method/3,find_method_with_type/3]).
 -export([find_static_method/4,find_static_method_with_type/4]).
 -export([find_field/2]).
 -export([find_static_field/3]).
 
+-include("node.hrl").
 -include("class.hrl").
--include("debug.hrl").
 -include("tags.hrl").
 
-compute_class(NodeId,ClassArg) ->
+-include("debug.hrl").
+
+compute_class(NodeId,ClassArg,RealClassArg) ->
     ClassName =
         if
 	    is_atom(ClassArg) ->
@@ -51,6 +53,18 @@ compute_class(NodeId,ClassArg) ->
 	        java:report_java_exception
                   (java:string_to_list(java:call(ClassArg,getName,[])))
         end,
+
+    {ok,Node} =
+        java:node_lookup(NodeId),
+
+    ObserverInClass = 
+        if
+	  RealClassArg == void ->
+	    lists:member(ClassArg,Node#node.enter_classes);
+	  true ->
+	    lists:member(RealClassArg,Node#node.enter_classes)
+	end,
+
     ClassId =
 	java:report_java_exception
 	  (lookup_class(NodeId,ClassArg)),
@@ -58,37 +72,37 @@ compute_class(NodeId,ClassArg) ->
 	java:report_java_exception
 	  (get_constructors(NodeId,ClassArg,true)),
     ConstructorsWithType = 
-	elements_with_type(NodeId,ClassArg,?getConstructor,RawConstructors),
+	elements_with_type(NodeId,ClassArg,?getConstructor,RawConstructors,ObserverInClass),
     ConstructorsWithArity = 
-	elements_with_arity(NodeId,ClassArg,?getConstructor,RawConstructors),
+	elements_with_arity(NodeId,ClassArg,?getConstructor,RawConstructors,ObserverInClass),
 
     RawMethods =
 	java:report_java_exception
-	  (get_methods(NodeId,ClassArg,false,true)),
+	  (get_methods(NodeId,ClassArg,false,ObserverInClass)),
     MethodsWithType = 
-	elements_with_type(NodeId,ClassArg,?getMethod,RawMethods),
+	elements_with_type(NodeId,ClassArg,?getMethod,RawMethods,ObserverInClass),
     MethodsWithArity = 
-	elements_with_arity(NodeId,ClassArg,?getMethod,RawMethods),
+	elements_with_arity(NodeId,ClassArg,?getMethod,RawMethods,ObserverInClass),
 
     RawStaticMethods =
 	java:report_java_exception
-	  (get_methods(NodeId,ClassArg,true,true)),
+	  (get_methods(NodeId,ClassArg,true,ObserverInClass)),
     StaticMethodsWithType = 
-	elements_with_type(NodeId,ClassArg,?getMethod,RawStaticMethods),
+	elements_with_type(NodeId,ClassArg,?getMethod,RawStaticMethods,ObserverInClass),
     StaticMethodsWithArity = 
-	elements_with_arity(NodeId,ClassArg,?getMethod,RawStaticMethods),
+	elements_with_arity(NodeId,ClassArg,?getMethod,RawStaticMethods,ObserverInClass),
 
     RawFields =
 	java:report_java_exception
-	  (get_fields(NodeId,ClassArg,false,true)),
+	  (get_fields(NodeId,ClassArg,false,ObserverInClass)),
     FieldsWithArity = 
-	elements_with_arity(NodeId,ClassArg,?getField,RawFields),
+	elements_with_arity(NodeId,ClassArg,?getField,RawFields,ObserverInClass),
     
     RawStaticFields =
 	java:report_java_exception
-	  (get_fields(NodeId,ClassArg,true,true)),
+	  (get_fields(NodeId,ClassArg,true,ObserverInClass)),
     StaticFieldsWithArity = 
-	elements_with_arity(NodeId,ClassArg,?getField,RawStaticFields),
+	elements_with_arity(NodeId,ClassArg,?getField,RawStaticFields,ObserverInClass),
 
     #class{
        name=ClassName,
@@ -101,23 +115,23 @@ compute_class(NodeId,ClassArg) ->
        static_fields=StaticFieldsWithArity
       }.
 
-elements_with_type(NodeId,ClassName,Getter,Elements) ->
+elements_with_type(NodeId,ClassName,Getter,Elements,ObserverInClass) ->
     lists:map
       (fun ({Name,TypeList}) ->
                Element =
                    java:javaCall
-                     (NodeId,Getter,{ClassName,Name,list_to_tuple(TypeList)}),
+                     (NodeId,Getter,{ClassName,Name,list_to_tuple(TypeList),ObserverInClass}),
                {{Name,TypeList},Element}
        end, Elements).
 
-elements_with_arity(NodeId,ClassName,Getter,Elements) ->
+elements_with_arity(NodeId,ClassName,Getter,Elements,ObserverInClass) ->
     lists:foldl
       (fun ({Name,TypeList},Acc) ->
                Arity =
                    length(TypeList),
                Element =
                    java:javaCall
-                     (NodeId,Getter,{ClassName,Name,list_to_tuple(TypeList)}),
+                     (NodeId,Getter,{ClassName,Name,list_to_tuple(TypeList),ObserverInClass}),
                add_to_elements_with_arity(Name,Arity,TypeList,Element,Acc)
        end, [], Elements).
 
@@ -171,14 +185,20 @@ tca(Node,Params,[Alternative={Types,_}|Rest]) ->
 
 lookup_class(NodeId,ClassName) ->
     java:javaCall(NodeId,?lookupClass,ClassName).
-get_constructors(NodeId,ClassName,ObserverInPackage) ->
-    java:javaCall(NodeId,?getConstructors,{ClassName,ObserverInPackage}).
-get_methods(NodeId,ClassName,Static,ObserverInPackage) ->
-    java:javaCall(NodeId,?getMethods,{ClassName,Static,ObserverInPackage}).
-%% get_classes(NodeId,ClassName,ObserverInPackage) ->
-%%   java:javaCall(NodeId,?getClasses,{ClassName,ObserverInPackage}).
-get_fields(NodeId,ClassName,Static,ObserverInPackage) ->
-    java:javaCall(NodeId,?getFields,{ClassName,Static,ObserverInPackage}).
+get_constructors(NodeId,ClassName,ObserverInClass) ->
+    java:javaCall(NodeId,?getConstructors,{ClassName,ObserverInClass}).
+get_methods(NodeId,ClassName,Static,ObserverInClass) ->
+    java:javaCall
+      (NodeId,
+       ?getMethods,
+       {ClassName,Static,ObserverInClass}).
+%% get_classes(NodeId,ClassName,ObserverInClass) ->
+%%   java:javaCall(NodeId,?getClasses,{ClassName,ObserverInClass}).
+get_fields(NodeId,ClassName,Static,ObserverInClass) ->
+    java:javaCall
+      (NodeId,
+       ?getFields,
+       {ClassName,Static,ObserverInClass}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

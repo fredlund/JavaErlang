@@ -67,7 +67,8 @@ public class ProxyInstanceFactory {
                     root.getMethod
                     (cl.getSuperclass(),
                      methodName,
-                     typeList.elements());
+                     typeList.elements(),
+		     false);
                 mths[i] = method;
             } catch (Exception exc) {
                 if (root.logger.isLoggable(Level.WARNING))

@@ -47,17 +47,7 @@
 
 -include_lib("kernel/include/file.hrl").
 
--record(node,
-        {node_name=void,node_pid=void,port_pid=void,node_id=void,
-         monitor_pids=void,
-         gc_pid=void,
-         node_node,
-         options,
-	 cookie=void,
-         symbolic_name=void,
-         unix_pid=void,ping_retry=5000,connect_timeout=1000,
-         max_java_start_tries=3,call_timeout,num_start_tries=0}).
-
+-include("node.hrl").
 -include("class.hrl").
 -include("tags.hrl").
 
@@ -78,7 +68,7 @@
 -export([identity/1]).
 -export([print_stacktrace/1,get_stacktrace/1]).
 -export([set_loglevel/1,format/2,format/3]).
--export([acquire_class/2,report_java_exception/1]).
+-export([acquire_class/2,acquire_class/3,report_java_exception/1]).
 -export([memory_usage/0,memory_usage/1]).
 -export([print_class/2]).
 
@@ -107,6 +97,7 @@
       | {java_exception_as_value,boolean()}
       | {java_verbose,string()}
       | {java_executable,string()}
+      | {enter_classes,[{atom()}]}
       | {erlang_remote,string()}
       | {log_level,loglevel()}
       | {enable_gc,boolean()}
@@ -131,6 +122,9 @@
 %% Java interface class using the Java standard logger.</li>
 %% <li>`java_options' permits specifying command line options
 %% to the Java executable.</li>
+%% <li>`enter_classes' specifies the classes whose members
+%% (fields or methods) should be accessible
+%% although they are not declared public.</li>.
 %% <li>`erlang_remote' specifies a (possibly remote)
 %% Erlang node which is responsible
 %% for starting the new Java node.</li>
@@ -188,7 +182,6 @@
 -type int_type() :: int | long | short | char | byte .
 -type float_type() :: float | double.
 
-
 %% @doc Starts a Java node and establises the connection
 %% to Erlang. Returns a Java library "node identifier" (not a normal
 %% Erlang node identifier).
@@ -222,6 +215,7 @@ start_node(UserOptions) ->
     init([{log_level,LogLevel}]),
     CallTimeout = proplists:get_value(call_timeout,Options),
     SymbolicName = proplists:get_value(symbolic_name,Options,void),
+    EnteredClasses = proplists:get_value(enter_classes,Options,[]),
     NodeNode = proplists:get_value(erlang_remote,Options,node()),
     Cookie = proplists:get_value(setcookie,Options,undefined),
     if
@@ -233,6 +227,7 @@ start_node(UserOptions) ->
               call_timeout=CallTimeout,
               node_node=NodeNode,
 	      cookie=Cookie,
+	      enter_classes=EnteredClasses,
               symbolic_name=SymbolicName},
     spawn_java(PreNode,get_java_node_id()).
 
@@ -329,6 +324,7 @@ check_options(Options) ->
 		     java_exception_as_value,java_timeout_as_value,
 		     java_verbose,java_options,
 		     setcookie,
+		     enter_classes,
 		     java_executable,call_timeout]) of
 		   true -> ok;
 		   false ->
@@ -998,7 +994,8 @@ node_is_alive(NodeId) ->
 
 -spec class_id(object_ref()) -> integer().
 class_id({_,_,_,ClassId,_}) ->
-    ClassId.
+  ClassId.
+
 
 %% %% @doc
 %% %% Returns the symbolic name of a Java node.
@@ -1314,16 +1311,23 @@ memory_usage(NodeId) ->
 -spec acquire_class(node_id(),class_ref()) -> #class{}.
 acquire_class(NodeId,ClassName) ->
     ?LOG("acquire_class(~p,~p)~n",[NodeId,ClassName]),
-    acquire_class_int(NodeId,ClassName).
+    acquire_class_int(NodeId,ClassName,void).
 
-acquire_class_int(NodeId,ClassName) when is_atom(ClassName) ->
+%% @private
+-spec acquire_class(node_id(),class_ref(),class_name()) -> #class{}.
+acquire_class(NodeId,ClassName,RealClassName) ->
+    ?LOG("acquire_class(~p,~p)~n",[NodeId,ClassName]),
+    acquire_class_int(NodeId,ClassName,RealClassName).
+
+acquire_class_int(NodeId,ClassName,RealClassName) when is_atom(ClassName), 
+						       is_atom(RealClassName) ->
     case class_lookup(NodeId,ClassName) of
 	{ok,Class} ->
 	    Class;
 	_ ->
 	    case get_load_permission(NodeId,ClassName) of
 		ok ->
-		    try java_to_erlang:compute_class(NodeId,ClassName) of
+		    try java_to_erlang:compute_class(NodeId,ClassName,RealClassName) of
 			Class ->
 			    ets:delete(java_classes,{loading,NodeId,ClassName}),
 			    class_store(NodeId,ClassName,Class)
@@ -1333,10 +1337,11 @@ acquire_class_int(NodeId,ClassName) when is_atom(ClassName) ->
 		    end
 	    end
     end;
-acquire_class_int(NodeId,ClassRef) when is_tuple(ClassRef) ->
+acquire_class_int(NodeId,ClassRef,RealClassName) when is_tuple(ClassRef),
+						      is_atom(RealClassName) ->
     case get_load_permission(NodeId,ClassRef) of
 	ok ->
-	    try java_to_erlang:compute_class(NodeId,ClassRef) of
+	    try java_to_erlang:compute_class(NodeId,ClassRef,RealClassName) of
 		Class ->
 		    ets:delete(java_classes,{loading,NodeId,ClassRef}),
 		    ClassName =
@@ -1408,7 +1413,7 @@ find_class(Object) ->
         [{_,Class}] -> Class;
         _ ->
             ClassName = getClassName(NodeId,Object),
-            Class = acquire_class_int(NodeId,ClassName),
+            Class = acquire_class(NodeId,ClassName),
             Class
     end.
 
