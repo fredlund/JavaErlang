@@ -1175,7 +1175,8 @@ public class JavaErlang {
     OtpErlangObject getField(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final Field field = getField(findClass(t.elementAt(0)),
-                                     ((OtpErlangAtom) t.elementAt(1)).atomValue());
+                                     ((OtpErlangAtom) t.elementAt(1)).atomValue(),
+				     ((OtpErlangAtom) t.elementAt(3)).booleanValue());
         return acc_map_to_erlang(field);
     }
 
@@ -1218,26 +1219,24 @@ public class JavaErlang {
     OtpErlangObject getConstructors(final OtpErlangObject cmd)
         throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
-        final boolean observerInPackage = ((OtpErlangAtom) t.elementAt(1))
+        final boolean observerInClass = ((OtpErlangAtom) t.elementAt(1))
             .booleanValue();
         final Class cl = findClass(t.elementAt(0));
         final Constructor[] constructors = cl.getConstructors();
         final ArrayList<OtpErlangTuple> erlConstructors = new ArrayList<OtpErlangTuple>();
         for (final Constructor constructor : constructors) {
             final int modifiers = constructor.getModifiers();
-            if (is_visibleToUs(modifiers, observerInPackage)) {
-                final OtpErlangAtom name = new OtpErlangAtom(
-                                                             constructor.getName());
-                final Type[] parameterTypes = constructor.getParameterTypes();
-                final OtpErlangObject[] erlTypes = new OtpErlangObject[parameterTypes.length];
-                for (int i = 0; i < parameterTypes.length; i++) {
-                    erlTypes[i] = toErlType(parameterTypes[i]);
-                }
-                erlConstructors.add(makeErlangTuple(name, new OtpErlangList(erlTypes)));
-            }
+	    final OtpErlangAtom name = 
+		new OtpErlangAtom(constructor.getName());
+	    final Type[] parameterTypes = constructor.getParameterTypes();
+	    final OtpErlangObject[] erlTypes = new OtpErlangObject[parameterTypes.length];
+	    for (int i = 0; i < parameterTypes.length; i++) {
+		erlTypes[i] = toErlType(parameterTypes[i]);
+	    }
+	    erlConstructors.add(makeErlangTuple(name, new OtpErlangList(erlTypes)));
         }
-        final OtpErlangTuple[] tmp_arr = new OtpErlangTuple[erlConstructors
-                                                            .size()];
+        final OtpErlangTuple[] tmp_arr =
+	    new OtpErlangTuple[erlConstructors.size()];
         for (int i = 0; i < erlConstructors.size(); i++) {
             tmp_arr[i] = erlConstructors.get(i);
         }
@@ -1249,12 +1248,12 @@ public class JavaErlang {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
 	final boolean selectStatics = ((OtpErlangAtom) t.elementAt(1))
                 .booleanValue(); 
-        final boolean observerInPackage = ((OtpErlangAtom) t.elementAt(2))
+        final boolean observerInClass = ((OtpErlangAtom) t.elementAt(2))
                 .booleanValue();
         final Class cl = findClass(t.elementAt(0));
-        final Method[] methods = cl.getMethods();
         final ArrayList<OtpErlangTuple> erlMethods = new ArrayList<OtpErlangTuple>();
-        for (final Method method : methods) {
+        final Method[] publicMethods = cl.getMethods();
+        for (final Method method : publicMethods) {
             if (method.isBridge() || method.isSynthetic()) {
                 if (logger.isLoggable(Level.FINER)) {
                     logger.log(Level.FINER,"Skipping synthetic or bridge method "
@@ -1264,8 +1263,7 @@ public class JavaErlang {
             }
             final int modifiers = method.getModifiers();
             if (is_static(modifiers) != selectStatics) continue;
-            if (is_executable(modifiers)
-                && is_visibleToUs(modifiers, observerInPackage)) {
+            if (is_executable(modifiers)) {
                 final OtpErlangAtom name = new OtpErlangAtom(method.getName());
                 final Type[] parameterTypes = method.getParameterTypes();
                 final OtpErlangObject[] erlTypes = new OtpErlangObject[parameterTypes.length];
@@ -1277,6 +1275,35 @@ public class JavaErlang {
                 logger.log(Level.FINER,"\rMethod is not visible to us");
             }
         }
+
+	if (observerInClass) {
+	    final Method[] declaredMethods = cl.getDeclaredMethods();
+	    for (final Method method : declaredMethods) {
+		if (method.isBridge() || method.isSynthetic()) {
+		    if (logger.isLoggable(Level.FINER)) {
+			logger.log(Level.FINER,"Skipping synthetic or bridge method "
+				   + method + " in class " + cl);
+		    }
+		    continue;
+		}
+		final int modifiers = method.getModifiers();
+		if ((modifiers & Modifier.PUBLIC) != 0) continue;
+		if (is_static(modifiers) != selectStatics) continue;
+		if (is_executable(modifiers)) {
+		    final OtpErlangAtom name = new OtpErlangAtom(method.getName());
+		    final Type[] parameterTypes = method.getParameterTypes();
+		    final OtpErlangObject[] erlTypes = new OtpErlangObject[parameterTypes.length];
+		    for (int i = 0; i < parameterTypes.length; i++) {
+			erlTypes[i] = toErlType(parameterTypes[i]);
+		    }
+		    erlMethods.add(makeErlangTuple(name, new OtpErlangList(erlTypes)));
+                    method.setAccessible(true);
+		} else if (logger.isLoggable(Level.FINER)) {
+		    logger.log(Level.FINER,"\rMethod is not visible to us");
+		}
+	    }
+	}
+
         final OtpErlangTuple[] tmp_arr = new OtpErlangTuple[erlMethods.size()];
         for (int i = 0; i < erlMethods.size(); i++) {
             tmp_arr[i] = erlMethods.get(i);
@@ -1310,15 +1337,16 @@ public class JavaErlang {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
 	final boolean selectStatics = ((OtpErlangAtom) t.elementAt(1))
                 .booleanValue(); 
+        final boolean observerInClass = ((OtpErlangAtom) t.elementAt(2))
+                .booleanValue();
         final Class cl = findClass(t.elementAt(0));
-        final Field[] fields = cl.getFields();
-        final ArrayList<OtpErlangTuple> erlFields = new ArrayList<OtpErlangTuple>();
-        for (final Field field : fields) {
+        final ArrayList<OtpErlangTuple> erlFields =
+	    new ArrayList<OtpErlangTuple>();
+        final Field[] publicFields = cl.getFields();
+        for (final Field field : publicFields) {
             final int modifiers = field.getModifiers();
             if (is_static(modifiers) != selectStatics) continue;
 
-            final OtpErlangAtom name = new OtpErlangAtom(field.getName());
-            final OtpErlangObject fieldType = toErlType(field.getType());
             if (field.isSynthetic()) {
                 if (logger.isLoggable(Level.FINER)) {
                     logger.log(Level.FINER,"Skipping synthetic or bridge field "
@@ -1326,8 +1354,31 @@ public class JavaErlang {
                 }
                 continue;
             }
+            final OtpErlangAtom name = new OtpErlangAtom(field.getName());
+            final OtpErlangObject fieldType = toErlType(field.getType());
             erlFields.add(makeErlangTuple(name, new OtpErlangList(fieldType)));
         }
+
+	if (observerInClass) {
+	    final Field[] declaredFields = cl.getDeclaredFields();
+	    for (final Field field : declaredFields) {
+		final int modifiers = field.getModifiers();
+		if (is_static(modifiers) != selectStatics) continue;
+		if ((modifiers & Modifier.PUBLIC) != 0) continue;
+		if (field.isSynthetic()) {
+		    if (logger.isLoggable(Level.FINER)) {
+			logger.log(Level.FINER,"Skipping synthetic or bridge field "
+				   + field + " in class " + cl);
+		    }
+		    continue;
+		}
+		final OtpErlangAtom name = new OtpErlangAtom(field.getName());
+		final OtpErlangObject fieldType = toErlType(field.getType());
+		erlFields.add(makeErlangTuple(name, new OtpErlangList(fieldType)));		
+		field.setAccessible(true);
+	    }
+	}
+
         final OtpErlangTuple[] tmp_arr = new OtpErlangTuple[erlFields.size()];
         for (int i = 0; i < erlFields.size(); i++) {
             tmp_arr[i] = erlFields.get(i);
@@ -1347,15 +1398,6 @@ public class JavaErlang {
         return (modifier & Modifier.STATIC) != 0;
     }
 
-    static boolean is_visibleToUs(final int modifier, final boolean inPackage) {
-        if (!inPackage) {
-            return (modifier & Modifier.PUBLIC) != 0;
-        } else {
-            return (modifier & (Modifier.PUBLIC | Modifier.PROTECTED)) != 0
-                || (modifier & Modifier.PRIVATE) == 0;
-        }
-    }
-
     Field get_field(final OtpErlangObject obj) throws Exception {
         final Object result = accFromErlangMap.get(obj);
         if (result instanceof Field) {
@@ -1368,8 +1410,9 @@ public class JavaErlang {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final String methodName = ((OtpErlangAtom) t.elementAt(1)).atomValue();
         final OtpErlangTuple typeList = (OtpErlangTuple) t.elementAt(2);
+        final OtpErlangAtom observerInClass = (OtpErlangAtom) t.elementAt(3);
         final Method method = getMethod(findClass(t.elementAt(0)), methodName,
-                typeList.elements());
+					typeList.elements(),observerInClass.booleanValue());
 	return acc_map_to_erlang(method);
     }
 
@@ -1401,7 +1444,7 @@ public class JavaErlang {
         throw new Exception();
     }
 
-    static Field getField(final Class cl, final String fieldName)
+    static Field getField(final Class cl, final String fieldName,final boolean observerInClass)
         throws Exception {
         for (final Field field : cl.getFields()) {
             if (field.getName().equals(fieldName)) {
@@ -1412,6 +1455,15 @@ public class JavaErlang {
                 return field;
             }
         }
+	if (observerInClass) {
+	    for (final Field field : cl.getDeclaredFields()) {
+		if (field.getName().equals(fieldName)) {
+		    field.setAccessible(true);
+		    return field;
+		}
+	    }
+	}
+	
 	if (logger.isLoggable(Level.FINE))
 	    logger.log(Level.FINE,"\rNo field found");
 	if (logger.isLoggable(Level.FINER)) {
@@ -1422,9 +1474,12 @@ public class JavaErlang {
         throw new Exception();
     }
 
-    static Method getMethod(final Class cl, final String methodName,
-                            final OtpErlangObject[] erlTypes) throws Exception {
+    static Method getMethod(final Class cl, 
+			    final String methodName,
+                            final OtpErlangObject[] erlTypes,
+			    final boolean observerInClass) throws Exception {
         final Type[] types = fromErlTypes(erlTypes);
+
         for (final Method method : cl.getMethods()) {
             if (!method.getName().equals(methodName)) {
                 continue;
@@ -1437,6 +1492,22 @@ public class JavaErlang {
                 return method;
             }
         }
+
+	if (observerInClass) {
+	    for (final Method method : cl.getDeclaredMethods()) {
+		if (!method.getName().equals(methodName)) {
+		    continue;
+		}
+		if (checkTypes(method.getParameterTypes(), types)) {
+		    // Fix for java bug 4071957
+		    if (cl.isMemberClass() || cl.isAnonymousClass()) {
+			method.setAccessible(true);
+		    }
+		    return method;
+		}
+	    }
+	}
+
 	if (logger.isLoggable(Level.FINE))
 	    logger.log(Level.FINE,"No method found for " + cl.getName() + "."
 		       + methodName + ":");
