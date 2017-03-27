@@ -31,7 +31,7 @@
 -module(java_to_erlang).
 %%-compile(export_all).
 
--export([compute_class/2]).
+-export([compute_class/3]).
 -export([find_constructor/3,find_constructor_with_type/3]).
 -export([find_method/3,find_method_with_type/3]).
 -export([find_static_method/4,find_static_method_with_type/4]).
@@ -44,7 +44,7 @@
 
 -include("debug.hrl").
 
-compute_class(NodeId,ClassArg) ->
+compute_class(NodeId,ClassArg,RealClassArg) ->
     ClassName =
         if
 	    is_atom(ClassArg) ->
@@ -58,7 +58,12 @@ compute_class(NodeId,ClassArg) ->
         java:node_lookup(NodeId),
 
     ObserverInClass = 
-        lists:member(ClassArg,Node#node.enter_classes),
+        if
+	  RealClassArg == void ->
+	    lists:member(ClassArg,Node#node.enter_classes);
+	  true ->
+	    lists:member(RealClassArg,Node#node.enter_classes)
+	end,
 
     ClassId =
 	java:report_java_exception

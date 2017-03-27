@@ -68,7 +68,7 @@
 -export([identity/1]).
 -export([print_stacktrace/1,get_stacktrace/1]).
 -export([set_loglevel/1,format/2,format/3]).
--export([acquire_class/2,report_java_exception/1]).
+-export([acquire_class/2,acquire_class/3,report_java_exception/1]).
 -export([memory_usage/0,memory_usage/1]).
 -export([print_class/2]).
 
@@ -1310,16 +1310,23 @@ memory_usage(NodeId) ->
 -spec acquire_class(node_id(),class_ref()) -> #class{}.
 acquire_class(NodeId,ClassName) ->
     ?LOG("acquire_class(~p,~p)~n",[NodeId,ClassName]),
-    acquire_class_int(NodeId,ClassName).
+    acquire_class_int(NodeId,ClassName,void).
 
-acquire_class_int(NodeId,ClassName) when is_atom(ClassName) ->
+%% @private
+-spec acquire_class(node_id(),class_ref(),class_name()) -> #class{}.
+acquire_class(NodeId,ClassName,RealClassName) ->
+    ?LOG("acquire_class(~p,~p)~n",[NodeId,ClassName]),
+    acquire_class_int(NodeId,ClassName,RealClassName).
+
+acquire_class_int(NodeId,ClassName,RealClassName) when is_atom(ClassName), 
+						       is_atom(RealClassName) ->
     case class_lookup(NodeId,ClassName) of
 	{ok,Class} ->
 	    Class;
 	_ ->
 	    case get_load_permission(NodeId,ClassName) of
 		ok ->
-		    try java_to_erlang:compute_class(NodeId,ClassName) of
+		    try java_to_erlang:compute_class(NodeId,ClassName,RealClassName) of
 			Class ->
 			    ets:delete(java_classes,{loading,NodeId,ClassName}),
 			    class_store(NodeId,ClassName,Class)
@@ -1329,10 +1336,10 @@ acquire_class_int(NodeId,ClassName) when is_atom(ClassName) ->
 		    end
 	    end
     end;
-acquire_class_int(NodeId,ClassRef) when is_tuple(ClassRef) ->
+acquire_class_int(NodeId,ClassRef,RealClassName) when is_tuple(ClassRef) ->
     case get_load_permission(NodeId,ClassRef) of
 	ok ->
-	    try java_to_erlang:compute_class(NodeId,ClassRef) of
+	    try java_to_erlang:compute_class(NodeId,ClassRef,RealClassName) of
 		Class ->
 		    ets:delete(java_classes,{loading,NodeId,ClassRef}),
 		    ClassName =
@@ -1404,7 +1411,7 @@ find_class(Object) ->
         [{_,Class}] -> Class;
         _ ->
             ClassName = getClassName(NodeId,Object),
-            Class = acquire_class_int(NodeId,ClassName),
+            Class = acquire_class(NodeId,ClassName),
             Class
     end.
 
