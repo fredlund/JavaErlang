@@ -46,7 +46,8 @@ all_tests(_) ->
      ?_test(test20()),
      ?_test(test21()),
      ?_test(test22()),
-     ?_test(test23())
+     ?_test(test23()),
+     ?_test(test24())
     ].
 
 all_gc_tests(_) ->
@@ -74,7 +75,8 @@ all_gc_tests(_) ->
      ?_test(test20gc()),
      ?_test(test21gc()),
      ?_test(test22gc()),
-     ?_test(test23gc())
+     ?_test(test23gc()),
+     ?_test(test24gc())
     ].
 
 %% Without gc
@@ -129,6 +131,8 @@ test22() ->
     ?assertEqual(ok,print_exception(fun () -> tc22() end)).
 test23() ->
     ?assertEqual(0,print_exception(fun () -> tc23() end)).
+test24() ->
+    ?assertEqual(1,print_exception(fun () -> tc24() end)).
 
 %% With gc
 
@@ -182,6 +186,8 @@ test22gc() ->
     ?assertEqual(ok,print_exception(fun () -> tc22_gc() end)).
 test23gc() ->
     ?assertEqual(0,print_exception(fun () -> tc23_gc() end)).
+test24gc() ->
+    ?assertEqual(1,print_exception(fun () -> tc24_gc() end)).
 
 tc() ->
     io:format("Starting tc~n",[]),
@@ -946,14 +952,24 @@ tc22_gc() ->
     ok.
 
 tc23() ->
-  {ok,NodeId} = java:start_node([{add_to_java_classpath,["classes"]}]),
+  {ok,NodeId} = java:start_node([{add_to_java_classpath,["classes"]},{enter_classes,['javaErlang.testing.Test']}]),
   Obj = java:new(NodeId,'javaErlang.testing.Test',[]),
   java:call(Obj,value,[]).
 
 tc23_gc() ->
-  {ok,NodeId} = java:start_node([{add_to_java_classpath,["classes"]}]),
+  {ok,NodeId} = java:start_node([{enable_gc,true},{add_to_java_classpath,["classes"]},{enter_classes,['javaErlang.testing.Test']}]),
   Obj = java:new(NodeId,'javaErlang.testing.Test',[]),
   java:call(Obj,value,[]).
+
+tc24() ->
+  {ok,NodeId} = java:start_node([{add_to_java_classpath,["classes"]},{enter_classes,['javaErlang.testing.Test']}]),
+  Obj = java:new(NodeId,'javaErlang.testing.Test',[]),
+  java:get(Obj,x).
+
+tc24_gc() ->
+  {ok,NodeId} = java:start_node([{enable_gc,true},{add_to_java_classpath,["classes"]},{enter_classes,['javaErlang.testing.Test']}]),
+  Obj = java:new(NodeId,'javaErlang.testing.Test',[]),
+  java:get(Obj,x).
 
 count(0) ->
     ok;

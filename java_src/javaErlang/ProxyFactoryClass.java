@@ -59,7 +59,8 @@ class ProxyFactoryClass {
                     JavaErlang.getMethod
                     (superClass,
                      methodName,
-                     typeList.elements());
+                     typeList.elements(),
+		     false);
                 m[i] = method;
             } catch (Exception exc) { m[i] = null; }
         }

@@ -10,7 +10,7 @@
   fields and methods.
 
   Idea:
-	start_node([{inside_classes,['Cl1']}])
+	start_node([{enter_classes,['Cl1']}]).
 
 This declaration means that all declared methods and declared fields
 in CL1 will become visible to JavaErlang.

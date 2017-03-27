@@ -5,7 +5,7 @@
          node_node,
          options,
 	 cookie=void,
-	 member_permissions=[],
+	 enter_classes=[],
          symbolic_name=void,
          unix_pid=void,ping_retry=5000,connect_timeout=1000,
          max_java_start_tries=3,call_timeout,num_start_tries=0}).

@@ -97,7 +97,7 @@
       | {java_exception_as_value,boolean()}
       | {java_verbose,string()}
       | {java_executable,string()}
-      | {member_permissions,[{atom(),[member_spec()]}]}
+      | {enter_classes,[{atom()}]}
       | {erlang_remote,string()}
       | {log_level,loglevel()}
       | {enable_gc,boolean()}
@@ -122,8 +122,8 @@
 %% Java interface class using the Java standard logger.</li>
 %% <li>`java_options' permits specifying command line options
 %% to the Java executable.</li>
-%% <li>`member_permissions' specifies that a number of members 
-%% (fields or methods) of classes should be accessible, 
+%% <li>`enter_classes' specifies the classes whose members
+%% (fields or methods) should be accessible
 %% although they are not declared public.</li>.
 %% <li>`erlang_remote' specifies a (possibly remote)
 %% Erlang node which is responsible
@@ -182,10 +182,6 @@
 -type int_type() :: int | long | short | char | byte .
 -type float_type() :: float | double.
 
--type member_spec() :: 
-	{ 'method', atom() } |
-	{ 'field', atom() }.
-
 %% @doc Starts a Java node and establises the connection
 %% to Erlang. Returns a Java library "node identifier" (not a normal
 %% Erlang node identifier).
@@ -219,7 +215,7 @@ start_node(UserOptions) ->
     init([{log_level,LogLevel}]),
     CallTimeout = proplists:get_value(call_timeout,Options),
     SymbolicName = proplists:get_value(symbolic_name,Options,void),
-    MemberPermissions = proplists:get_value(member_permissions,Options,[]),
+    EnteredClasses = proplists:get_value(enter_classes,Options,[]),
     NodeNode = proplists:get_value(erlang_remote,Options,node()),
     Cookie = proplists:get_value(setcookie,Options,undefined),
     if
@@ -231,7 +227,7 @@ start_node(UserOptions) ->
               call_timeout=CallTimeout,
               node_node=NodeNode,
 	      cookie=Cookie,
-	      member_permissions=MemberPermissions,
+	      enter_classes=EnteredClasses,
               symbolic_name=SymbolicName},
     spawn_java(PreNode,get_java_node_id()).
 
@@ -328,6 +324,7 @@ check_options(Options) ->
 		     java_exception_as_value,java_timeout_as_value,
 		     java_verbose,java_options,
 		     setcookie,
+		     enter_classes,
 		     java_executable,call_timeout]) of
 		   true -> ok;
 		   false ->
