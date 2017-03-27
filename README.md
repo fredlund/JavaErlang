@@ -376,8 +376,7 @@ for detailed licensing conditions or exceptions.
 The library has a number of practical limitations:
 
 * Speed: the scheme used for communicating between Erlang and
-Java is clearly suboptimal. Many aspects are
-trivial to improve: use integer tags instead of atom tags, etc.
+Java is quite slow.
 
 * Inability to use the calling context of a Java call to determine
 which Java method to invoke.
