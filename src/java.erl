@@ -994,7 +994,8 @@ node_is_alive(NodeId) ->
 
 -spec class_id(object_ref()) -> integer().
 class_id({_,_,_,ClassId,_}) ->
-    ClassId.
+  ClassId.
+
 
 %% %% @doc
 %% %% Returns the symbolic name of a Java node.
@@ -1336,7 +1337,8 @@ acquire_class_int(NodeId,ClassName,RealClassName) when is_atom(ClassName),
 		    end
 	    end
     end;
-acquire_class_int(NodeId,ClassRef,RealClassName) when is_tuple(ClassRef) ->
+acquire_class_int(NodeId,ClassRef,RealClassName) when is_tuple(ClassRef),
+						      is_atom(RealClassName) ->
     case get_load_permission(NodeId,ClassRef) of
 	ok ->
 	    try java_to_erlang:compute_class(NodeId,ClassRef,RealClassName) of
