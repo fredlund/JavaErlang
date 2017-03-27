@@ -375,13 +375,6 @@ for detailed licensing conditions or exceptions.
 
 The library has a number of practical limitations:
 
-* Performing white box testing is currently difficult; only
-the public methods, constructors and attributes of classes are
-callable from Erlang. However, the capability to
-call non-public methods should be easy to implement
-(either using the new Java 7 approach, or by changing "permissions"
-using reflection).
-
 * Speed: the scheme used for communicating between Erlang and
 Java is clearly suboptimal. Many aspects are
 trivial to improve: use integer tags instead of atom tags, etc.
