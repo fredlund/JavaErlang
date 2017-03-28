@@ -85,6 +85,7 @@ $ erl -pa _build/default/lib/java_erlang/ebin/
 
 <p>
 To test, execute the following command:<br />
+
 ```
 $ rebar3 eunit -v
 ```
