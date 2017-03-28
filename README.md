@@ -2,7 +2,7 @@
 
 # Welcome to the JavaErlang interface. #
 
-__Authors:__ [Lars-Åke Fredlund](lfredlund@fi.upm.es).
+__Authors:__ Lars-Åke Fredlund (lfredlund@fi.upm.es).
 JavaErlang is a library that attempts to facilitate the
 communication between Java and Erlang nodes, implemented
 as an additional layer on top
