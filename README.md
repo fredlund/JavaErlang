@@ -2,7 +2,7 @@
 
 # Welcome to the JavaErlang interface. #
 
-__Authors:__ [`Lars-Ake Fredlund (lfredlund@fi.upm.es)`](mailto:Lars-Ake Fredlund (lfredlund@fi.upm.es)).
+__Authors:__ Lars-Åke Fredlund (lfredlund@fi.upm.es).
 JavaErlang is a library that attempts to facilitate the
 communication between Java and Erlang nodes, implemented
 as an additional layer on top
@@ -64,12 +64,9 @@ getting started with rebar3.
 
 
 To compile, execute the following command:<br />
-
 ```
 $ rebar3 compile
 ```
-
-
 
 
 After compilation Erlang beam files will be left in the
@@ -87,7 +84,8 @@ $ erl -pa _build/default/lib/java_erlang/ebin/
 </p>
 
 <p>
-To test, execute the following command:<br/>
+To test, execute the following command:<br />
+
 ```
 $ rebar3 eunit -v
 ```
@@ -132,7 +130,7 @@ as an option to `start_node/2`.
 Garbage collection is now implemented. To enable this
 (the option is currently disabled by default, but the default
 can change without warning)
-provide `{enable_gc,TrueOrfalse}`
+provide `{enable_gc,true}`
 as an option to `start_node/2`.
 
 
