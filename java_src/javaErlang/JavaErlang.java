@@ -164,6 +164,7 @@ public class JavaErlang {
 
     void do_receive() throws Exception {
         do {
+	    logger.log(Level.FINER,"wating to receive a message on "+msgs.getName());
             final OtpErlangObject msg = msgs.receive();
             if (logger.isLoggable(Level.FINER)) {
                 logger.log(Level.FINER,"\rGot message " + msg);
