@@ -1164,7 +1164,10 @@ public class JavaErlang {
     OtpErlangObject getConstructor(final OtpErlangObject cmd) throws Exception {
         final OtpErlangTuple t = (OtpErlangTuple) cmd;
         final OtpErlangTuple typeList = (OtpErlangTuple) t.elementAt(2);
-        final Constructor cnstr = getConstructor(t.elementAt(0), typeList.elements());
+        final Constructor cnstr =
+	    getConstructor(t.elementAt(0),
+			   typeList.elements(),
+			   ((OtpErlangAtom) t.elementAt(3)).booleanValue());
         if (logger.isLoggable(Level.FINER)) {
             logger.log(Level.FINER,"\rcmd " + cmd + " has typelist "
                        + typeList.elements());
@@ -1224,6 +1227,7 @@ public class JavaErlang {
         final Class cl = findClass(t.elementAt(0));
         final Constructor[] constructors = cl.getConstructors();
         final ArrayList<OtpErlangTuple> erlConstructors = new ArrayList<OtpErlangTuple>();
+
         for (final Constructor constructor : constructors) {
             final int modifiers = constructor.getModifiers();
 	    final OtpErlangAtom name = 
@@ -1235,6 +1239,36 @@ public class JavaErlang {
 	    }
 	    erlConstructors.add(makeErlangTuple(name, new OtpErlangList(erlTypes)));
         }
+
+	if (observerInClass) {
+	    final Constructor[] declaredConstructors = cl.getDeclaredConstructors();
+	    for (final Constructor constructor : declaredConstructors) {
+		if (constructor.isSynthetic()) {
+		    if (logger.isLoggable(Level.FINER)) {
+			logger.log(Level.FINER,"Skipping synthetic or bridge constructor "
+				   + constructor + " in class " + cl);
+		    }
+		    continue;
+		}
+		final int modifiers = constructor.getModifiers();
+		if ((modifiers & Modifier.PUBLIC) != 0) continue;
+		if (is_executable(modifiers)) {
+		    final OtpErlangAtom name = new OtpErlangAtom(constructor.getName());
+		    final Type[] parameterTypes = constructor.getParameterTypes();
+		    final OtpErlangObject[] erlTypes = new OtpErlangObject[parameterTypes.length];
+		    for (int i = 0; i < parameterTypes.length; i++) {
+			erlTypes[i] = toErlType(parameterTypes[i]);
+		    }
+		    erlConstructors.add(makeErlangTuple(name, new OtpErlangList(erlTypes)));
+                    constructor.setAccessible(true);
+		} else if (logger.isLoggable(Level.FINER)) {
+		    logger.log(Level.FINER,"\rConstructor is not visible to us");
+		}
+	    }
+	}
+
+
+	
         final OtpErlangTuple[] tmp_arr =
 	    new OtpErlangTuple[erlConstructors.size()];
         for (int i = 0; i < erlConstructors.size(); i++) {
@@ -1417,9 +1451,11 @@ public class JavaErlang {
     }
 
     Constructor getConstructor(final OtpErlangObject classRef,
-            final OtpErlangObject[] erlTypes) throws Exception {
+			       final OtpErlangObject[] erlTypes,
+			       final boolean observerInClass) throws Exception {
         final Class cl = findClass(classRef);
         final Type[] types = fromErlTypes(erlTypes);
+
         for (final Constructor cnstr : cl.getConstructors()) {
             if (checkTypes(cnstr.getParameterTypes(), types)) {
                 // Fix for java bug 4071957
@@ -1429,6 +1465,16 @@ public class JavaErlang {
                 return cnstr;
             }
         }
+
+	if (observerInClass) {
+	    for (final Constructor cnstr : cl.getDeclaredConstructors()) {
+		if (checkTypes(cnstr.getParameterTypes(), types)) {
+		    cnstr.setAccessible(true);
+		    return cnstr;
+		} 
+	    }
+	}
+	
 	if (logger.isLoggable(Level.FINE))
 	    logger.log(Level.FINE,"No constructor found for " + cl.getName() + ":");
         printObjectArray(types);
@@ -1441,6 +1487,7 @@ public class JavaErlang {
 	    }
 	    logger.log(Level.FINER,"\r------------------------");
 	}
+
         throw new Exception();
     }
 

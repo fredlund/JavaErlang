@@ -70,7 +70,7 @@ compute_class(NodeId,ClassArg,RealClassArg) ->
 	  (lookup_class(NodeId,ClassArg)),
     RawConstructors =
 	java:report_java_exception
-	  (get_constructors(NodeId,ClassArg,true)),
+	  (get_constructors(NodeId,ClassArg,ObserverInClass)),
     ConstructorsWithType = 
 	elements_with_type(NodeId,ClassArg,?getConstructor,RawConstructors,ObserverInClass),
     ConstructorsWithArity = 
