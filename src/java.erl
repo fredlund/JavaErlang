@@ -875,8 +875,9 @@ open_db(Init,Options) ->
             spawn(fun () ->
                           %%io:format("spawned db ~p~n",[self()]),
                           try
+			      JavaNodeCounter = rand:uniform(100),
                               ets:new(java_nodes,[named_table,public]),
-                              ets:insert(java_nodes,{java_node_counter,0}),
+                              ets:insert(java_nodes,{java_node_counter,JavaNodeCounter}),
                               ets:new(java_classes,[named_table,public]),
                               ets:new(java_threads,[named_table,public]),
                               ets:new(java_class_ids,[named_table,public]),
