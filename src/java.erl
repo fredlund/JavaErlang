@@ -1042,9 +1042,12 @@ terminate(NodeId) ->
     javaCall(NodeId,?terminate,void,false),
     remove_thread_mappings(NodeId),
     remove_class_mappings(NodeId),
-    {ok,Node} = node_lookup(NodeId,false),
-    Node#node.port_pid!{control,terminate_reader},
-    ets:delete(java_nodes,NodeId).
+    case node_lookup(NodeId,false) of
+      {ok,Node} when is_record(Node,node) ->
+	Node#node.port_pid!{control,terminate_reader},
+	ets:delete(java_nodes,NodeId);
+      _ -> ok
+    end.
 
 %% @doc
 %% Shuts down and terminates the connection to all known Java nodes.
