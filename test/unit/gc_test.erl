@@ -32,7 +32,7 @@
 
 -module(gc_test).
 
--compile(export_all).
+-export([start/3]).
 
 proxy(Pid, M) ->
     spawn(fun () -> do_receive_forward(Pid,M) end).
