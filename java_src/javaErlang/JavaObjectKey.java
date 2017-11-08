@@ -31,4 +31,8 @@ public class JavaObjectKey {
     public int hashCode() {
         return (int) key;
     }
+
+    public String toString() {
+      return "{key="+key+",nodeId="+nodeId+"}";
+    }
 }
