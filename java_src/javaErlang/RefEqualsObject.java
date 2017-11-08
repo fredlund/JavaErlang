@@ -58,4 +58,8 @@ class RefEqualsObject {
     public Object object() {
         return object;
     }
+
+  public String toString() {
+    return object.toString();
+  }
 }
