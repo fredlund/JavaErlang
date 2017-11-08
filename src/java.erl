@@ -210,7 +210,7 @@ start_node(UserOptions) ->
     Options = UserOptions++default_options(),
     check_options(Options),
     LogLevel = proplists:get_value(log_level,Options),
-    %% NOOP EnableGC = proplists:get_value(enable_gc,Options,false),
+    EnableGC = proplists:get_value(enable_gc,Options,false),
     EnableProxies = proplists:get_value(enable_proxies,Options,false),
     init([{log_level,LogLevel}]),
     CallTimeout = proplists:get_value(call_timeout,Options),
@@ -226,6 +226,7 @@ start_node(UserOptions) ->
         #node{options=Options,
               call_timeout=CallTimeout,
               node_node=NodeNode,
+              enable_gc=EnableGC,
 	      cookie=Cookie,
 	      enter_classes=EnteredClasses,
               symbolic_name=SymbolicName},
@@ -484,7 +485,13 @@ connect_receive(NodeName,PreNode,KeepOnTryingUntil) ->
             java:format
               (debug,"~p: got Java pid ~p~n",
                [NodeName,Pid]),
-            GC_pid = spawn_link(fun () -> handle_gc() end),
+            GC_pid =
+            if 
+              PreNode#node.enable_gc -> 
+                spawn_link(fun () -> handle_gc() end);
+              true ->
+                void
+            end,
             Monitor_pids = spawn_link(fun () -> monitor_pids() end),
             Node = PreNode#node{node_pid=Pid,unix_pid=UnixPid,monitor_pids=Monitor_pids,gc_pid=GC_pid},
             {ok,Node};
@@ -595,8 +602,17 @@ javaCall(NodeId,Type,Msg,Warn) when is_integer(Type), Type>=0, Type=<?last_tag -
             end,
             Node#node.node_pid!JavaMsg,
             case wait_for_reply(Node) of
-                {zzzzz,Msg} ->
+
+                %% The first clause is to ensure that objects references
+                %% are garbage collected only after any call involving them
+                %% returns. 
+                %% This is to preven a race between handling an object Call
+                %% on the Java side, and the gc message arriving from Erlang
+                %% to the Java side.
+                zzzzz ->
+                    self()!Msg,
                     throw(impossible);
+
                 Reply ->
                     case permit_output(get_loglevel(),debug) of
 		      true -> 
@@ -607,7 +623,12 @@ javaCall(NodeId,Type,Msg,Warn) when is_integer(Type), Type>=0, Type=<?last_tag -
 		      false -> 
 			ok
                     end,
-                    enable_gc(Reply,Node#node.gc_pid)
+                    if
+                      Node#node.enable_gc ->
+                        enable_gc(Reply,Node#node.gc_pid);
+                      true ->
+                        Reply
+                    end
             end;
         _ ->
             if
