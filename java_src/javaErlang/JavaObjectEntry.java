@@ -48,4 +48,16 @@ public class JavaObjectEntry {
     long free() {
         return --freeKeys;
     }
+
+    public String toString() {
+      return
+	"{"
+	+ object + "(" + object.getClass() + "),"
+	+ "counter=" + counter + ","
+	+ "freeKeys=" + freeKeys + ","
+	+ classNumber + ","
+	+ "key=" + key + ","
+	+ nodeId
+	+ "}";
+    }
 }
