@@ -1,6 +1,7 @@
 -record(node,
         {node_name=void,node_pid=void,port_pid=void,node_id=void,
          monitor_pids=void,
+         enable_gc=false,
          gc_pid=void,
          node_node,
          options,
