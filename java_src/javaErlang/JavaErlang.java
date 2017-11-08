@@ -445,6 +445,15 @@ public class JavaErlang {
                 if (tag.equals("object")) {
                     final JavaObjectKey key = objectKeyFromErlang(t);
                     final JavaObjectEntry entry = fromErlangMap.get(key);
+		    if (entry == null) {
+		      if (logger.isLoggable(Level.SEVERE)) {
+			logger.log
+			  (Level.SEVERE,
+			   "\n\rTranslating " + value + " key="+key+
+			   " from "+t+" could not be found in fromErlangMap from "+Thread.currentThread());
+			  }
+                      throw new Exception("missing fromErlang entry");
+		    }
                     final Object result = entry.object();
                     if (result == null) {
                         if (logger.isLoggable(Level.FINE)) {
@@ -1086,6 +1095,8 @@ public class JavaErlang {
         final JavaObjectKey key = objectKeyFromErlang(arg);
         final JavaObjectEntry entry = fromErlangMap.get(key);
         final RefEqualsObject objKey = new RefEqualsObject(entry.object());
+        //System.out.println
+        //  ("freeing "+objKey+" and "+key+" from "+Thread.currentThread());
         toErlangMap.remove(objKey);
         fromErlangMap.remove(key);
         return new OtpErlangBoolean(true);
@@ -1100,6 +1111,8 @@ public class JavaErlang {
                     (Level.INFO,
                      "freeing "+System.identityHashCode(entry.object()));
             final RefEqualsObject objKey = new RefEqualsObject(entry.object());
+            //System.out.println("freeing instance "+objKey+" and "+key+" from "+Thread.currentThread());
+            //System.out.println("instance entry = "+entry);
             toErlangMap.remove(objKey);
             fromErlangMap.remove(key);
             return new OtpErlangBoolean(true);
