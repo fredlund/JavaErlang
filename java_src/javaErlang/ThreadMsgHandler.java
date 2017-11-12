@@ -367,18 +367,4 @@ class ThreadMsgHandler implements Runnable {
         }
         return root.map_to_erlang(result, method.getReturnType());
     }
-
-  public static String defaultToString(Object o) {
-    if (o == null) return "null";
-    else return o.getClass().getName() + "@" + 
-           Integer.toHexString(System.identityHashCode(o));
-  }
-
-  public static String printObjects(Object[] os) {
-    String result = "";
-    if (result != "")
-      result += ",";
-    result += defaultToString(os);
-    return result;
-  }
 }
