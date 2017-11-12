@@ -1095,8 +1095,6 @@ public class JavaErlang {
         final JavaObjectKey key = objectKeyFromErlang(arg);
         final JavaObjectEntry entry = fromErlangMap.get(key);
         final RefEqualsObject objKey = new RefEqualsObject(entry.object());
-        //System.out.println
-        //  ("freeing "+objKey+" and "+key+" from "+Thread.currentThread());
         toErlangMap.remove(objKey);
         fromErlangMap.remove(key);
         return new OtpErlangBoolean(true);
@@ -1111,10 +1109,20 @@ public class JavaErlang {
                     (Level.INFO,
                      "freeing "+System.identityHashCode(entry.object()));
             final RefEqualsObject objKey = new RefEqualsObject(entry.object());
-            //System.out.println("freeing instance "+objKey+" and "+key+" from "+Thread.currentThread());
-            //System.out.println("instance entry = "+entry);
-            toErlangMap.remove(objKey);
-            fromErlangMap.remove(key);
+
+            if (toErlangMap.remove(objKey) == null) {
+              if (logger.isLoggable(Level.SEVERE))
+                logger.log
+                  (Level.SEVERE,
+                   "Could not remove "+objKey+" from toErlangMap; entry="+entry+" arg="+arg);
+            }
+
+            if (fromErlangMap.remove(key) == null) {
+              if (logger.isLoggable(Level.SEVERE))
+                logger.log
+                  (Level.SEVERE,
+                   "Could not remove "+key+" from fromErlangMap; entry="+entry+" arg="+arg);
+            }
             return new OtpErlangBoolean(true);
         } else {
             if (logger.isLoggable(Level.INFO))

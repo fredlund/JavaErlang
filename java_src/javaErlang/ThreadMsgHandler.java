@@ -344,16 +344,21 @@ class ThreadMsgHandler implements Runnable {
         final Method method = (Method) fun;
         method.setAccessible(true);
         final OtpErlangObject otpObj = t.elementAt(0);
+
         final Object obj = root.java_value_from_erlang(otpObj);
-        final Object[] translated_args = root.java_values_from_erlang(args,
-                                                                      method.getParameterTypes());
+
+	final Object[] translated_args =
+          root.java_values_from_erlang(args,
+                                       method.getParameterTypes());
         if (JavaErlang.logger.isLoggable(Level.FINER)) {
             JavaErlang.logger.log
                 (Level.FINER,
                  "calling "+method+" with "+
                  translated_args);
         }
+
         result = method.invoke(obj, translated_args);
+
         if (JavaErlang.logger.isLoggable(Level.FINER)) {
             JavaErlang.logger.log
                 (Level.FINER,
@@ -362,4 +367,18 @@ class ThreadMsgHandler implements Runnable {
         }
         return root.map_to_erlang(result, method.getReturnType());
     }
+
+  public static String defaultToString(Object o) {
+    if (o == null) return "null";
+    else return o.getClass().getName() + "@" + 
+           Integer.toHexString(System.identityHashCode(o));
+  }
+
+  public static String printObjects(Object[] os) {
+    String result = "";
+    if (result != "")
+      result += ",";
+    result += defaultToString(os);
+    return result;
+  }
 }

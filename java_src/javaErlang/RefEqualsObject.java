@@ -31,16 +31,16 @@
 package javaErlang;
 
 class RefEqualsObject {
-    Object object;
+  int hashCode;
 
     public RefEqualsObject(final Object object) {
-        this.object = object;
+      this.hashCode = System.identityHashCode(object);
     }
 
     @Override
     public boolean equals(final Object object2) {
         if (object2 instanceof RefEqualsObject) {
-            return object == ((RefEqualsObject) object2).object();
+            return hashCode == ((RefEqualsObject) object2).hashCode;
         } else {
             return this == object2;
         }
@@ -48,18 +48,10 @@ class RefEqualsObject {
 
     @Override
     public int hashCode() {
-        if (object != null) {
-            return object.hashCode();
-        } else {
-            return 0;
-        }
-    }
-
-    public Object object() {
-        return object;
+      return hashCode;
     }
 
   public String toString() {
-    return object.toString();
+    return Integer.toString(hashCode);
   }
 }

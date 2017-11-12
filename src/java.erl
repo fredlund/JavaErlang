@@ -541,7 +541,6 @@ handle_gc() ->
     receive
         Msg ->
             try
-                format(debug,"gc_process got message ~p~n",[Msg]),
                 javaSend(node_id(Msg),?freeInstance,Msg)
             catch _:_ -> ok end,
             handle_gc()
