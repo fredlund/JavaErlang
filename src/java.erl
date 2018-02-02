@@ -101,6 +101,7 @@
       | {erlang_remote,string()}
       | {log_level,loglevel()}
       | {enable_gc,boolean()}
+      | {connection_timeout,integer()}
       | {java_options,[string()]}
       | {setcookie,string()}
       | {enable_proxies,boolean()}
@@ -128,6 +129,9 @@
 %% <li>`erlang_remote' specifies a (possibly remote)
 %% Erlang node which is responsible
 %% for starting the new Java node.</li>
+%% <li>`conncetion_timeout' sets the connection timeout, in milliseconds,
+%% for when a connection is setup, typically to increase the current
+%% default value (1000ms = 1s).</li>
 %% <li>`enable_gc' determines whether to garbage collect
 %% Java objects communicated to Erlang or not.</li>
 %% <li>`enable_proxies' determines whether the proxy facility provided
@@ -211,6 +215,7 @@ start_node(UserOptions) ->
     check_options(Options),
     LogLevel = proplists:get_value(log_level,Options),
     EnableGC = proplists:get_value(enable_gc,Options,false),
+    ConnectionTimeout = proplists:get_value(connection_timeout,Options,1000),
     EnableProxies = proplists:get_value(enable_proxies,Options,false),
     init([{log_level,LogLevel}]),
     CallTimeout = proplists:get_value(call_timeout,Options),
@@ -227,6 +232,7 @@ start_node(UserOptions) ->
               call_timeout=CallTimeout,
               node_node=NodeNode,
               enable_gc=EnableGC,
+	      connect_timeout=ConnectionTimeout,
 	      cookie=Cookie,
 	      enter_classes=EnteredClasses,
               symbolic_name=SymbolicName},
