@@ -206,6 +206,11 @@ public class JavaErlang {
         final OtpErlangPid replyPid = (OtpErlangPid) t.elementAt(2);
         if (!isConnected) {
             if (tag == Tags.connectTag) {
+	      if (logger.isLoggable(Level.FINER))
+		logger.log
+		  (Level.FINE,"\nJava got Erlang connect with node id " +
+		   argument);
+
                 final String nameOfRunningVM = ManagementFactory
                     .getRuntimeMXBean().getName();
                 final int p = nameOfRunningVM.indexOf('@');
@@ -215,6 +220,7 @@ public class JavaErlang {
                     nodeIdentifier = argument;
                 }
                 reply(makeErlangTuple(new OtpErlangAtom("connected"),
+				      argument,
                                       msgs.self(), new OtpErlangLong(intPid)), replyPid);
 		connectedErlangNode = replyPid.node();
                 isConnected = true;
