@@ -101,6 +101,7 @@
       | {erlang_remote,string()}
       | {log_level,loglevel()}
       | {enable_gc,boolean()}
+      | {ping_timeout,integer()}
       | {connection_timeout,integer()}
       | {java_options,[string()]}
       | {setcookie,string()}
@@ -129,6 +130,9 @@
 %% <li>`erlang_remote' specifies a (possibly remote)
 %% Erlang node which is responsible
 %% for starting the new Java node.</li>
+%% <li>`ping_timeout' sets the multiple ping/pong timeout (in milliseconds), 
+%% which is used to permit multiple ping/pong attempts. 
+%% The current default value is (5000ms = 5s).</li>
 %% <li>`conncetion_timeout' sets the connection timeout, in milliseconds,
 %% for when a connection is setup, typically to increase the current
 %% default value (1000ms = 1s).</li>
@@ -216,6 +220,7 @@ start_node(UserOptions) ->
     LogLevel = proplists:get_value(log_level,Options),
     EnableGC = proplists:get_value(enable_gc,Options,false),
     ConnectionTimeout = proplists:get_value(connection_timeout,Options,1000),
+    PingPongTimeout = proplists:get_value(ping_timeout,Options,5000),
     EnableProxies = proplists:get_value(enable_proxies,Options,false),
     init([{log_level,LogLevel}]),
     CallTimeout = proplists:get_value(call_timeout,Options),
@@ -235,6 +240,7 @@ start_node(UserOptions) ->
 	      connect_timeout=ConnectionTimeout,
 	      cookie=Cookie,
 	      enter_classes=EnteredClasses,
+	      ping_retry=PingPongTimeout,
               symbolic_name=SymbolicName},
     spawn_java(PreNode,get_java_node_id()).
 
@@ -329,6 +335,7 @@ check_options(Options) ->
 		     erlang_remote,
 		     java_class,java_classpath,add_to_java_classpath,
 		     java_exception_as_value,java_timeout_as_value,
+		     connection_timeout,ping_timeout,
 		     java_verbose,java_options,
 		     setcookie,
 		     enter_classes,
@@ -503,7 +510,7 @@ connect_receive(NodeName,PreNode = #node{node_id=NodeId},KeepOnTryingUntil) ->
             {ok,Node};
       Msg={value,{connected,_,_,_}} ->
 	java:format
-	  (warning,"~p: got reply to old Java connection attempt ~p~n",
+	  (warning,"~p: WARNING. Got reply to old Java connection attempt ~p~n",
 	   [NodeName,Msg]),
 	connect_receive(NodeName,PreNode,KeepOnTryingUntil);
       {value,already_connected} ->
