@@ -101,6 +101,8 @@
       | {erlang_remote,string()}
       | {log_level,loglevel()}
       | {enable_gc,boolean()}
+      | {ping_timeout,integer()}
+      | {connection_timeout,integer()}
       | {java_options,[string()]}
       | {setcookie,string()}
       | {enable_proxies,boolean()}
@@ -128,6 +130,12 @@
 %% <li>`erlang_remote' specifies a (possibly remote)
 %% Erlang node which is responsible
 %% for starting the new Java node.</li>
+%% <li>`ping_timeout' sets the multiple ping/pong timeout (in milliseconds), 
+%% which is used to permit multiple ping/pong attempts. 
+%% The current default value is (5000ms = 5s).</li>
+%% <li>`conncetion_timeout' sets the connection timeout, in milliseconds,
+%% for when a connection is setup, typically to increase the current
+%% default value (1000ms = 1s).</li>
 %% <li>`enable_gc' determines whether to garbage collect
 %% Java objects communicated to Erlang or not.</li>
 %% <li>`enable_proxies' determines whether the proxy facility provided
@@ -211,6 +219,8 @@ start_node(UserOptions) ->
     check_options(Options),
     LogLevel = proplists:get_value(log_level,Options),
     EnableGC = proplists:get_value(enable_gc,Options,false),
+    ConnectionTimeout = proplists:get_value(connection_timeout,Options,1000),
+    PingPongTimeout = proplists:get_value(ping_timeout,Options,5000),
     EnableProxies = proplists:get_value(enable_proxies,Options,false),
     init([{log_level,LogLevel}]),
     CallTimeout = proplists:get_value(call_timeout,Options),
@@ -227,8 +237,10 @@ start_node(UserOptions) ->
               call_timeout=CallTimeout,
               node_node=NodeNode,
               enable_gc=EnableGC,
+	      connect_timeout=ConnectionTimeout,
 	      cookie=Cookie,
 	      enter_classes=EnteredClasses,
+	      ping_retry=PingPongTimeout,
               symbolic_name=SymbolicName},
     spawn_java(PreNode,get_java_node_id()).
 
@@ -323,6 +335,7 @@ check_options(Options) ->
 		     erlang_remote,
 		     java_class,java_classpath,add_to_java_classpath,
 		     java_exception_as_value,java_timeout_as_value,
+		     connection_timeout,ping_timeout,
 		     java_verbose,java_options,
 		     setcookie,
 		     enter_classes,
@@ -479,9 +492,9 @@ connectToNode(PreNode,KeepOnTryingUntil) ->
             end
     end.
 
-connect_receive(NodeName,PreNode,KeepOnTryingUntil) ->
+connect_receive(NodeName,PreNode = #node{node_id=NodeId},KeepOnTryingUntil) ->
     receive
-        {value,{connected,Pid,UnixPid}} when is_pid(Pid) ->
+        {value,{connected,NodeId,Pid,UnixPid}} when is_pid(Pid) ->
             java:format
               (debug,"~p: got Java pid ~p~n",
                [NodeName,Pid]),
@@ -495,7 +508,12 @@ connect_receive(NodeName,PreNode,KeepOnTryingUntil) ->
             Monitor_pids = spawn_link(fun () -> monitor_pids() end),
             Node = PreNode#node{node_pid=Pid,unix_pid=UnixPid,monitor_pids=Monitor_pids,gc_pid=GC_pid},
             {ok,Node};
-        {value,already_connected} ->
+      Msg={value,{connected,_,_,_}} ->
+	java:format
+	  (warning,"~p: WARNING. Got reply to old Java connection attempt ~p~n",
+	   [NodeName,Msg]),
+	connect_receive(NodeName,PreNode,KeepOnTryingUntil);
+      {value,already_connected} ->
             %% Oops. We are talking to an old Java node...
             %% We should try to start another one...
             {error,already_connected};
@@ -600,47 +618,60 @@ javaCall(NodeId,Type,Msg,Warn) when is_integer(Type), Type>=0, Type=<?last_tag -
 		ok
             end,
             Node#node.node_pid!JavaMsg,
-            case wait_for_reply(Node) of
-
-                %% The first clause is to ensure that objects references
-                %% are garbage collected only after any call involving them
-                %% returns. 
-                %% This is to preven a race between handling an object Call
-                %% on the Java side, and the gc message arriving from Erlang
-                %% to the Java side.
-                zzzzz ->
-                    self()!Msg,
-                    throw(impossible);
-
-                Reply ->
-                    case permit_output(get_loglevel(),debug) of
-		      true -> 
-			java:format
-			  (debug,
-			   "from_java: ~s:~p -> ~p~n",
-			   [msgtype_to_list(Type),Msg,Reply]);
-		      false -> 
-			ok
-                    end,
-                    if
-                      Node#node.enable_gc ->
-                        enable_gc(Reply,Node#node.gc_pid);
-                      true ->
-                        Reply
-                    end
-            end;
-        _ ->
-            if
-                Warn ->
-                    format(error,"javaCall: nodeId ~p not found~n",[NodeId]),
-                    format
-		      (error,
-		       "type: ~s message: ~p~n",[msgtype_to_list(Type),Msg]),
-                    throw(javaCall);
-                true ->
-                    fail
-            end
+	waiting_for_reply(Msg,Type,Node);
+      _ ->
+	if
+	  Warn ->
+	    format(error,"javaCall: nodeId ~p not found~n",[NodeId]),
+	    format
+	      (error,
+	       "type: ~s message: ~p~n",[msgtype_to_list(Type),Msg]),
+	    throw(javaCall);
+	  true ->
+	    fail
+	end
     end.
+
+waiting_for_reply(Msg,Type,Node) ->
+  case wait_for_reply(Node) of
+
+    %% The first clause is to ensure that objects references
+    %% are garbage collected only after any call involving them
+    %% returns. 
+    %% This is to preven a race between handling an object Call
+    %% on the Java side, and the gc message arriving from Erlang
+    %% to the Java side.
+    zzzzz ->
+      self()!Msg,
+      throw(impossible);
+
+    %% Guard against old connection replies arriving; probably we 
+    %% should instead use a counter for all messages and throw away
+    %% all messages out-of-sequence.
+    Msg={connected,_,Pid,_} when is_pid(Pid) ->
+      java:format
+	(warning,
+	 "warning: got old reply to connection attempt from Java:~n~p~n",
+	 [Msg]),
+      waiting_for_reply(Msg,Type,Node);
+      
+    Reply ->
+      case permit_output(get_loglevel(),debug) of
+	true -> 
+	  java:format
+	    (debug,
+	     "from_java: ~s:~p -> ~p~n",
+	     [msgtype_to_list(Type),Msg,Reply]);
+	false -> 
+	  ok
+      end,
+      if
+	Node#node.enable_gc ->
+	  enable_gc(Reply,Node#node.gc_pid);
+	true ->
+	  Reply
+      end
+  end.
 
 %% @private
 -spec javaSend(node_id(),integer(),any()) -> any().
