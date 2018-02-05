@@ -416,19 +416,19 @@ public class JavaErlang {
                     final String classSpecifier = ((OtpErlangAtom) t
                                                    .elementAt(0)).atomValue();
                     if (classSpecifier.equals("int")) {
-                        return convert_to_integer(arg);
+                        return convert_to_integer(arg,false);
                     } else if (classSpecifier.equals("long")) {
-                        return convert_to_long(arg);
+                      return convert_to_long(arg,false);
                     } else if (classSpecifier.equals("short")) {
-                        return convert_to_short(arg);
+                      return convert_to_short(arg,false);
                     } else if (classSpecifier.equals("char")) {
-                        return convert_to_character(arg);
+                      return convert_to_character(arg,false);
                     } else if (classSpecifier.equals("byte")) {
-                        return convert_to_byte(arg);
+                      return convert_to_byte(arg,false);
                     } else if (classSpecifier.equals("float")) {
-                        return convert_to_float(arg);
+                      return convert_to_float(arg,false);
                     } else if (classSpecifier.equals("double")) {
-                        return convert_to_double(arg);
+                      return convert_to_double(arg,false);
                     }
                 } else {
                     t = (OtpErlangTuple) t.elementAt(0);
@@ -514,30 +514,42 @@ public class JavaErlang {
         }
 
         // We have to use type information to interpret the value
-        if (type == java.lang.Integer.TYPE || type == java.lang.Integer.class) {
-            return convert_to_integer(value);
-        } else if (type == java.lang.Long.TYPE || type == java.lang.Long.class) {
-            return convert_to_long(value);
-        } else if (type == java.lang.Short.TYPE
-                   || type == java.lang.Short.class) {
-            return convert_to_short(value);
-        } else if (type == java.lang.Character.TYPE
-                   || type == java.lang.Character.class) {
-            return convert_to_character(value);
-        } else if (type == java.lang.Byte.TYPE || type == java.lang.Byte.class) {
-            return convert_to_byte(value);
-        } else if (type == java.lang.Float.TYPE
-                   || type == java.lang.Float.class) {
-            return convert_to_float(value);
-        } else if (type == java.lang.Double.TYPE
-                   || type == java.lang.Double.class) {
-            return convert_to_double(value);
+        if (type == java.lang.Integer.TYPE) {
+          return convert_to_integer(value, false);
+        } else if (type == java.lang.Integer.class) {
+          // Permit null as an integer value
+          return convert_to_integer(value, true);
+        }
+        else if (type == java.lang.Long.TYPE) {
+            return convert_to_long(value,false);
+        } if (type == java.lang.Long.class) {
+            return convert_to_long(value,true);
+        } else if (type == java.lang.Short.TYPE) {
+            return convert_to_short(value,false);
+        } if (type == java.lang.Short.class) {
+            return convert_to_short(value,true);
+        } else if (type == java.lang.Character.TYPE) {
+            return convert_to_character(value,false);
+        } if (type == java.lang.Character.class) {
+            return convert_to_character(value,true);
+        } else if (type == java.lang.Byte.TYPE) {
+            return convert_to_byte(value,false);
+        } if (type == java.lang.Byte.class) {
+            return convert_to_byte(value,true);
+        } else if (type == java.lang.Float.TYPE) {
+            return convert_to_float(value,false);
+        } if (type == java.lang.Float.class) {
+            return convert_to_float(value,true);
+        } else if (type == java.lang.Double.TYPE) {
+            return convert_to_double(value,false);
+        } if (type == java.lang.Double.class) {
+            return convert_to_double(value,true);
         } else if (type == java.lang.Void.TYPE || type == java.lang.Void.class) {
             return convert_to_void(value);
         } else if (value instanceof OtpErlangLong) {
-            return convert_to_integer(value);
+            return convert_to_integer(value,false);
         } else if (value instanceof OtpErlangDouble) {
-            return convert_to_double(value);
+           return convert_to_double(value,false);
         } else if ((value instanceof OtpErlangString) &&
                    (type == java.lang.String.class)) {
             return ((OtpErlangString) value).stringValue();
@@ -593,8 +605,12 @@ public class JavaErlang {
         }
     }
 
-    static Object convert_to_character(final Object value)
+    static Object convert_to_character(final Object value, boolean permitNull)
         throws Exception {
+
+        if (value == null && permitNull)
+          return null;
+
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).charValue();
         } else if (value instanceof Character) {
@@ -608,7 +624,10 @@ public class JavaErlang {
         throw new Exception();
     }
 
-    static Object convert_to_byte(final Object value) throws Exception {
+    static Object convert_to_byte(final Object value, boolean permitNull) throws Exception {
+        if (value == null && permitNull)
+          return null;
+
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).byteValue();
         } else if (value instanceof Byte) {
@@ -622,8 +641,11 @@ public class JavaErlang {
         throw new Exception();
     }
 
-    static Object convert_to_float(final Object value)
+    static Object convert_to_float(final Object value, boolean permitNull)
         throws Exception {
+
+        if (value == null && permitNull)
+          return null;
 
         if (value instanceof OtpErlangDouble) {
             return ((OtpErlangDouble) value).floatValue();
@@ -650,8 +672,11 @@ public class JavaErlang {
         throw new Exception();
     }
 
-    static Object convert_to_double(final Object value)
+    static Object convert_to_double(final Object value, boolean permitNull)
         throws Exception {
+
+        if (value == null && permitNull)
+          return null;
 
         if (value instanceof OtpErlangDouble) {
             return ((OtpErlangDouble) value).doubleValue();
@@ -686,8 +711,11 @@ public class JavaErlang {
         throw new Exception();
     }
 
-    static Object convert_to_short(final Object value)
+    static Object convert_to_short(final Object value, boolean permitNull)
         throws Exception {
+
+        if (value == null && permitNull)
+          return null;
 
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).shortValue();
@@ -704,8 +732,11 @@ public class JavaErlang {
         throw new Exception();
     }
 
-    static Object convert_to_integer(final Object value)
+    static Object convert_to_integer(final Object value, boolean permitNull)
         throws Exception {
+
+        if (value == null && permitNull)
+          return null;
 
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).intValue();
@@ -726,7 +757,10 @@ public class JavaErlang {
         throw new Exception();
     }
 
-    static Object convert_to_long(final Object value) throws Exception {
+    static Object convert_to_long(final Object value, boolean permitNull) throws Exception {
+        if (value == null && permitNull)
+          return null;
+
         if (value instanceof OtpErlangLong) {
             return ((OtpErlangLong) value).longValue();
         } else if (value instanceof Long) {

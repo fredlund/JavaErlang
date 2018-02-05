@@ -233,15 +233,19 @@ find_constructor(NodeId,ClassName,Args) ->
 
 find_constructor_with_type(NodeId,ClassName,ArgTypes) ->
     Class = java:acquire_class(NodeId,ClassName),
+    Constructors = element(1,Class#class.constructors),
     case
         find_element_with_type
-        ({ClassName,ArgTypes},element(1,Class#class.constructors)) of
+        ({ClassName,ArgTypes},Constructors) of
         {ok,Constructor} -> Constructor;
         false ->
             java:format
               (warning,
                "*** Warning: cannot find constructor for class ~p with types ~s~n",
                [ClassName,print_parameters(ArgTypes)]),
+            java:format
+              (info,
+               "*** constructors: ~p~n",[Constructors]),
             throw(badarg)
     end.
 
@@ -263,15 +267,19 @@ find_method(Object,Name,Args) ->
 
 find_method_with_type(Object,Name,ArgTypes) ->
     Class = java:find_class(Object),
+    Methods = element(1,Class#class.methods),
     case
         find_element_with_type
-        ({Name,ArgTypes},element(1,Class#class.methods)) of
+        ({Name,ArgTypes},Methods) of
         {ok,Method} -> Method;
         false ->
             java:format
               (warning,
                "*** Warning: cannot find method ~p for class ~p with types ~s~n",
                [Name,Class#class.name,print_parameters(ArgTypes)]),
+            java:format
+              (info,
+               "*** methods: ~p~n",[Methods]),
             throw(badarg)
     end.
 
@@ -293,15 +301,19 @@ find_static_method(NodeId,ClassName,Name,Args) ->
 
 find_static_method_with_type(NodeId,ClassName,Name,ArgTypes) ->
     Class = java:acquire_class(NodeId,ClassName),
+    Methods = element(1,Class#class.static_methods),
     case
         find_element_with_type
-        ({Name,ArgTypes},element(1,Class#class.static_methods)) of
+        ({Name,ArgTypes},Methods) of
         {ok,Static_Method} -> Static_Method;
         false ->
             java:format
               (warning,
                "*** Warning: cannot find static method for class ~p with types ~s~n",
                [ClassName,print_parameters(ArgTypes)]),
+            java:format
+              (info,
+               "*** methods: ~p~n",[Methods]),
             throw(badarg)
     end.
 
