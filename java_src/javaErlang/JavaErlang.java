@@ -557,6 +557,7 @@ public class JavaErlang {
                    (type == java.lang.CharSequence.class)) {
             return ((OtpErlangString) value).stringValue();
         } else if ((value instanceof OtpErlangList) &&
+                   isIntegerList((OtpErlangList) value) &&
                    (type == java.lang.String.class)) {
             return ((OtpErlangList) value).stringValue();
         } else {
@@ -603,6 +604,14 @@ public class JavaErlang {
 
             throw new Exception();
         }
+    }
+
+    static boolean isIntegerList(final OtpErlangList l) {
+      for (OtpErlangObject obj : l)
+        if (!(obj instanceof OtpErlangLong)) {
+          return false;
+        }
+      return true;
     }
 
     static Object convert_to_character(final Object value, boolean permitNull)
