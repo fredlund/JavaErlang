@@ -164,6 +164,7 @@ public class JavaErlang {
 
     void do_receive() throws Exception {
         do {
+	  if (logger.isLoggable(Level.FINER))
 	    logger.log(Level.FINER,"wating to receive a message on "+msgs.getName());
             final OtpErlangObject msg = msgs.receive();
             if (logger.isLoggable(Level.FINER)) {
@@ -440,9 +441,9 @@ public class JavaErlang {
                             .intValue();
                         final int[] arr_dimensions = 
 			    checkDimensions(dimensions, arg);
-                        final Object array = Array.newInstance(comp,
-                                                               arr_dimensions);
-                        initializeArray(array, arg, comp);
+                        final Object array =
+			  Array.newInstance(comp,arr_dimensions);
+                        initializeArray(array, arg, comp, dimensions);
                         return array;
                     }
                 }
@@ -500,7 +501,7 @@ public class JavaErlang {
 
         if (logger.isLoggable(Level.FINE)) {
             logger.log(Level.FINE,"\rvalue_from_erlang " + value +
-                       " type "+type);
+                       " type "+toString(type));
         }
 
         if (value instanceof OtpErlangAtom) {
@@ -580,14 +581,15 @@ public class JavaErlang {
 			    checkDimensions(dimensions, value);
 			final Object arr = 
 			    Array.newInstance(arrElement, lengths);
-			initializeArray(arr, value, arrElement);
+			initializeArray(arr, value, arrElement, dimensions);
 			return arr;
 		    } else {
 			if (logger.isLoggable(Level.FINE)) {
 			    logger.log
 				(Level.FINE,
 				 "Cannot convert " + value + " to type "
-				 + typeClass + " dimensions = "+dimensions);
+				 + toString(typeClass) +
+				 " dimensions = "+dimensions);
 			}
 			throw new Exception();
 		    }
@@ -598,7 +600,7 @@ public class JavaErlang {
             if (logger.isLoggable(Level.FINE)) {
                 logger.log
                     (Level.FINE,"Cannot convert " + value + " to type "
-                     + type);
+                     + toString(type));
             }
 
             throw new Exception();
@@ -619,7 +621,7 @@ public class JavaErlang {
 
 	if (logger.isLoggable(Level.FINE)) {
 	    logger.log(Level.FINE,"\rerror: convert_to_character " + value);
-	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	    logger.log(Level.FINE,"\rtype is " + toString(value.getClass()));
 	}
         throw new Exception();
     }
@@ -636,7 +638,7 @@ public class JavaErlang {
 
 	if (logger.isLoggable(Level.FINE)) {
 	    logger.log(Level.FINE,"\rerror: convert_to_byte " + value);
-	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	    logger.log(Level.FINE,"\rtype is " + toString(value.getClass()));
 	}
         throw new Exception();
     }
@@ -667,7 +669,7 @@ public class JavaErlang {
 	
 	if (logger.isLoggable(Level.FINE)) {
 	    logger.log(Level.FINE,"\rerror: convert_to_float " + value);
-	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	    logger.log(Level.FINE,"\rtype is " + toString(value.getClass()));
 	}
         throw new Exception();
     }
@@ -698,7 +700,7 @@ public class JavaErlang {
 	
 	if (logger.isLoggable(Level.FINE)) {
 	    logger.log(Level.FINE,"\rerror: convert_to_double " + value);
-	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	    logger.log(Level.FINE,"\rtype is " + toString(value.getClass()));
 	}
         throw new Exception();
     }
@@ -706,7 +708,7 @@ public class JavaErlang {
     static Object convert_to_void(final Object value) throws Exception {
 	if (logger.isLoggable(Level.FINE)) {
 	    logger.log(Level.FINE,"\rerror: convert_to_void " + value);
-	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	    logger.log(Level.FINE,"\rtype is " + toString(value.getClass()));
 	}
         throw new Exception();
     }
@@ -727,7 +729,7 @@ public class JavaErlang {
 	
 	if (logger.isLoggable(Level.FINE)) {
 	    logger.log(Level.FINE,"\rerror: convert_to_short " + value);
-	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	    logger.log(Level.FINE,"\rtype is " + toString(value.getClass()));
 	}
         throw new Exception();
     }
@@ -752,7 +754,7 @@ public class JavaErlang {
 	
 	if (logger.isLoggable(Level.FINE)) {
 	    logger.log(Level.FINE,"\rerror: convert_to_integer " + value);
-	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	    logger.log(Level.FINE,"\rtype is " + toString(value.getClass()));
 	}
         throw new Exception();
     }
@@ -777,7 +779,7 @@ public class JavaErlang {
 	
 	if (logger.isLoggable(Level.FINE)) {
 	    logger.log(Level.FINE,"\rerror: convert_to_long " + value);
-	    logger.log(Level.FINE,"\rtype is " + value.getClass());
+	    logger.log(Level.FINE,"\rtype is " + toString(value.getClass()));
 	}
         throw new Exception();
     }
@@ -805,22 +807,70 @@ public class JavaErlang {
 	}
     }
 
-    void initializeArray(final Object arr, final Object value, Class objClass)
+  void initializeArray(final Object arr,
+		       final Object value,
+		       final Class type,
+		       final int dimensions)
         throws Exception {
+        final Class arrClass = arr.getClass();
+
+	  if (logger.isLoggable(Level.FINER))
+	    logger.log
+	      (Level.FINER,
+	       "initializeArray: values="+value+" class="+
+	       toString(arrClass));
+
         final int len = Array.getLength(arr);
         final Object[] elements = elements(value);
+	if (len != elements.length) {
+	  if (logger.isLoggable(Level.WARNING)) {
+	    logger.log
+	      (Level.WARNING,
+	       "arr "+arr+" has length "+len+
+	       "\nbut elements "+elements+
+	       "\nhave length "+elements.length);
+	  }
+	  throw new RuntimeException();
+	}
+
         for (int i = 0; i < len; i++) {
-            final Object element = elements[i];
-            final Object obj_at_i = Array.get(arr, i);
-            if (objClass.isArray()) {
-                initializeArray(obj_at_i, element, objClass);
-            } else {
-                final Class arrElement = getArrayElementClass(objClass);
-                final Object setValue = java_value_from_erlang(element,
-                                                               arrElement);
-                Array.set(arr, i, setValue);
-            }
-        }
+	  final Object element = elements[i];
+	  final Object obj_at_i = Array.get(arr, i);
+
+	  if (dimensions > 1) {
+	    initializeArray(obj_at_i, element, type, dimensions-1);
+	  } else {
+	    Object setValue = element;
+	    if (setValue != null)
+	      setValue = java_value_from_erlang(setValue,type);
+	    Array.set(arr, i, setValue);
+	  }
+	}
+    }
+
+    // For better printing of array classes
+    static String toString(Type type) {
+      if (type instanceof Class) {
+	return toString((Class) type);
+      } else {
+	return type.toString();
+      }
+    }
+  
+    static String toString(Class cl) {
+      if (cl.isArray()) {
+	final int dimensions =
+	  dimensions(cl);
+	final Class arrElement = 
+	  getArrayElementClass(cl);
+	if (dimensions == 1) {
+	  return "[" + toString(arrElement) + "]";
+	} else {
+	  return "[" + dimensions + ":" + toString(arrElement) + "]";
+	}
+      } else {
+	return cl.toString();
+      }
     }
 
     static Class getArrayElementClass(final Class arrClass) {
@@ -831,13 +881,14 @@ public class JavaErlang {
         }
     }
 
-    static int[] checkDimensions(int dimensions, final Object value) 
+    static int[] checkDimensions(int dimensions, Object value) 
 	throws Exception 
     {
         final ArrayList<Integer> result = new ArrayList<Integer>();
         while (dimensions > 0) {
             final Object[] elements = elements(value);
             result.add(elements.length);
+	    value = elements[0];
             dimensions--;
         }
         final int[] return_value = new int[result.size()];
@@ -1353,7 +1404,7 @@ public class JavaErlang {
             if (method.isBridge() || method.isSynthetic()) {
                 if (logger.isLoggable(Level.FINER)) {
                     logger.log(Level.FINER,"Skipping synthetic or bridge method "
-			       + method + " in class " + cl);
+			       + method + " in class " + toString(cl));
                 }
                 continue;
             }
@@ -1378,7 +1429,7 @@ public class JavaErlang {
 		if (method.isBridge() || method.isSynthetic()) {
 		    if (logger.isLoggable(Level.FINER)) {
 			logger.log(Level.FINER,"Skipping synthetic or bridge method "
-				   + method + " in class " + cl);
+				   + method + " in class " + toString(cl));
 		    }
 		    continue;
 		}
@@ -1446,7 +1497,7 @@ public class JavaErlang {
             if (field.isSynthetic()) {
                 if (logger.isLoggable(Level.FINER)) {
                     logger.log(Level.FINER,"Skipping synthetic or bridge field "
-                            + field + " in class " + cl);
+			       + field + " in class " + toString(cl));
                 }
                 continue;
             }
@@ -1464,7 +1515,7 @@ public class JavaErlang {
 		if (field.isSynthetic()) {
 		    if (logger.isLoggable(Level.FINER)) {
 			logger.log(Level.FINER,"Skipping synthetic or bridge field "
-				   + field + " in class " + cl);
+				   + field + " in class " + toString(cl));
 		    }
 		    continue;
 		}
@@ -1673,11 +1724,13 @@ public class JavaErlang {
         try {
             obj = java_value_from_erlang(value, type);
         } catch (final Exception e) {
-	    if (logger.isLoggable(Level.FINER))
-		logger.log
-		    (Level.FINER,
-		     "cannot convert "+value+" into type "+type);
-            return false;
+	  if (logger.isLoggable(Level.FINER)) {
+	    e.printStackTrace();
+	    logger.log
+	      (Level.FINER,
+	       "cannot convert "+value+" into type "+toString(type));
+	  }
+	  return false;
         }
 
 	if (obj == null)
@@ -1688,7 +1741,7 @@ public class JavaErlang {
 	if (!result && logger.isLoggable(Level.FINER)) {
 	    logger.log
 		(Level.FINER,
-		 value+" is not acceptable as an argument for "+type);
+		 value+" is not acceptable as an argument for "+toString(type));
 	}
         return result;
     }
@@ -1758,7 +1811,7 @@ public class JavaErlang {
             }
         } else {
 	if (logger.isLoggable(Level.WARNING))
-            logger.log(Level.WARNING,"\rCannot handle " + t + " yet");
+	  logger.log(Level.WARNING,"\rCannot handle " + toString(t) + " yet");
 	throw new Exception();
         }
     }
@@ -1829,4 +1882,5 @@ public class JavaErlang {
     public OtpNode getNode() {
 	return node;
     }
+
 }

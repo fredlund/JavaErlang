@@ -47,6 +47,7 @@ all_tests(Options) ->
   ,?_assertEqual(ok,print_exception(fun () -> tc22(Options) end))
   ,?_assertEqual(0,print_exception(fun () -> tc23(Options) end))
   ,?_assertEqual(1,print_exception(fun () -> tc24(Options) end))
+  ,?_assertEqual(true,print_exception(fun () -> tc25(Options) end))
   ].
 
 tc(Options) ->
@@ -447,6 +448,14 @@ tc24(Options) ->
   {ok,NodeId} = java:start_node([{add_to_java_classpath,["classes"]},{enter_classes,['javaErlang.testing.Test']}|Options]),
   Obj = java:new(NodeId,'javaErlang.testing.Test',[]),
   java:get(Obj,x).
+
+tc25(Options) ->
+  {ok,NodeId} = java:start_node(Options),
+  java:string_to_list
+    (java:call_static
+       (NodeId,
+	'java.util.Arrays',toString,[{{array,'int',2},[[1],[2]]}])),
+  true.
 
 count(0) ->
     ok;
