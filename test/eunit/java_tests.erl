@@ -48,6 +48,7 @@ all_tests(Options) ->
   ,?_assertEqual(0,print_exception(fun () -> tc23(Options) end))
   ,?_assertEqual(1,print_exception(fun () -> tc24(Options) end))
   ,?_assertEqual(true,print_exception(fun () -> tc25(Options) end))
+  ,?_assertEqual(true,print_exception(fun () -> tc26(Options) end))
   ].
 
 tc(Options) ->
@@ -455,6 +456,14 @@ tc25(Options) ->
     (java:call_static
        (NodeId,
 	'java.util.Arrays',toString,[{{array,'int',2},[[1],[2]]}])),
+  true.
+
+tc26(Options) ->
+  {ok,NodeId} = java:start_node(Options),
+  java:string_to_list
+    (java:call_static
+       (NodeId,
+	'java.util.Arrays',toString,[{{array,'int',1},[]}])),
   true.
 
 count(0) ->

@@ -441,6 +441,13 @@ public class JavaErlang {
                             .intValue();
                         final int[] arr_dimensions = 
 			    checkDimensions(dimensions, arg);
+                        if (logger.isLoggable(Level.FINER)) {
+                          String logResult = "";
+                          logResult += "Dimensions: ";
+                          for (int i=0; i<arr_dimensions.length; i++)
+                            logResult += "["+arr_dimensions[i]+"]";
+                          logger.log(Level.FINER,logResult);
+                        }
                         final Object array =
 			  Array.newInstance(comp,arr_dimensions);
                         initializeArray(array, arg, comp, dimensions);
@@ -580,6 +587,13 @@ public class JavaErlang {
 			    getArrayElementClass(typeClass);
 			final int[] lengths = 
 			    checkDimensions(dimensions, value);
+                        if (logger.isLoggable(Level.FINER)) {
+                          String logResult = "";
+                          logResult += "Dimensions: ";
+                          for (int i=0; i<lengths.length; i++)
+                            logResult += "["+lengths[i]+"]";
+                          logger.log(Level.FINER,logResult);
+                        }
 			final Object arr = 
 			    Array.newInstance(arrElement, lengths);
 			initializeArray(arr, value, arrElement, dimensions);
@@ -897,7 +911,17 @@ public class JavaErlang {
         while (dimensions > 0) {
             final Object[] elements = elements(value);
             result.add(elements.length);
-	    value = elements[0];
+            if ((elements.length == 0)) {
+              if (dimensions > 1) {
+                if (logger.isLoggable(Level.WARNING)) {
+                  logger.log
+                    (Level.WARNING,
+                     "\r\n*** array initialization of multi-dimensional array "+
+                     "with zero elements\r");
+                }
+                throw new RuntimeException();
+              }
+            } else value = elements[0];
             dimensions--;
         }
         final int[] return_value = new int[result.size()];
