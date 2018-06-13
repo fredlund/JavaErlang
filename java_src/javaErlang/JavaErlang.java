@@ -1680,8 +1680,6 @@ public class JavaErlang {
             if (checkTypes(method.getParameterTypes(), types)) {
                 // Fix for java bug 4071957
                 if (cl.isMemberClass() || cl.isAnonymousClass()) {
-		  System.out.println
-		    ("getMethod("+cl+"."+methodName);
                     method.setAccessible(true);
                 }
                 return method;
