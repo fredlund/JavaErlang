@@ -1,3 +1,8 @@
+13/6 -- 2018:
+
+Added the function string_to_utf8(JavaObjectString)
+to translate a java String object into an Erlang UTF8 binary.
+
 27/3 -- 2017:
 
 The library now has better support for accessing non-public

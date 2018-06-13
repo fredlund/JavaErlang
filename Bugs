@@ -1,0 +1,31 @@
+Bugs:
+
+
+- string_to_list() fails for non-ascii Java strings.
+
+Workaround: use string_to_utf8 instead.
+
+
+- Due to changes in Java 9 (the introduction of the module system)
+there may be problems with reflection.
+
+For instance, to permit method access
+in Java inner class the library has to call method.setAccessible(true)
+due to a Java bug 4071957; in Java 9 (and higher) this may fail.
+Note that this is an instance of deep reflection.
+
+An example error message:
+
+Unable to make java.lang.ClassLoader.defineClass accessible: module java.base does not "opens java.lang" to unnamed module @1941a8ff
+
+Workaround:
+
+Require java to "open" the module and package combination from the error
+message:
+
+java:start_node([{java_options,["--add-opens","java.base/java.lang=ALL-UNNAMED"]}]).
+
+Starting java in this way ensures that the java runtime is started with the java.lang package open for (deep) reflection.
+
+
+

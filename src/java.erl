@@ -1471,6 +1471,13 @@ node_store(Node) ->
 
 %% @private
 find_class(Object) ->
+    case permit_output(get_loglevel(),debug) of
+      true ->
+	java:format
+	  (debug,"find_class(~p)~n",[Object]);
+      false ->
+	ok
+    end,
     ClassId = class_id(Object),
     NodeId = node_id(Object),
     case ets:lookup(java_class_ids,{NodeId,ClassId}) of

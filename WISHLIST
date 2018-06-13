@@ -1,14 +1,3 @@
-- With the introduction of modules in Java 9 some reflection operations
-are no longer allowed. For instance, to permit method access
-in Java inner class we had to call method.setAccessible(true)
-due to a Java bug 4071957. This is no longer possible
-without taking some work arounds.
-
-- string_to_list does not do the correct thing for non-ascii data.
-  A list of bytes are returned, which since they are signed, may be
-  negative and thus crash Erlang:
-  we will introduce a string_to_utf8 function.
-
 - It is probably better to move tga analysis wholly to Java.
 
 - Provide a nice pretty printer for Java classes, for debugging purposes.
