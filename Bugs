@@ -3,7 +3,7 @@ Bugs:
 
 - string_to_list() fails for non-ascii Java strings.
 
-Workaround: use string_to_utf8 instead.
+Workaround: use string_to_utf8 instead, although note that it returns a binary.
 
 
 - Due to changes in Java 9 (the introduction of the module system)
@@ -25,7 +25,7 @@ message:
 
 java:start_node([{java_options,["--add-opens","java.base/java.lang=ALL-UNNAMED"]}]).
 
-Starting java in this way ensures that the java runtime is started with the java.lang package open for (deep) reflection.
+Starting java in this way ensures that the java runtime is started with the java.lang package open for (deep) reflection.
 
 
 
