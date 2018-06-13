@@ -39,7 +39,7 @@ class IntKey {
 
     @Override
     public String toString() {
-        return new Integer(key).toString();
+        return Integer.valueOf(key).toString();
     }
 
     public int key() {
