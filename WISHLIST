@@ -1,7 +1,3 @@
-- string_to_list does not do the correct thing for non-ascii data.
-  A list of bytes are returned, which since they are signed, may be
-  negative and thus crash Erlang.
-
 - It is probably better to move tga analysis wholly to Java.
 
 - Provide a nice pretty printer for Java classes, for debugging purposes.

@@ -216,7 +216,7 @@ public class JavaErlang {
                     .getRuntimeMXBean().getName();
                 final int p = nameOfRunningVM.indexOf('@');
                 final String pid = nameOfRunningVM.substring(0, p);
-                final Integer intPid = new Integer(pid);
+                final Integer intPid = Integer.valueOf(pid);
                 if (nodeIdentifier == null) {
                     nodeIdentifier = argument;
                 }
@@ -397,10 +397,10 @@ public class JavaErlang {
                 return null;
             }
             if (stringValue.equals("true")) {
-                return new Boolean(true);
+                return Boolean.valueOf(true);
             }
             if (stringValue.equals("false")) {
-                return new Boolean(false);
+                return Boolean.valueOf(false);
             }
 	    if (logger.isLoggable(Level.WARNING))
 		logger.log(Level.WARNING,"java_value_from_erlang: " + value);
@@ -687,7 +687,7 @@ public class JavaErlang {
 	} else if (value instanceof Short) {
 	    return ((Short) value).floatValue();
 	} else if (value instanceof Character) {
-	    return new Float(((Character) value).charValue());
+	    return Float.valueOf(((Character) value).charValue());
 	}
 	
 	if (logger.isLoggable(Level.FINE)) {
@@ -718,7 +718,7 @@ public class JavaErlang {
 	} else if (value instanceof Short) {
 	    return ((Short) value).doubleValue();
 	} else if (value instanceof Character) {
-	    return new Double(((Character) value).charValue());
+	    return Double.valueOf(((Character) value).charValue());
 	}
 	
 	if (logger.isLoggable(Level.FINE)) {
@@ -772,7 +772,7 @@ public class JavaErlang {
 	} else if (value instanceof Short) {
 	    return ((Short) value).intValue();
 	} else if (value instanceof Character) {
-	    return new Integer(((Character) value).charValue());
+	    return Integer.valueOf(((Character) value).charValue());
 	}
 	
 	if (logger.isLoggable(Level.FINE)) {
@@ -797,7 +797,7 @@ public class JavaErlang {
 	} else if (value instanceof Short) {
 	    return ((Short) value).longValue();
 	} else if (value instanceof Character) {
-	    return new Long(((Character) value).charValue());
+	    return Long.valueOf(((Character) value).charValue());
 	}
 	
 	if (logger.isLoggable(Level.FINE)) {

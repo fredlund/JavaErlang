@@ -31,6 +31,7 @@
 package javaErlang;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.InvocationTargetException;
 import java.util.logging.Level;
 
 import javassist.util.proxy.ProxyFactory;
@@ -79,10 +80,10 @@ public class ProxyInstanceFactory {
         }
     }
 
-    public OtpErlangObject newInstance(final int objectId, final OtpErlangPid pid) throws InstantiationException, IllegalAccessException {
+  public OtpErlangObject newInstance(final int objectId, final OtpErlangPid pid) throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException {
 
         MethodHandler mh = new ProxyHandler(root, objectId, pid, mths);
-        Object obj = cl.newInstance();
+        Object obj = cl.getDeclaredConstructor().newInstance();
         ((Proxy) obj).setHandler(mh);
         return
             root.makeErlangTuple
