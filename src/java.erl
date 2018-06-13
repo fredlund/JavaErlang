@@ -63,7 +63,7 @@
 -export([set_timeout/1]).
 -export([get/2,get_static/3,set/3,set_static/4]).
 -export([is_object_ref/1]).
--export([array_to_list/1,string_to_list/1,list_to_string/2,list_to_array/3,convert/3]).
+-export([array_to_list/1,string_to_list/1,string_to_utf8/1,list_to_string/2,list_to_array/3,convert/3]).
 -export([getClassName/1,getSimpleClassName/1,instanceof/2,is_subtype/3]).
 -export([identity/1]).
 -export([print_stacktrace/1,get_stacktrace/1]).
@@ -1267,6 +1267,15 @@ list_to_array(NodeId,List,Type) when is_list(List) ->
 string_to_list(String) ->
     Bytes = java:call(String,getBytes,[]),
     array_to_list(Bytes).
+
+%% @doc
+%% Returns the elements of the Java String as an UTF8 binary.
+-spec string_to_utf8(object_ref()) -> binary().
+string_to_utf8(String) ->
+    UTF8String = list_to_string(node_id(String),"UTF-8"),
+    Bytes = java:call(String,getBytes,[UTF8String]),
+    list_to_binary
+    (lists:map(fun (Byte) -> Byte band 255 end, array_to_list(Bytes))).
 
 %% @doc
 %% Converts the Erlang string argument to a Java string.
