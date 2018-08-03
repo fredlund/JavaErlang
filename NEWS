@@ -1,3 +1,12 @@
+3/8 -- 2018:
+
+The library used to not permit access to synthetic or bridge methods
+in a class, due to the misguided idea that such methods did not correspond
+to "normal" user declared methods, but were compiler "artifacts".
+This turned out to not be true, so now we permit calling such methods too.
+The change may cause problems with the procedure for deciding which method
+to call in some cases.
+
 13/6 -- 2018:
 
 Added the function string_to_utf8(JavaObjectString)

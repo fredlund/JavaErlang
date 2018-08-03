@@ -1434,13 +1434,21 @@ public class JavaErlang {
         final ArrayList<OtpErlangTuple> erlMethods = new ArrayList<OtpErlangTuple>();
         final Method[] publicMethods = cl.getMethods();
         for (final Method method : publicMethods) {
+          /*
             if (method.isBridge() || method.isSynthetic()) {
                 if (logger.isLoggable(Level.FINER)) {
                     logger.log(Level.FINER,"Skipping synthetic or bridge method "
 			       + method + " in class " + toString(cl));
+                    logger.log(Level.FINER,"isBridge: "+method.isBridge()+
+                               " isSynthetic: "+method.isSynthetic());
                 }
                 continue;
+            } else {
+                if (logger.isLoggable(Level.FINER))
+                  logger.log(Level.FINER,"Found method "+method);
             }
+          */
+            
             final int modifiers = method.getModifiers();
             if (is_static(modifiers) != selectStatics) continue;
             if (is_executable(modifiers)) {
@@ -1459,6 +1467,7 @@ public class JavaErlang {
 	if (observerInClass) {
 	    final Method[] declaredMethods = cl.getDeclaredMethods();
 	    for (final Method method : declaredMethods) {
+              /*
 		if (method.isBridge() || method.isSynthetic()) {
 		    if (logger.isLoggable(Level.FINER)) {
 			logger.log(Level.FINER,"Skipping synthetic or bridge method "
@@ -1466,6 +1475,7 @@ public class JavaErlang {
 		    }
 		    continue;
 		}
+              */
 		final int modifiers = method.getModifiers();
 		if ((modifiers & Modifier.PUBLIC) != 0) continue;
 		if (is_static(modifiers) != selectStatics) continue;
