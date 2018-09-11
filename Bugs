@@ -1,5 +1,8 @@
 Bugs:
 
+- start_node() may hang if the ets tables (in init) cannot be generated. Illustrated when rand:uniform/1
+does not exists; this raises an exception but the exception is caught by a try catch and we wait
+indefinitely.
 
 - string_to_list() fails for non-ascii Java strings.
 
