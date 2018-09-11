@@ -925,13 +925,14 @@ open_db(Init,Options) ->
         undefined ->
             spawn(fun () ->
                           %%io:format("spawned db ~p~n",[self()]),
+		          JavaNodeCounter = rand:uniform(100),
                           try
-			      JavaNodeCounter = rand:uniform(100),
                               ets:new(java_nodes,[named_table,public]),
                               ets:insert(java_nodes,{java_node_counter,JavaNodeCounter}),
                               ets:new(java_classes,[named_table,public]),
                               ets:new(java_threads,[named_table,public]),
-                              ets:new(java_class_ids,[named_table,public]),
+                              ets:new(java_class_ids,[named_table,public]) of
+			    _ -> 
                               wait_until_stable(),
                               if
                                   Init ->
