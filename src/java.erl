@@ -344,7 +344,7 @@ check_options(Options) ->
 		   false ->
 		       format
 			 (error,
-			  "*** error: option ~p to java:start_node/2 not understood~n",
+			  "*** error: option ~p to java:start_node not understood~n",
 			  [OptionName]),
 		       throw(badarg)
 	       end
