@@ -440,6 +440,7 @@ connect(NodeName,UserOptions) ->
     PreNode =
         #node
         {node_id=NodeId,
+	 options=Options,
          call_timeout=CallTimeout,
          node_name=NodeName},
     case connectToNode(PreNode) of

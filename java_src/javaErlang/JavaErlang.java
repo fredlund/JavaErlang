@@ -118,14 +118,13 @@ public class JavaErlang {
 	    }
 	}
 
-        logger.setLevel(logLevel);
-
         ConsoleHandler consoleHandler = new ConsoleHandler();
         consoleHandler.setLevel(logger.getLevel());
         logger.addHandler(consoleHandler);
 
         try {
-            new JavaErlang(name,cookie).do_receive();
+	  receiveConnection(logLevel,name,cookie);
+	  System.exit(0);
         } catch (final Exception e) {
             logger.log
                 (Level.SEVERE,
@@ -135,13 +134,20 @@ public class JavaErlang {
 
     }
 
-    public JavaErlang(final String name, final String cookie) {
+  public static void receiveConnection(Level logLevel, String name, String cookie) throws Exception {
+    new JavaErlang(logLevel,name,cookie).do_receive();
+  }
+
+  public JavaErlang(final Level logLevel, final String name, final String cookie) {
         toErlangMap = new ConcurrentHashMap<RefEqualsObject, JavaObjectEntry>();
         fromErlangMap = new ConcurrentHashMap<JavaObjectKey, JavaObjectEntry>();
         accToErlangMap = new ConcurrentHashMap<Object, OtpErlangObject>();
         accFromErlangMap = new ConcurrentHashMap<OtpErlangObject, Object>();
         classMap = new ConcurrentHashMap<Class, Integer>();
         threadMap = new ConcurrentHashMap<OtpErlangObject, ThreadMsgHandler>();
+
+	logger.setLevel(logLevel);
+
         try {
 	    if (cookie == null) node = new OtpNode(name);
 	    else node = new OtpNode(name,cookie);
@@ -163,6 +169,7 @@ public class JavaErlang {
     }
 
     void do_receive() throws Exception {
+      boolean continuing = true;
         do {
 	  if (logger.isLoggable(Level.FINER))
 	    logger.log(Level.FINER,"wating to receive a message on "+msgs.getName());
@@ -175,7 +182,7 @@ public class JavaErlang {
                 final OtpErlangTuple t = (OtpErlangTuple) msg;
                 if (t.arity() == 3 && t.elementAt(0) instanceof OtpErlangLong
                     && t.elementAt(2) instanceof OtpErlangPid) {
-                    handle_nonthread_msg(t);
+                    continuing = handle_nonthread_msg(t);
                 } else if (t.arity() == 4
                            && t.elementAt(0) instanceof OtpErlangLong
                            && t.elementAt(3) instanceof OtpErlangPid) {
@@ -192,7 +199,7 @@ public class JavaErlang {
 		if (logger.isLoggable(Level.FINER))
 		    logger.log(Level.FINER,"\nMalformed message " + msg + " received");
             }
-        } while (true);
+        } while (continuing);
     }
 
     public void reply(final Object reply, final OtpErlangPid replyPid)
@@ -201,7 +208,7 @@ public class JavaErlang {
         msgs.send(replyPid, return_value(reply));
     }
 
-    void handle_nonthread_msg(final OtpErlangTuple t) throws Exception {
+    boolean handle_nonthread_msg(final OtpErlangTuple t) throws Exception {
         final short tag = ((OtpErlangLong) t.elementAt(0)).uShortValue();
         final OtpErlangObject argument = t.elementAt(1);
         final OtpErlangPid replyPid = (OtpErlangPid) t.elementAt(2);
@@ -230,18 +237,27 @@ public class JavaErlang {
 		    logger.log(Level.FINER,"\nFirst message should be connect " + t);
             }
         } else {
-            Object result;
-            try {
-                result = handleNonThreadMsg(tag, argument, replyPid);
-            } catch (final Throwable e) {
-                if (logger.isLoggable(Level.WARNING)) {
-                    logger.log(Level.WARNING,"\r\n*** Exception " + e + " thrown\r");
-                    e.printStackTrace();
-                }
-                result = e;
+	  if (tag == Tags.terminateTag) {
+            if (logger.isLoggable(Level.FINER)) {
+                logger.log(Level.FINER,"\r\nterminating java...");
             }
+	    reply(new OtpErlangAtom("ok"), replyPid);
+	    return false;
+	  } else {
+	    Object result;
+	    try {
+	      result = handleNonThreadMsg(tag, argument, replyPid);
+	    } catch (final Throwable e) {
+	      if (logger.isLoggable(Level.WARNING)) {
+		logger.log(Level.WARNING,"\r\n*** Exception " + e + " thrown\r");
+		e.printStackTrace();
+	      }
+	      result = e;
+	    }
             reply(result, replyPid);
+	  }
         }
+	return true;
     }
 
     void handle_noncall_msg(final OtpErlangTuple t) throws Exception {
@@ -282,13 +298,6 @@ public class JavaErlang {
             threadMap = new ConcurrentHashMap<OtpErlangObject, ThreadMsgHandler>();
             System.gc();
             return new OtpErlangAtom("ok");
-        case Tags.terminateTag:
-            if (logger.isLoggable(Level.FINER)) {
-                logger.log(Level.FINER,"\r\nterminating java...");
-            }
-            reply(new OtpErlangAtom("ok"), replyPid);
-            System.exit(0);
-            return map_to_erlang_void();
         case Tags.connectTag:
             return new OtpErlangAtom("already_connected");
         case Tags.lookupClassTag:
