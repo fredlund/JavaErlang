@@ -83,6 +83,7 @@ public class JavaErlang {
     volatile String  connectedErlangNode = null;
     volatile OtpMbox msgs = null;
     volatile OtpErlangObject nodeIdentifier = null;
+    volatile boolean returnOtpErlangObject = false;
     volatile OtpNode node = null;
     static volatile Logger logger = Logger.getLogger("JavaErlangLogger");
     static volatile JavaErlang javaErlang;
@@ -94,6 +95,7 @@ public class JavaErlang {
 	int currentArg = 0;
         final String name = args[currentArg++];
 	String cookie = null;
+        boolean returnOtpErlangObject = false;
 
 	while (currentArg < args.length) {
 	    final String arg = args[currentArg++];
@@ -112,6 +114,10 @@ public class JavaErlang {
 		    System.err.println("Missing argument for -setcookie option");
 		    System.exit(-1);
 		}
+	    else if (arg.equals("-returnOtpErlangObject")) {
+              returnOtpErlangObject = true;
+              ++currentArg;
+            }
 	    else {
                 System.err.println("\rCannot understand argument " + arg);
                 System.exit(-1);
@@ -123,7 +129,7 @@ public class JavaErlang {
         logger.addHandler(consoleHandler);
 
         try {
-	  receiveConnection(logLevel,name,cookie);
+	  receiveConnection(logLevel,name,cookie,returnOtpErlangObject);
 	  System.exit(0);
         } catch (final Exception e) {
             logger.log
@@ -134,17 +140,19 @@ public class JavaErlang {
 
     }
 
-  public static void receiveConnection(Level logLevel, String name, String cookie) throws Exception {
-    new JavaErlang(logLevel,name,cookie).do_receive();
+  public static void receiveConnection(Level logLevel, String name, String cookie, boolean returnOtpErlangObject) throws Exception {
+    new JavaErlang(logLevel,name,cookie,returnOtpErlangObject).do_receive();
   }
 
-  public JavaErlang(final Level logLevel, final String name, final String cookie) {
+  public JavaErlang(final Level logLevel, final String name, final String cookie, boolean returnOtpErlangObject) {
         toErlangMap = new ConcurrentHashMap<RefEqualsObject, JavaObjectEntry>();
         fromErlangMap = new ConcurrentHashMap<JavaObjectKey, JavaObjectEntry>();
         accToErlangMap = new ConcurrentHashMap<Object, OtpErlangObject>();
         accFromErlangMap = new ConcurrentHashMap<OtpErlangObject, Object>();
         classMap = new ConcurrentHashMap<Class, Integer>();
         threadMap = new ConcurrentHashMap<OtpErlangObject, ThreadMsgHandler>();
+
+        this.returnOtpErlangObject = returnOtpErlangObject;
 
 	logger.setLevel(logLevel);
 
@@ -1059,6 +1067,10 @@ public class JavaErlang {
     public synchronized OtpErlangObject map_to_erlang(final Object obj) {
         if (obj == null) {
             return map_to_erlang_null();
+        }
+
+        if (returnOtpErlangObject && (obj instanceof OtpErlangObject)) {
+          return (OtpErlangObject) obj;
         }
 
         final RefEqualsObject obj_key =

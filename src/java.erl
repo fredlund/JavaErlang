@@ -78,7 +78,7 @@
 -export([finalComponent/1]).
 -export([find_class/1]).
 -export([node_lookup/1]).
--export([run_java/9]).
+-export([run_java/10]).
 -export([terminate_brutally/1]).
 
 -include("debug.hrl").
@@ -106,6 +106,7 @@
       | {java_options,[string()]}
       | {setcookie,string()}
       | {enable_proxies,boolean()}
+      | {return_OtpErlangObject,boolean()}
       | {call_timeout,integer() | infinity}.
 %% <ul>
 %% <li>`symbolic_name' provides a symbolic name for the node.</li>
@@ -140,6 +141,7 @@
 %% Java objects communicated to Erlang or not.</li>
 %% <li>`enable_proxies' determines whether the proxy facility provided
 %% <li>`setcookie' sets the cookie for the Java node.</li>
+%% <li>`return_OtpErlangObject' determines whether objects of type OtpErlangObject are returned directly to Erlang (if the option is false), or not.</li>
 %% <li>`call_timeout' sets a timeout value for all calls
 %% to Java from Erlang (default 10 seconds).</li>
 %% </ul>
@@ -224,6 +226,7 @@ start_node(UserOptions) ->
     EnableProxies = proplists:get_value(enable_proxies,Options,false),
     init([{log_level,LogLevel}]),
     CallTimeout = proplists:get_value(call_timeout,Options),
+    ReturnOtpErlangObject = proplists:get_value(return_OtpErlangObject,Options,true),
     SymbolicName = proplists:get_value(symbolic_name,Options,void),
     EnteredClasses = proplists:get_value(enter_classes,Options,[]),
     NodeNode = proplists:get_value(erlang_remote,Options,node()),
@@ -240,6 +243,7 @@ start_node(UserOptions) ->
 	      connect_timeout=ConnectionTimeout,
 	      cookie=Cookie,
 	      enter_classes=EnteredClasses,
+              return_OtpErlangObject=ReturnOtpErlangObject,
 	      ping_retry=PingPongTimeout,
               symbolic_name=SymbolicName},
     spawn_java(PreNode,get_java_node_id()).
@@ -285,7 +289,8 @@ spawn_java(PreNode,PreNodeId) ->
                     JavaOptions,
                     ClassPath,
 		    Cookie,
-                    proplists:get_value(java_class,Options)
+                    proplists:get_value(java_class,Options),
+                    proplists:get_value(return_OtpErlangObject,Options)
                    ]),
             PreNode1 =
                 PreNode#node{node_id=NodeId,
@@ -362,7 +367,7 @@ get_java_node_id() ->
     ets:update_counter(java_nodes,java_node_counter,1).
 
 %% @private
-run_java(Identity,NodeName,Name,Executable,Verbose,JavaOptions,Paths,Cookie,Class) ->
+run_java(Identity,NodeName,Name,Executable,Verbose,JavaOptions,Paths,Cookie,Class,ReturnOtpErlangObject) ->
     ClassPath =
         case combine_paths(Paths) of
             "" -> [];
@@ -374,11 +379,13 @@ run_java(Identity,NodeName,Name,Executable,Verbose,JavaOptions,Paths,Cookie,Clas
         if Verbose=/=undefined -> ["-loglevel",Verbose]; true -> [] end,
     JavaOptionsArgs =
         if JavaOptions=/=undefined -> JavaOptions; true -> [] end,
+    ReturnOtpErlangObjectArg =
+        if ReturnOtpErlangObject==true -> []; true -> ["-returnOtpErlangObject"] end,
     Args =
         JavaOptionsArgs++
         ClassPath++
         [Class,NodeName]++
-        VerboseArg++CookieArg,
+        VerboseArg++CookieArg++ReturnOtpErlangObjectArg,
     format
       (info,
        "~p: starting Java node at ~p with command~n~s and args ~p~n",
