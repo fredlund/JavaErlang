@@ -144,6 +144,10 @@ public class JavaErlang {
     new JavaErlang(logLevel,name,cookie,returnOtpErlangObject).do_receive();
   }
 
+  public static void makeConnection(Level logLevel, String ourName, String otherNode, String reportName, String cookie, boolean returnOtpErlangObject) throws Exception {
+    new JavaErlang(logLevel,ourName,cookie,returnOtpErlangObject).do_connect(ourName,otherNode,reportName);
+  }
+
   public JavaErlang(final Level logLevel, final String name, final String cookie, boolean returnOtpErlangObject) {
         toErlangMap = new ConcurrentHashMap<RefEqualsObject, JavaObjectEntry>();
         fromErlangMap = new ConcurrentHashMap<JavaObjectKey, JavaObjectEntry>();
@@ -174,6 +178,16 @@ public class JavaErlang {
                      + e,
                      e);
         }
+    }
+
+  void do_connect(String ourNode, String otherNode, String reportName) throws Exception {
+      if (!node.ping(otherNode,3000)) {
+	if (logger.isLoggable(Level.FINER))
+	  logger.log(Level.SEVERE,"\nCould not connect to host "+otherNode);
+      } else {
+	msgs.send(reportName, otherNode, new OtpErlangString(ourNode));
+	do_receive();
+      }
     }
 
     void do_receive() throws Exception {
