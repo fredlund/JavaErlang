@@ -125,7 +125,7 @@ public class JavaErlang {
 	}
 
         ConsoleHandler consoleHandler = new ConsoleHandler();
-        consoleHandler.setLevel(logger.getLevel());
+        consoleHandler.setLevel(logLevel);
         logger.addHandler(consoleHandler);
 
         try {
