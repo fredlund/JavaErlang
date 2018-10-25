@@ -1,3 +1,34 @@
+25/10 -- 2018:
+
+A couple of updates to manage situations where the Java node cannot be
+started by calling the main method (i.e., by starting a new Java runtime),
+but should rather be integrated into an existing Java runtime.
+
+There are two new (Java) methods:
+
+  - receiveConnection(Level logLevel, String name, String cookie, boolean returnOtpErlangObject)
+
+  - reportAndReceiveConnection(Level logLevel, String ourName, String otherNode, String reportName, String cookie, boolean returnOtpErlangObject)
+
+The first method waits for the Erlang side to initiate a connection attempt
+(using java:connect as before). This works well if the Erlang side somehow
+has prior knowledge of the Java node name.
+
+If the Erlang side cannot obtain a prior knowledge of the Java node name,
+then the second method may be used, which starts by sending a message
+to the Erlang process registered under the name reportName,
+at the node otherNode, with the name of the new Java node.
+Then connection proceeds as for the first method.
+
+25/10 -- 2018:
+
+The library now supports a facility for directly returning OtpErlangObject
+values (i.e., those Java values which the Erlang jinterface library understands), without first mapping them in the Java layer.
+This behaviour, which is not the default one, can be enabled
+by passing the flag {return_OtpErlangObject,true} to start_node/2.
+Alternatively, using the new Java connection primitives explained above,
+the last argument (returnOtpErlangObject) to the two methods should be true.
+
 3/8 -- 2018:
 
 The library used to not permit access to synthetic or bridge methods
