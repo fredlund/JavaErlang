@@ -144,8 +144,9 @@ public class JavaErlang {
     new JavaErlang(logLevel,name,cookie,returnOtpErlangObject).do_receive();
   }
 
-  public static void makeConnection(Level logLevel, String ourName, String otherNode, String reportName, String cookie, boolean returnOtpErlangObject) throws Exception {
-    new JavaErlang(logLevel,ourName,cookie,returnOtpErlangObject).do_connect(ourName,otherNode,reportName);
+  public static void reportAndReceiveConnection(Level logLevel, String ourName, String otherNode, String reportName, String cookie, boolean returnOtpErlangObject) throws Exception {
+    
+    new JavaErlang(logLevel,ourName,cookie,returnOtpErlangObject).do_connect(ourName, otherNode, reportName);
   }
 
   public JavaErlang(final Level logLevel, final String name, final String cookie, boolean returnOtpErlangObject) {
