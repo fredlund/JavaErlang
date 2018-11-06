@@ -455,7 +455,7 @@ tc25(Options) ->
   java:string_to_list
     (java:call_static
        (NodeId,
-	'java.util.Arrays',toString,[{{array,'int',2},[[1],[2]]}])),
+	'java.util.Arrays',toString,[{{array,'int',2},{{1},{2}}}])),
   true.
 
 tc26(Options) ->
@@ -463,7 +463,7 @@ tc26(Options) ->
   java:string_to_list
     (java:call_static
        (NodeId,
-	'java.util.Arrays',toString,[{{array,'int',1},[]}])),
+	'java.util.Arrays',toString,[{{array,'int',1},{}}])),
   true.
 
 count(0) ->

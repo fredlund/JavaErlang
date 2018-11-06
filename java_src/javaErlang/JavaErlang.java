@@ -842,6 +842,8 @@ public class JavaErlang {
     static Object[] elements(final Object t) throws Exception {
         if (t instanceof OtpErlangList) {
             return ((OtpErlangList) t).elements();
+        } else if (t instanceof OtpErlangTuple) {
+            return ((OtpErlangTuple) t).elements();
         } else if (t instanceof OtpErlangString) {
 	    // Jinterface braindamage follows...
 	    final String value = ((OtpErlangString) t).stringValue();
