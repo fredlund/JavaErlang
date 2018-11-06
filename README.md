@@ -118,6 +118,31 @@ contains a simple example of using the Swing GUI library from Erlang.
 
 ## News ##
 
+A couple of updates to manage situations where the Java node cannot be
+started by calling the main method (i.e., by starting a new Java runtime),
+but should rather be integrated into an existing Java runtime.
+There are two new (Java) methods:
+
+  - `receiveConnection(Level logLevel, String name, String cookie, boolean returnOtpErlangObject)`
+
+  - `reportAndReceiveConnection(Level logLevel, String ourName, String otherNode, String reportName, String cookie, boolean returnOtpErlangObject)`
+
+The first method waits for the Erlang side to initiate a connection attempt
+(using `java:connect` as before). This works well if the Erlang side somehow
+has prior knowledge of the Java node name.
+If the Erlang side cannot obtain a prior knowledge of the Java node name,
+then the second method may be used, which starts by sending a message
+to the Erlang process registered under the name reportName,
+at the node otherNode, with the name of the new Java node.
+Then connection proceeds as for the first method.
+
+The library now supports a facility for directly returning OtpErlangObject
+values (i.e., those Java values which the Erlang jinterface library understands), without first mapping them in the Java layer.
+This behaviour, which is not the default one, can be enabled
+by passing the flag {return_OtpErlangObject,true} to `start_node/2`.
+Alternatively, using the new Java connection primitives explained above,
+the last argument (`returnOtpErlangObject`) to the two methods should be true.
+
 The library now provides a facility to construct
 Java classes using Erlang, see the `java_proxy`
 module for details.
@@ -125,7 +150,6 @@ To disable this
 (the option is enabled by default)
 provide `{enable_proxies,false}`
 as an option to `start_node/2`.
-
 
 Garbage collection is now implemented. To enable this
 (the option is currently disabled by default, but the default
@@ -173,8 +197,19 @@ constructed using the normal Erlang syntax for lists and strings.
 Values can be explicitely type cast using the notation
 `{Type,Value}`. For example, `{short,5}`, `{char,$a}`,
 `{{array,char,1},"Hello World"}`.
+For constructing arrays it is however better use a tuple to enumerate
+the elements of the array, as is done in the two-dimensional array:
+`{{array,'int',2},{{1},{2}}}`.
+Using a list risks causing JInterface to interprete that list as an Erlang
+string, and transmitting it as an Erlang string object (OtpErlangString)
+instead of a proper list (OtpErlangList). This might even be considered
+a bug in JInterface.
+
+Note that
 Java one-dimensional arrays can also be constructed
-using the funcion `java:list_to_array/3`.
+using the funcion `java:list_to_array/3`, and here the use of lists
+as arguments are safe.
+
 Examples:<br />
 
 ```
