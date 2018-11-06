@@ -197,7 +197,7 @@ constructed using the normal Erlang syntax for lists and strings.
 Values can be explicitely type cast using the notation
 `{Type,Value}`. For example, `{short,5}`, `{char,$a}`,
 `{{array,char,1},"Hello World"}`.
-For constructing arrays it is however better use a tuple to enumerate
+For constructing arrays it is however better to use a tuple to enumerate
 the elements of the array, as is done in the two-dimensional array:
 `{{array,'int',2},{{1},{2}}}`.
 Using a list risks causing JInterface to interprete that list as an Erlang
@@ -208,7 +208,7 @@ a bug in JInterface.
 Note that
 Java one-dimensional arrays can also be constructed
 using the funcion `java:list_to_array/3`, and here the use of lists
-as arguments are safe.
+as arguments is safe.
 
 Examples:<br />
 
