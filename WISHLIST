@@ -2,4 +2,6 @@
 
 - Provide a nice pretty printer for Java classes, for debugging purposes.
 
+- When setting up a connection using passiveConnect, it would be nice
+to be able to transmit and set the java_verbose loglevel.
 
