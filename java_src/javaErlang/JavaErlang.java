@@ -1115,9 +1115,9 @@ public class JavaErlang {
         }
         final JavaObjectEntry entry =
             new JavaObjectEntry(obj, newCounter, classNumber, nodeIdentifier);
-        if (logger.isLoggable(Level.INFO))
+        if (logger.isLoggable(Level.FINER))
             logger.log
-                (Level.INFO,
+                (Level.FINER,
                  "returning new object "+
                  System.identityHashCode(entry.object()));
         toErlangMap.put(obj_key, entry);
