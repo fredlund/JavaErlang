@@ -620,8 +620,8 @@ javaCall(NodeId,Type,Msg,Warn) when is_integer(Type), Type>=0, Type=<?last_tag -
             case permit_output(get_loglevel(),debug) of
 	      true -> 
 		java:format
-		  (debug,"to_java: ~s:~p ~n",
-		   [msgtype_to_list(Type),Msg]);
+		  (debug,"to_java(~p): ~s:~p ~n",
+		   [NodeId,msgtype_to_list(Type),Msg]);
 	      false -> 
 		ok
             end,

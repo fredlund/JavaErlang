@@ -195,7 +195,7 @@ public class JavaErlang {
       boolean continuing = true;
         do {
 	  if (logger.isLoggable(Level.FINER))
-	    logger.log(Level.FINER,"wating to receive a message on "+msgs.getName());
+	    logger.log(Level.FINER,"waiting to receive a message on "+msgs.getName());
             final OtpErlangObject msg = msgs.receive();
             if (logger.isLoggable(Level.FINER)) {
                 logger.log(Level.FINER,"\rGot message " + msg);
@@ -262,7 +262,7 @@ public class JavaErlang {
         } else {
 	  if (tag == Tags.terminateTag) {
             if (logger.isLoggable(Level.FINER)) {
-                logger.log(Level.FINER,"\r\nterminating java...");
+                logger.log(Level.FINER,"\r\nterminating java: connected node="+nodeIdentifier);
             }
 	    reply(new OtpErlangAtom("ok"), replyPid);
 	    return false;
