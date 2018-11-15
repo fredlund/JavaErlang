@@ -311,7 +311,7 @@ I2 = java:new(NodeId,'java.lang.Integer',[2]).
 
 A public method "m" of a Java object "o" of class "c" can be
 called using the function call
-`java:call(o,m,Args)` (or `java:get_static(c,m,Args)` if it is
+`java:call(o,m,Args)` (or `java:call_static(c,m,Args)` if it is
 a static, i.e., class method) where `Args` is the list
 of arguments of the method.
 An example:<br />
