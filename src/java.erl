@@ -1406,7 +1406,7 @@ acquire_class_int(NodeId,ClassName,RealClassName) when is_atom(ClassName),
 			    class_store(NodeId,ClassName,Class)
 		    catch ExceptionClass:Reason ->
 			    ets:delete(java_classes,{loading,NodeId,ClassName}),
-			    erlang:raise(ExceptionClass,Reason,erlang:get_stacktrace())
+			    erlang:ExceptionClass(Reason)
 		    end
 	    end
     end;
@@ -1422,7 +1422,7 @@ acquire_class_int(NodeId,ClassRef,RealClassName) when is_tuple(ClassRef),
 		    class_store(NodeId,ClassName,Class)
 	    catch ExceptionClass:Reason ->
 		    ets:delete(java_classes,{loading,NodeId,ClassRef}),
-		    erlang:raise(ExceptionClass,Reason,erlang:get_stacktrace())
+		    erlang:ExceptionClass(Reason)
 	    end
     end.
 
@@ -1464,16 +1464,11 @@ node_lookup(NodeId,Warn) ->
             if
                 Warn ->
                     format(error,"~p: node_lookup(~p) failed??~n",[self(),NodeId]),
-                    format(error,"Stacktrace:~n~p~n",[gen_stacktrace()]),
                     false;
                 true ->
                     false
             end
     end.
-
-gen_stacktrace() ->
-    try throw(bad)
-    catch _:_ -> erlang:get_stacktrace() end.
 
 node_store(Node) ->
     ets:insert(java_nodes,{Node#node.node_id,Node}).

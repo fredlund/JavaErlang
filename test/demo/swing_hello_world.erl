@@ -58,7 +58,6 @@ start() ->
         java:call(Frame,addWindowListener,[java_proxy:new(N,'myWindowListener')]),
         java:call(Frame,setVisible,[true])
     catch {java_exception,Exc} ->
-            erlang:display(erlang:get_stacktrace()),
             java:print_stacktrace(Exc)
     end.
 
