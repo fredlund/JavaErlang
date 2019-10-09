@@ -802,8 +802,30 @@ identity(Value) ->
 -spec new(node_id(),class_name(),[value()]) -> object_ref().
 new(NodeId,ClassName,Args) when is_list(Args) ->
     ?LOG("NodeId=~p ClassName=~p~n",[NodeId,ClassName]),
-    Constructor = java_to_erlang:find_constructor(NodeId,ClassName,Args),
-    javaCall(NodeId,?call_constructor,{Constructor,list_to_tuple(Args)}).
+  guard_against_java_exception
+    (NodeId,
+     fun () -> 
+         Constructor = java_to_erlang:find_constructor(NodeId,ClassName,Args),
+         javaCall(NodeId,?call_constructor,{Constructor,list_to_tuple(Args)})
+     end).
+
+guard_against_java_exception(NodeId,F) ->
+  case node_lookup(NodeId,true) of
+    {ok, Node} ->
+      JavaExceptionAsValue = 
+        proplists:get_value
+          (java_exception_as_value,
+           Node#node.options,
+           false),
+      if
+        JavaExceptionAsValue ->
+          try apply(F,[])
+          catch 
+            throw:{java_exception,Exception} -> {java_exception,Exception} 
+          end;
+        true -> apply(F,[])
+      end
+  end.
 
 %% @doc
 %% Calls the constructor of a Java class, explicitely selecting
@@ -818,9 +840,13 @@ new(NodeId,ClassName,Args) when is_list(Args) ->
 -spec new(node_id(),class_name(),[type()],[value()]) -> object_ref().
 new(NodeId,ClassName,ArgTypes,Args) when is_list(Args) ->
     ?LOG("NodeId=~p ClassName=~p~n",[NodeId,ClassName]),
-    Constructor =
-        java_to_erlang:find_constructor_with_type(NodeId,ClassName,ArgTypes),
-    javaCall(NodeId,?call_constructor,{Constructor,list_to_tuple(Args)}).
+  guard_against_java_exception
+    (NodeId,
+     fun () -> 
+         Constructor =
+           java_to_erlang:find_constructor_with_type(NodeId,ClassName,ArgTypes),
+         javaCall(NodeId,?call_constructor,{Constructor,list_to_tuple(Args)})
+     end).
 
 %% @doc
 %% Calls a Java instance method.
@@ -829,9 +855,13 @@ new(NodeId,ClassName,ArgTypes,Args) when is_list(Args) ->
 %% corresponding to the call `Object.toString()'.
 -spec call(object_ref(),method_name(),[value()]) -> value().
 call(Object,Method,Args) when is_list(Args) ->
-    ensure_non_null(Object),
-    JavaMethod = java_to_erlang:find_method(Object,Method,Args),
-    javaCall(node_id(Object),?call_method,{Object,JavaMethod,list_to_tuple(Args)}).
+  guard_against_java_exception
+    (node_id(Object),
+     fun () -> 
+         ensure_non_null(Object),
+         JavaMethod = java_to_erlang:find_method(Object,Method,Args),
+         javaCall(node_id(Object),?call_method,{Object,JavaMethod,list_to_tuple(Args)})
+     end).
 
 %% @doc
 %% Calls a Java instance method, explicitely
@@ -839,10 +869,14 @@ call(Object,Method,Args) when is_list(Args) ->
 %% distinguish between methods of the same arity.
 -spec call(object_ref(),method_name(),[type()],[value()]) -> value().
 call(Object,Method,ArgTypes,Args) when is_list(Args) ->
-    ensure_non_null(Object),
-    JavaMethod =
-        java_to_erlang:find_method_with_type(Object,Method,ArgTypes),
-    javaCall(node_id(Object),?call_method,{Object,JavaMethod,list_to_tuple(Args)}).
+  guard_against_java_exception
+    (node_id(Object),
+     fun () -> 
+         ensure_non_null(Object),
+         JavaMethod =
+           java_to_erlang:find_method_with_type(Object,Method,ArgTypes),
+         javaCall(node_id(Object),?call_method,{Object,JavaMethod,list_to_tuple(Args)})
+     end).
 
 %% @doc
 %% Calls a Java static method (a class method).
@@ -851,19 +885,27 @@ call(Object,Method,ArgTypes,Args) when is_list(Args) ->
 %% corresponding to the call `Integer.reverseBytes(22)'.
 -spec call_static(node_id(),class_name(),method_name(),[value()]) -> value().
 call_static(NodeId,ClassName,Method,Args) when is_list(Args) ->
-    JavaMethod =
-        java_to_erlang:find_static_method(NodeId,ClassName,Method,Args),
-    javaCall(NodeId,?call_method,{null,JavaMethod,list_to_tuple(Args)}).
+  guard_against_java_exception
+    (NodeId,
+     fun () -> 
+         JavaMethod =
+           java_to_erlang:find_static_method(NodeId,ClassName,Method,Args),
+         javaCall(NodeId,?call_method,{null,JavaMethod,list_to_tuple(Args)})
+     end).
 
 %% @doc
 %% Calls a Java static method (a class method). Explicitely
 %% selects which method to call using the types argument.
 -spec call_static(node_id(),class_name(),method_name(),[type()],[value()]) -> value().
 call_static(NodeId,ClassName,Method,ArgTypes,Args) when is_list(Args) ->
-    JavaMethod =
-        java_to_erlang:find_static_method_with_type
-          (NodeId,ClassName,Method,ArgTypes),
-    javaCall(NodeId,?call_method,{null,JavaMethod,list_to_tuple(Args)}).
+  guard_against_java_exception
+    (NodeId,
+     fun () -> 
+         JavaMethod =
+           java_to_erlang:find_static_method_with_type
+             (NodeId,ClassName,Method,ArgTypes),
+         javaCall(NodeId,?call_method,{null,JavaMethod,list_to_tuple(Args)})
+     end).
 
 %% @doc
 %% Retrieves the value of an instance attribute.
@@ -871,9 +913,13 @@ call_static(NodeId,ClassName,Method,ArgTypes,Args) when is_list(Args) ->
 %% ``java:get(Object,v)', corresponding to 'Object.v''.
 -spec get(object_ref(), attribute_name()) -> value().
 get(Object,Field) ->
-    ensure_non_null(Object),
-    JavaField = java_to_erlang:find_field(Object,Field),
-    javaCall(node_id(Object),?getFieldValue,{Object,JavaField,null}).
+  guard_against_java_exception
+    (node_id(Object),
+     fun () -> 
+         ensure_non_null(Object),
+         JavaField = java_to_erlang:find_field(Object,Field),
+         javaCall(node_id(Object),?getFieldValue,{Object,JavaField,null})
+     end).
 
 %% @doc
 %% Retrieves the value of a class attribute.
@@ -882,23 +928,35 @@ get(Object,Field) ->
 %% corresponding to `Integer.SIZE'.
 -spec get_static(node_id(), class_name(), attribute_name()) -> value().
 get_static(NodeId,ClassName,Field) ->
-    JavaField = java_to_erlang:find_static_field(NodeId,ClassName,Field),
-    javaCall(NodeId,?getFieldValue,{null,JavaField,null}).
+  guard_against_java_exception
+    (NodeId,
+     fun () -> 
+         JavaField = java_to_erlang:find_static_field(NodeId,ClassName,Field),
+         javaCall(NodeId,?getFieldValue,{null,JavaField,null})
+     end).
 
 %% @doc
 %% Modifies the value of an instance attribute.
 -spec set(object_ref(), attribute_name(), value()) -> value().
 set(Object,Field,Value) ->
-    ensure_non_null(Object),
-    JavaField = java_to_erlang:find_field(Object,Field),
-    javaCall(node_id(Object),?setFieldValue,{Object,JavaField,Value}).
+  guard_against_java_exception
+    (node_id(Object),
+     fun () -> 
+         ensure_non_null(Object),
+         JavaField = java_to_erlang:find_field(Object,Field),
+         javaCall(node_id(Object),?setFieldValue,{Object,JavaField,Value})
+     end).
 
 %% @doc
 %% Modifies the value of a static, i.e., class attribute.
 -spec set_static(node_id(), class_name(), attribute_name(), value()) -> value().
 set_static(NodeId,ClassName,Field,Value) ->
-    JavaField = java_to_erlang:find_static_field(NodeId,ClassName,Field),
-    javaCall(NodeId,?setFieldValue,{null,JavaField,Value}).
+  guard_against_java_exception
+    (NodeId,
+     fun () -> 
+         JavaField = java_to_erlang:find_static_field(NodeId,ClassName,Field),
+         javaCall(NodeId,?setFieldValue,{null,JavaField,Value})
+     end).
 
 %% @doc
 %% Checks if two Java objects references refer to the same object.
