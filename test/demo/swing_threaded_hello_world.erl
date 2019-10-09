@@ -60,7 +60,6 @@ start() ->
         java:call(Frame,setVisible,[true]),
         loop()
     catch {java_exception,Exc} ->
-            erlang:display(erlang:get_stacktrace()),
             java:print_stacktrace(Exc)
     end.
 
