@@ -469,10 +469,18 @@ public class JavaErlang {
                                                    .elementAt(0)).atomValue();
                     if (classSpecifier.equals("array")) {
                         final Class comp = (Class) fromErlType(t.elementAt(1));
-                        final int dimensions = ((OtpErlangLong) t.elementAt(2))
+			final int dimensions;
+
+			if (t.arity() == 3) {
+			  dimensions = dimensions(arg);
+			} else {
+			  dimensions = ((OtpErlangLong) t.elementAt(2))
                             .intValue();
+			}
+
                         final int[] arr_dimensions = 
 			    checkDimensions(dimensions, arg);
+
                         if (logger.isLoggable(Level.FINER)) {
                           String logResult = "";
                           logResult += "Dimensions: ";
@@ -480,11 +488,22 @@ public class JavaErlang {
                             logResult += "["+arr_dimensions[i]+"]";
                           logger.log(Level.FINER,logResult);
                         }
+
                         final Object array =
 			  Array.newInstance(comp,arr_dimensions);
                         initializeArray(array, arg, comp, dimensions);
                         return array;
-                    }
+                    } else if (classSpecifier.equals("array_empty")) {
+                        final Class comp = (Class) fromErlType(t.elementAt(1));
+			final OtpErlangObject[] dimensions =
+			  ((OtpErlangTuple) t.elementAt(2)).elements();
+			final int[] arr_dimensions = new int[dimensions.length];
+			int i=0;
+			for (OtpErlangObject dim : dimensions) {
+			  arr_dimensions[i++] = ((OtpErlangLong)dim).intValue();
+			}
+			return Array.newInstance(comp,arr_dimensions);
+		    }
                 }
             } else if (arity == 5) {
                 final String tag = ((OtpErlangAtom) t.elementAt(0)).atomValue();
@@ -937,6 +956,24 @@ public class JavaErlang {
             return arrClass;
         }
     }
+
+  static int dimensions(Object value) {
+    int dimensions = 0;
+
+    if (value instanceof OtpErlangList) {
+      OtpErlangList l = ((OtpErlangList) value);
+      if (l.arity() == 0) return dimensions+1;
+      else return dimensions(l.getHead())+1;
+    } else if (value instanceof OtpErlangTuple) {
+      OtpErlangTuple l = ((OtpErlangTuple) value);
+      if (l.arity() == 0) return dimensions+1;
+      else return dimensions(l.elementAt(0))+1;
+    } else if (value.getClass().isArray()) {
+      Object arr[] = new Object[Array.getLength(value)];
+      if (arr.length != 0) return dimensions(arr[0]);
+      else return 1;
+    } else return 1;
+  }
 
     static int[] checkDimensions(int dimensions, Object value) 
 	throws Exception 
