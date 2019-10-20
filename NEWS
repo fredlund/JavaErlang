@@ -1,3 +1,9 @@
+20/10 -- 2018:
+
+Array can be initialized either using:
+{{array, Type, Dimensions}, Values} or
+{{array, Type}, Values}.
+
 25/10 -- 2018:
 
 A couple of updates to manage situations where the Java node cannot be
