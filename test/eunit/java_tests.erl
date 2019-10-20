@@ -1,5 +1,6 @@
 -module(java_tests).
 -include_lib("eunit/include/eunit.hrl").
+-export([tc25/1]).
 
 start() ->
     case node() of

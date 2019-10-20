@@ -471,11 +471,22 @@ public class JavaErlang {
                         final Class comp = (Class) fromErlType(t.elementAt(1));
 			final int dimensions;
 
-			if (t.arity() == 3) {
+                        switch (t.arity()) {
+                        case 2: 
 			  dimensions = dimensions(arg);
-			} else {
+                          break;
+                        case 3:
 			  dimensions = ((OtpErlangLong) t.elementAt(2))
                             .intValue();
+                          break;
+                        default:
+                          if (logger.isLoggable(Level.WARNING)) {
+                            logger.log
+                              (Level.WARNING,
+                               "wrong number of arguments to array specifier "+
+                               t);
+                          }
+                          throw new RuntimeException();
 			}
 
                         final int[] arr_dimensions = 
@@ -978,6 +989,10 @@ public class JavaErlang {
     static int[] checkDimensions(int dimensions, Object value) 
 	throws Exception 
     {
+        if (logger.isLoggable(Level.FINER)) {
+          logger.log(Level.FINER,"checkDimensions("+dimensions+","+value);
+        }
+      
         final ArrayList<Integer> result = new ArrayList<Integer>();
         while (dimensions > 0) {
             final Object[] elements = elements(value);
@@ -1357,8 +1372,10 @@ public class JavaErlang {
         final OtpErlangObject[] objs = ((OtpErlangTuple) tuple.elementAt(1))
             .elements();
 
-	if (logger.isLoggable(Level.FINER))
-	    logger.log(Level.FINER,"objTypeCompat: "+cmd);
+	if (logger.isLoggable(Level.FINER)) {
+	    logger.log(Level.FINER,"objTypeCompat: alt="+alternatives+", objs="+objs);
+            logger.log(Level.FINER,"length objs="+objs.length+" length alternatives="+alternatives.length);
+        }
 
         for (int i = 0; i < objs.length; i++) {
             final Type t = fromErlType(alternatives[i]);
@@ -1838,6 +1855,12 @@ public class JavaErlang {
                                       final Class type) throws Exception {
         Object obj;
         boolean result;
+
+        if (logger.isLoggable(Level.FINER)) {
+          logger.log
+            (Level.FINER,
+             "is_acceptable_as_argument("+value+","+type+")");
+        }
 
         try {
             obj = java_value_from_erlang(value, type);
