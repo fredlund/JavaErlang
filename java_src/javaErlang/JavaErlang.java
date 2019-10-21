@@ -844,10 +844,15 @@ public class JavaErlang {
       return java_value_from_erlang(value,type);
     else {
       final Object[] elements = elements(value);
-      final int[] someArrDimensions = new int[dimensions];
-      for (int i=0; i<dimensions; i++) someArrDimensions[i] = 0;
-      final Object arrType = Array.newInstance(type,someArrDimensions);
-      final Object arr = Array.newInstance(arrType.getClass(),elements.length);
+      final Object arr;
+      if (dimensions == 1)
+	arr = Array.newInstance(type,elements.length);
+      else {
+	final int[] someArrDimensions = new int[dimensions-1];
+	for (int i=0; i<dimensions-1; i++) someArrDimensions[i] = 0;
+	final Object arrType = Array.newInstance(type,someArrDimensions);
+	arr = Array.newInstance(arrType.getClass(),elements.length);
+      }
       for (int i=0; i<elements.length; i++) {
 	Object obj = initializeArray(elements[i],type,dimensions-1);
 	System.out.println(arr.getClass()+".set("+obj.getClass());
