@@ -9,10 +9,10 @@ strings), and Values can either a tuple of items, or a list of items.
 Example: {{array,'int',2},{{1},{2}}} and {{array,'int'},{{1},{2}}}.
 
 Empty arrays can be created using:
-{{array, Type}, Sizes} where
-Dimensions here is a tuple of sizes indicating the
+{{array_empty, Type, Sizes},null} where
+Size is a tuple of positive integers indicating the
 sizes (and overall dimension) of the resulting array.
-An example: {{array, 'int}, {1,2}}.
+An example: {{array, 'int, {1,2}},null}.
 
 25/10 -- 2018:
 
