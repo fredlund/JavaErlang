@@ -839,7 +839,6 @@ public class JavaErlang {
 		       final Class type,
 		       final int dimensions)
         throws Exception {
-    System.out.println("iA("+value+","+type+","+dimensions+")");
     if (value == null || dimensions == 0)
       return java_value_from_erlang(value,type);
     else {
@@ -855,7 +854,6 @@ public class JavaErlang {
       }
       for (int i=0; i<elements.length; i++) {
 	Object obj = initializeArray(elements[i],type,dimensions-1);
-	System.out.println(arr.getClass()+".set("+obj.getClass());
 	Array.set
 	  (arr,
 	   i,
