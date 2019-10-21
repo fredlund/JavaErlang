@@ -2,7 +2,17 @@
 
 Array can be initialized either using:
 {{array, Type, Dimensions}, Values} or
-{{array, Type}, Values}.
+{{array, Type}, Values},
+Dimensions is a positive integer indicating the number of
+dimensions of the array (to permit correct interpretation of
+strings), and Values can either a tuple of items, or a list of items.
+Example: {{array,'int',2},{{1},{2}}} and {{array,'int'},{{1},{2}}}.
+
+Empty arrays can be created using:
+{{array, Type}, Sizes} where
+Dimensions here is a tuple of sizes indicating the
+sizes (and overall dimension) of the resulting array.
+An example: {{array, 'int}, {1,2}}.
 
 25/10 -- 2018:
 

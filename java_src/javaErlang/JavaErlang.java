@@ -507,13 +507,20 @@ public class JavaErlang {
                     } else if (classSpecifier.equals("array_empty")) {
                         final Class comp = (Class) fromErlType(t.elementAt(1));
 			final OtpErlangObject[] dimensions =
-			  ((OtpErlangTuple) t.elementAt(2)).elements();
+			  ((OtpErlangTuple) arg).elements();
 			final int[] arr_dimensions = new int[dimensions.length];
 			int i=0;
 			for (OtpErlangObject dim : dimensions) {
 			  arr_dimensions[i++] = ((OtpErlangLong)dim).intValue();
 			}
+			if (logger.isLoggable(Level.WARNING)) {
+			    logger.log
+			    (Level.WARNING,
+			     "\n\r Value "+ value + " is not understood\n");
+			}			    
 			return Array.newInstance(comp,arr_dimensions);
+		    } else {
+		      throw new RuntimeException();
 		    }
                 }
             } else if (arity == 5) {
@@ -983,7 +990,7 @@ public class JavaErlang {
       Object arr[] = new Object[Array.getLength(value)];
       if (arr.length != 0) return dimensions(arr[0]);
       else return 1;
-    } else return 1;
+    } else return 0;
   }
 
     static int[] checkDimensions(int dimensions, Object value) 

@@ -457,6 +457,14 @@ tc25(Options) ->
     (java:call_static
        (NodeId,
 	'java.util.Arrays',toString,[{{array,'int',2},{{1},{2}}}])),
+  java:string_to_list
+    (java:call_static
+       (NodeId,
+	'java.util.Arrays',toString,[{{array,'int'},{{1},{2}}}])),
+  java:string_to_list
+    (java:call_static
+       (NodeId,
+	'java.util.Arrays',toString,[{{array_empty,'int'},{1,2}}])),
   true.
 
 tc26(Options) ->
