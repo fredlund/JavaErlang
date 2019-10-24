@@ -821,7 +821,8 @@ guard_against_java_exception(NodeId,F) ->
         JavaExceptionAsValue ->
           try apply(F,[])
           catch 
-            throw:{java_exception,Exception} -> {java_exception,Exception} 
+            throw:{java_exception,Exception} -> {java_exception,Exception};
+            throw:java_timeout -> {java_timeout,timeout} 
           end;
         true -> apply(F,[])
       end

@@ -1,5 +1,6 @@
 -module(java_tests).
 -include_lib("eunit/include/eunit.hrl").
+-export([tc25/1]).
 
 start() ->
     case node() of
@@ -456,6 +457,38 @@ tc25(Options) ->
     (java:call_static
        (NodeId,
 	'java.util.Arrays',toString,[{{array,'int',2},{{1},{2}}}])),
+  java:string_to_list
+    (java:call_static
+       (NodeId,
+	'java.util.Arrays',toString,[{{array,'int'},{{1},{2}}}])),
+  java:string_to_list
+    (java:call_static
+       (NodeId,
+	'java.util.Arrays',toString,[{{array,'int',2},{}}])),
+  java:string_to_list
+    (java:call_static
+       (NodeId,
+	'java.util.Arrays',toString,[{{array,'int',2},{{1}}}])),
+  java:string_to_list
+    (java:call_static
+       (NodeId,
+	'java.util.Arrays',toString,[{{array_empty,'int',{1,2}},null}])),
+  java:string_to_list
+    (java:call_static
+       (NodeId,
+	'java.util.Arrays',toString,[{{array,'int'},null}])),
+  java:string_to_list
+    (java:call_static
+       (NodeId,
+	'java.util.Arrays',toString,[{{array,'int'},{}}])),
+  java:string_to_list
+    (java:call_static
+       (NodeId,
+	'java.util.Arrays',toString,[{{array,'int'},{1}}])),
+  java:string_to_list
+    (java:call_static
+       (NodeId,
+	'java.util.Arrays',toString,[{{array,'int',2},{}}])),
   true.
 
 tc26(Options) ->

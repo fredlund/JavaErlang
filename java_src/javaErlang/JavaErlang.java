@@ -469,22 +469,39 @@ public class JavaErlang {
                                                    .elementAt(0)).atomValue();
                     if (classSpecifier.equals("array")) {
                         final Class comp = (Class) fromErlType(t.elementAt(1));
-                        final int dimensions = ((OtpErlangLong) t.elementAt(2))
+			final int dimensions;
+
+                        switch (t.arity()) {
+                        case 2: 
+			  dimensions = dimensions(arg);
+                          break;
+                        case 3:
+			  dimensions = ((OtpErlangLong) t.elementAt(2))
                             .intValue();
-                        final int[] arr_dimensions = 
-			    checkDimensions(dimensions, arg);
-                        if (logger.isLoggable(Level.FINER)) {
-                          String logResult = "";
-                          logResult += "Dimensions: ";
-                          for (int i=0; i<arr_dimensions.length; i++)
-                            logResult += "["+arr_dimensions[i]+"]";
-                          logger.log(Level.FINER,logResult);
-                        }
-                        final Object array =
-			  Array.newInstance(comp,arr_dimensions);
-                        initializeArray(array, arg, comp, dimensions);
-                        return array;
-                    }
+                          break;
+                        default:
+                          if (logger.isLoggable(Level.WARNING)) {
+                            logger.log
+                              (Level.WARNING,
+                               "wrong number of arguments to array specifier "+
+                               t);
+                          }
+                          throw new RuntimeException();
+			}
+                        return initializeArray(arg, comp, dimensions);
+                    } else if (classSpecifier.equals("array_empty")) {
+                        final Class comp = (Class) fromErlType(t.elementAt(1));
+			final OtpErlangObject[] dimensions =
+			  ((OtpErlangTuple) t.elementAt(2)).elements();
+			final int[] arr_dimensions = new int[dimensions.length];
+			int i=0;
+			for (OtpErlangObject dim : dimensions) {
+			  arr_dimensions[i++] = ((OtpErlangLong)dim).intValue();
+			}
+			return Array.newInstance(comp,arr_dimensions);
+		    } else {
+		      throw new RuntimeException();
+		    }
                 }
             } else if (arity == 5) {
                 final String tag = ((OtpErlangAtom) t.elementAt(0)).atomValue();
@@ -601,57 +618,11 @@ public class JavaErlang {
                    (type == java.lang.String.class)) {
             return ((OtpErlangList) value).stringValue();
         } else {
-            if (type instanceof Class) {
-                final Class typeClass = (Class) type;
-                final int dimensions = dimensions(typeClass);
-
-		if (logger.isLoggable(Level.FINE)) {
-		    logger.log
-			(Level.FINE,
-			 "typeClass="+typeClass+
-			 ", dimensions="+dimensions+
-			 ", value="+value);
-		}
-
-		if (dimensions > 0) {
-		    if (typeClass.isArray()) {
-			final Class arrElement = 
-			    getArrayElementClass(typeClass);
-			final int[] lengths = 
-			    checkDimensions(dimensions, value);
-                        if (logger.isLoggable(Level.FINER)) {
-                          String logResult = "";
-                          logResult += "Dimensions: ";
-                          for (int i=0; i<lengths.length; i++)
-                            logResult += "["+lengths[i]+"]";
-                          logger.log(Level.FINER,logResult);
-                        }
-			final Object arr = 
-			    Array.newInstance(arrElement, lengths);
-			initializeArray(arr, value, arrElement, dimensions);
-			return arr;
-		    } else {
-			if (logger.isLoggable(Level.FINE)) {
-			    logger.log
-				(Level.FINE,
-				 "Cannot convert " + value + " to type "
-				 + toString(typeClass) +
-				 " dimensions = "+dimensions);
-			}
-			throw new Exception();
-		    }
-		}
-		return value;
-            }
-
-            if (logger.isLoggable(Level.FINE)) {
-                logger.log
-                    (Level.FINE,"Cannot convert " + value + " to type "
-                     + toString(type));
-            }
-
-            throw new Exception();
-        }
+	  if (value instanceof OtpErlangTuple) {
+	    OtpErlangTuple t = (OtpErlangTuple) value;
+	    return java_value_from_erlang(t);
+	  } else return value;
+	}
     }
 
     static boolean isIntegerList(final OtpErlangList l) {
@@ -864,46 +835,33 @@ public class JavaErlang {
 	}
     }
 
-  void initializeArray(final Object arr,
-		       final Object value,
+  Object initializeArray(final Object value,
 		       final Class type,
 		       final int dimensions)
         throws Exception {
-        final Class arrClass = arr.getClass();
-
-	  if (logger.isLoggable(Level.FINER))
-	    logger.log
-	      (Level.FINER,
-	       "initializeArray: values="+value+" class="+
-	       toString(arrClass));
-
-        final int len = Array.getLength(arr);
-        final Object[] elements = elements(value);
-	if (len != elements.length) {
-	  if (logger.isLoggable(Level.WARNING)) {
-	    logger.log
-	      (Level.WARNING,
-	       "arr "+arr+" has length "+len+
-	       "\nbut elements "+elements+
-	       "\nhave length "+elements.length);
-	  }
-	  throw new RuntimeException();
-	}
-
-        for (int i = 0; i < len; i++) {
-	  final Object element = elements[i];
-	  final Object obj_at_i = Array.get(arr, i);
-
-	  if (dimensions > 1) {
-	    initializeArray(obj_at_i, element, type, dimensions-1);
-	  } else {
-	    Object setValue = element;
-	    if (setValue != null)
-	      setValue = java_value_from_erlang(setValue,type);
-	    Array.set(arr, i, setValue);
-	  }
-	}
+    if (value == null || dimensions == 0)
+      return java_value_from_erlang(value,type);
+    else {
+      final Object[] elements = elements(value);
+      final Object arr;
+      if (dimensions == 1)
+	arr = Array.newInstance(type,elements.length);
+      else {
+	final int[] someArrDimensions = new int[dimensions-1];
+	for (int i=0; i<dimensions-1; i++) someArrDimensions[i] = 0;
+	final Object arrType = Array.newInstance(type,someArrDimensions);
+	arr = Array.newInstance(arrType.getClass(),elements.length);
+      }
+      for (int i=0; i<elements.length; i++) {
+	Object obj = initializeArray(elements[i],type,dimensions-1);
+	Array.set
+	  (arr,
+	   i,
+	   obj);
+      }
+      return arr;
     }
+  }
 
     // For better printing of array classes
     static String toString(Type type) {
@@ -938,33 +896,31 @@ public class JavaErlang {
         }
     }
 
-    static int[] checkDimensions(int dimensions, Object value) 
-	throws Exception 
-    {
-        final ArrayList<Integer> result = new ArrayList<Integer>();
-        while (dimensions > 0) {
-            final Object[] elements = elements(value);
-            result.add(elements.length);
-            if ((elements.length == 0)) {
-              if (dimensions > 1) {
-                if (logger.isLoggable(Level.WARNING)) {
-                  logger.log
-                    (Level.WARNING,
-                     "\r\n*** array initialization of multi-dimensional array "+
-                     "with zero elements\r");
-                }
-                throw new RuntimeException();
-              }
-            } else value = elements[0];
-            dimensions--;
-        }
-        final int[] return_value = new int[result.size()];
-        int i = 0;
-        for (final Integer ri : result) {
-            return_value[i++] = ri;
-        }
-        return return_value;
+  static int dimensions(Object value) {
+    int dimensions = 0;
+
+    if (value instanceof OtpErlangList) {
+      OtpErlangList l = ((OtpErlangList) value);
+      return dimensions(l.elements());
+    } else if (value instanceof OtpErlangTuple) {
+      OtpErlangTuple l = ((OtpErlangTuple) value);
+      return dimensions(l.elements());
+    } else if (value.getClass().isArray()) {
+      Object arr[] = new Object[Array.getLength(value)];
+      if (arr.length != 0) return dimensions(arr[0]);
+      else return 1;
+    } else return 0;
+  }
+
+  static int dimensions(Object[] values) {
+    int max = 0;
+    for (Object value : values) {
+      int dimensions = dimensions(value);
+      if (dimensions > max)
+	max = dimensions;
     }
+    return max+1;
+  }
 
     static int dimensions(final Class arrClass) {
         if (arrClass.isArray()) {
@@ -1025,7 +981,17 @@ public class JavaErlang {
                 final Object array = Array.newInstance(comp, dimensions);
                 final Class arrayClass = array.getClass();
                 return arrayClass;
-            }
+            } else if (a.atomValue().equals("array_empty")) {
+                final Class comp = (Class) fromErlType(t.elementAt(1));
+		final Object[] sizes = elements(t.elementAt(2));
+                final int[] dimensions = new int[sizes.length];
+                for (int i = 0; i < sizes.length; i++) {
+                    dimensions[i] = 0;
+                }
+                final Object array = Array.newInstance(comp, dimensions);
+                final Class arrayClass = array.getClass();
+                return arrayClass;
+	    }
         }
 	if (logger.isLoggable(Level.WARNING)) 
 	    logger.log(Level.WARNING,"\rtype " + erlType + " is not understood?");
@@ -1320,8 +1286,10 @@ public class JavaErlang {
         final OtpErlangObject[] objs = ((OtpErlangTuple) tuple.elementAt(1))
             .elements();
 
-	if (logger.isLoggable(Level.FINER))
-	    logger.log(Level.FINER,"objTypeCompat: "+cmd);
+	if (logger.isLoggable(Level.FINER)) {
+	    logger.log(Level.FINER,"objTypeCompat: alt="+alternatives+", objs="+objs);
+            logger.log(Level.FINER,"length objs="+objs.length+" length alternatives="+alternatives.length);
+        }
 
         for (int i = 0; i < objs.length; i++) {
             final Type t = fromErlType(alternatives[i]);
@@ -1801,6 +1769,12 @@ public class JavaErlang {
                                       final Class type) throws Exception {
         Object obj;
         boolean result;
+
+        if (logger.isLoggable(Level.FINER)) {
+          logger.log
+            (Level.FINER,
+             "is_acceptable_as_argument("+value+","+type+")");
+        }
 
         try {
             obj = java_value_from_erlang(value, type);
