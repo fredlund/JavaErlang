@@ -4,8 +4,8 @@ Array can be initialized either using:
 {{array, Type, Dimensions}, Values} or
 {{array, Type}, Values},
 Dimensions is a positive integer indicating the number of
-dimensions of the array (to permit correct interpretation of
-strings), and Values can either a tuple of items, or a list of items.
+dimensions of the array,
+and Values can either a tuple of items, or a list of items.
 Example: {{array,'int',2},{{1},{2}}} and {{array,'int'},{{1},{2}}}.
 
 Empty arrays can be created using:
