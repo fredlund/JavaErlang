@@ -1463,9 +1463,9 @@ acquire_class_int(NodeId,ClassName,RealClassName) when is_atom(ClassName),
 			Class ->
 			    ets:delete(java_classes,{loading,NodeId,ClassName}),
 			    class_store(NodeId,ClassName,Class)
-		    catch ExceptionClass:Reason ->
+		    catch ExceptionClass:Reason:StackTrace ->
 			    ets:delete(java_classes,{loading,NodeId,ClassName}),
-			    erlang:ExceptionClass(Reason)
+			    erlang:raise(ExceptionClass,Reason,StackTrace)
 		    end
 	    end
     end;
@@ -1479,9 +1479,9 @@ acquire_class_int(NodeId,ClassRef,RealClassName) when is_tuple(ClassRef),
 		    ClassName =
 			list_to_atom(string_to_list(call(ClassRef,getCanonicalName,[]))),
 		    class_store(NodeId,ClassName,Class)
-	    catch ExceptionClass:Reason ->
+	    catch ExceptionClass:Reason:StackTrace ->
 		    ets:delete(java_classes,{loading,NodeId,ClassRef}),
-		    erlang:ExceptionClass(Reason)
+		    erlang:raise(ExceptionClass,Reason,StackTrace)
 	    end
     end.
 
