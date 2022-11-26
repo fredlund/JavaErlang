@@ -227,7 +227,7 @@ public class JavaErlang {
 
     public void reply(final Object reply, final OtpErlangPid replyPid)
         throws Exception {
-        // logger.log(Level.FINER,"returning "+return_value(reply)+" to "+replyPid);
+        logger.log(Level.FINER,"returning "+return_value(reply)+" to "+replyPid);
         msgs.send(replyPid, return_value(reply));
     }
 
@@ -1420,6 +1420,10 @@ public class JavaErlang {
 	}
 
 
+        if (logger.isLoggable(Level.FINER)) {
+          logger.log(Level.FINER,"Constructors for class "+cl+" are:\n"+
+                     erlConstructors);
+        }
 	
         final OtpErlangTuple[] tmp_arr =
 	    new OtpErlangTuple[erlConstructors.size()];

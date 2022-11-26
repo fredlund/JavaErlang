@@ -104,6 +104,7 @@ compute_class(NodeId,ClassArg,RealClassArg) ->
     StaticFieldsWithArity = 
 	elements_with_arity(NodeId,ClassArg,?getField,RawStaticFields,ObserverInClass),
 
+  Class =
     #class{
        name=ClassName,
        node_id=NodeId,
@@ -113,7 +114,9 @@ compute_class(NodeId,ClassArg,RealClassArg) ->
        static_methods={StaticMethodsWithType,StaticMethodsWithArity},
        fields=FieldsWithArity,
        static_fields=StaticFieldsWithArity
-      }.
+      },
+  java:format(debug,"Class ~p~n",[Class]),
+  Class.
 
 elements_with_type(NodeId,ClassName,Getter,Elements,ObserverInClass) ->
     lists:map
@@ -216,38 +219,56 @@ combine_strings(Delim,[Str|Rest]) when is_list(Delim), is_list(Str) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 find_constructor(NodeId,ClassName,Args) ->
-    Class = java:acquire_class(NodeId,ClassName),
-    LenArgs = length(Args),
-    case
-        find_element_without_type
-        (NodeId,{ClassName,LenArgs},Args,element(2,Class#class.constructors)) of
-        {ok,Constructor} -> Constructor;
-        false ->
-            java:format
-              (warning,
-               "*** Warning: cannot find constructor for class ~p with arity ~p "++
-                   "that matches arguments ~s~n",
-               [ClassName,LenArgs,print_parameters(Args)]),
-            throw(badarg)
-    end.
+  Class = java:acquire_class(NodeId,ClassName),
+  LenArgs = length(Args),
+  Constructors = element(2,Class#class.constructors),
+  Result = 
+    case Constructors of
+      [] -> 
+        false;
+      [First|_Rest] ->
+        %% Lets find the real class name
+        {{RealClassName,_Arity},_} = First,
+        find_element_without_type(NodeId,{RealClassName,LenArgs},Args,Constructors)
+    end,
+  case Result of
+    {ok,Constructor} -> Constructor;
+    false ->
+      java:format
+        (warning,
+         "*** Warning: cannot find constructor for class ~p with arity ~p "++
+           "that matches arguments ~s~n",
+         [ClassName,LenArgs,print_parameters(Args)]),
+      java:format
+        (debug,
+         "Constructors:~n~p~n",[element(2,Class#class.constructors)]),
+      throw(badarg)
+  end.
 
 find_constructor_with_type(NodeId,ClassName,ArgTypes) ->
-    Class = java:acquire_class(NodeId,ClassName),
-    Constructors = element(1,Class#class.constructors),
-    case
-        find_element_with_type
-        ({ClassName,ArgTypes},Constructors) of
-        {ok,Constructor} -> Constructor;
-        false ->
-            java:format
-              (warning,
-               "*** Warning: cannot find constructor for class ~p with types ~s~n",
-               [ClassName,print_parameters(ArgTypes)]),
-            java:format
-              (info,
-               "*** constructors: ~p~n",[Constructors]),
-            throw(badarg)
-    end.
+  Class = java:acquire_class(NodeId,ClassName),
+  Constructors = element(1,Class#class.constructors),
+  Result =
+    case Constructors of
+      [] -> 
+        false;
+      [First|_Rest] ->
+        %% Lets find the real class name
+        {{RealClassName,_Types},_} = First,
+        find_element_with_type({RealClassName,ArgTypes},Constructors)
+    end,
+  case Result of
+    {ok,Constructor} -> Constructor;
+    false ->
+      java:format
+        (warning,
+         "*** Warning: cannot find constructor for class ~p with types ~s~n",
+         [ClassName,print_parameters(ArgTypes)]),
+      java:format
+        (info,
+         "*** constructors: ~p~n",[Constructors]),
+      throw(badarg)
+  end.
 
 find_method(Object,Name,Args) ->
     Class = java:find_class(Object),
