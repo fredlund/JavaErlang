@@ -2,7 +2,7 @@
 
 CURDIR := .
 
-JINTERFACE_PRIV_DIR ?= $(shell erl -noshell -s init stop -eval "io:format(\"~s\", [code:priv_dir(jinterface)]).")
+JINTERFACE_PRIV_DIR ?= $(shell erl -noshell -eval "io:format(\"~s\", [code:priv_dir(jinterface)])." -s erlang halt)
 
 JAVA_SRC_DIR = $(CURDIR)/java_src
 JAVA_SRC_OUTPUT ?= $(CURDIR)/priv/JavaErlang.jar
